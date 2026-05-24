@@ -84,6 +84,7 @@ export default function Gallery() {
     [likedSet]
   )
 
+
   const toggleLike = useCallback((image) => {
     setLikedImages((prev) => {
       const next = new Set(prev)
