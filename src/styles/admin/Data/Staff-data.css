@@ -1,0 +1,11 @@
+.staff-data {
+  padding: 20px;
+}
+
+.staff-data__content {
+  margin-top: 20px;
+  background: var(--background-surface);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+}

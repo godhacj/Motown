@@ -1,0 +1,25 @@
+/* Hide scrollbars globally while preserving scroll functionality
+   - WebKit/Blink: remove scrollbar by setting width/height to 0 and hiding
+   - Firefox: use scrollbar-width: none; and transparent colors
+   Note: content remains scrollable via mouse wheel, touch, and keyboard.
+*/
+
+/* WebKit/Blink-based browsers (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  display: none;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none; /* hide scrollbar in Firefox */
+  scrollbar-color: transparent transparent;
+}
+
+/* Fallback: ensure any element that forces visible scrollbars still hides them */
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track-piece {
+  background: transparent !important;
+}

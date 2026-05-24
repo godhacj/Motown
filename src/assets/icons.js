@@ -1,0 +1,67 @@
+import {
+  FiHome,
+  FiImage,
+  FiMap,
+  FiInfo,
+  FiSettings,
+  FiUser,
+  FiSearch,
+  FiFileText,
+  FiShoppingCart,
+  FiMenu,
+  FiX,
+  FiHeart,
+  FiEdit2,
+  FiEye,
+  FiEyeOff,
+  FiShield,
+  FiBell
+} from "react-icons/fi";
+
+import { FaHeart, 
+  FaRegComment, 
+  FaRegBookmark, 
+  FaFacebook, 
+  FaTwitter, 
+  FaInstagram, 
+  FaLink, 
+  FaPaperPlane, 
+  FaPaperclip } from "react-icons/fa";
+
+import { IoShareSocialOutline, 
+  IoArrowBack, 
+  IoArrowForward } from "react-icons/io5";
+import { MdPerson } from 'react-icons/md'
+
+export const Icons = {
+  home: FiHome,
+  gallery: FiImage,
+  map: FiMap,
+  about: FiInfo,
+  settings: FiSettings,
+  profile: FiUser,
+  search: FiSearch,
+  page: FiFileText,
+  shopping: FiShoppingCart,
+  menu: FiMenu,
+  close: FiX,
+  heart: FiHeart,
+  heartFill: FaHeart,
+  share: IoShareSocialOutline,
+  back: IoArrowBack,
+  forward: IoArrowForward,
+  comment: FaRegComment,
+  bookmark: FaRegBookmark,
+  facebook: FaFacebook,
+  twitter: FaTwitter,
+  instagram: FaInstagram,
+  link: FaLink,
+  send: FaPaperPlane,
+  attach: FaPaperclip,
+  person: MdPerson,
+  pencil: FiEdit2,
+  eye: FiEye,
+  eyeOff: FiEyeOff,
+  security: FiShield,
+  bell: FiBell
+}

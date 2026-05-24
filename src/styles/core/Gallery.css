@@ -1,0 +1,380 @@
+/* ----------------------------- */
+/*        GALLERY CONTAINER       */
+/* ----------------------------- */
+.gallery-main {
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  width: 100vw;
+  height: 100vh;
+  background: var(--background-page);
+}
+
+.gallery-page {
+  padding: 8em 1em 4em 1em;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--background-page);
+  background-size: cover;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain; /* optional: prevents scroll chaining */
+}
+
+/* ----------------------------- */
+/*        MASONRY LAYOUT          */
+/* ----------------------------- */
+.gallery-masonry {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin: 0 auto;
+  padding-bottom: 10em;
+  gap: 0.5em;
+}
+
+.masonry-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  flex: 1;
+}
+
+.masonry-item {
+  position: relative;
+  width: 96%;
+  padding-bottom: 100%; /* square tiles */
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background: rgba(0, 0, 0, 0.03); /* prevents layout shift while images load */
+  will-change: transform, opacity;
+}
+
+.masonry-item:hover {
+  transform: translateY(-2px) scale(0.985);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.2);
+}
+
+.masonry-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.35s ease;
+  will-change: transform;
+}
+
+.masonry-item:hover .masonry-image {
+  transform: scale(1.06);
+}
+
+/* ----------------------------- */
+/*        IMAGE OVERLAY           */
+/* ----------------------------- */
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  opacity: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(6px);
+}
+
+.masonry-item:hover .image-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.image-info {
+  text-align: center;
+}
+
+.image-info h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.2em;
+}
+
+.image-info p {
+  margin: 0;
+  font-size: 0.9em;
+}
+
+/* ----------------------------- */
+/*        ACTION BUTTONS          */
+/* ----------------------------- */
+.image-actions,
+.gallery-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  transform: none !important;
+  pointer-events: auto;
+}
+
+.like-btn,
+.share-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  will-change: transform, opacity;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scale: 1.4;
+}
+
+.like-btn:hover,
+.share-btn:hover {
+  transform: scale(1.2);
+}
+
+.share-btn span {
+  font-size: 1em;
+  margin-left: 5px;
+}
+
+/* ----------------------------- */
+/*        MODAL STYLES            */
+/* ----------------------------- */
+.gallery-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.gallery-modal__content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gallery-modal__image {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.gallery-modal__close,
+.gallery-modal__prev,
+.gallery-modal__next {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.gallery-modal__close {
+  top: -10px;
+  right: -10px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5em;
+}
+
+.gallery-modal__prev,
+.gallery-modal__next {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  font-size: 1.5em;
+}
+
+.gallery-modal__prev {
+  left: -60px;
+}
+
+.gallery-modal__next {
+  right: -60px;
+}
+
+.gallery-modal__title {
+  text-align: left;
+  margin: 10px 0;
+  font-size: 1.5em;
+  color: white;
+}
+
+.gallery-modal__description {
+  text-align: center;
+  margin: 10px 0;
+  font-size: 1em;
+  color: white;
+}
+
+/* ----------------------------- */
+/*        END MESSAGE             */
+/* ----------------------------- */
+.gallery-end-message {
+  text-align: center;
+  padding: 20px;
+  color: var(--color);
+  font-size: 1.2em;
+  scroll-snap-align: start;
+  scroll-margin-top: 20px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin: 20px auto;
+  width: 50%;
+  z-index: 5;
+}
+
+/* ----------------------------- */
+/*        SHARE DIALOG            */
+/* ----------------------------- */
+.share-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.share-dialog {
+  background: var(--background-elevated);
+  color: var(--color-text-primary);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: var(--box-shadow);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+}
+
+.share-dialog h4 {
+  margin: 0 0 20px 0;
+  font-size: 1.5em;
+}
+
+.share-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.share-options button {
+  background: var(--background-1);
+  color: var(--color);
+  border: 1px solid var(--border-color);
+  padding: 10px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.share-options button:hover {
+  transform: scale(1.05);
+}
+
+.share-dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255,255,255,0.8);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 1.2em;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.share-dialog-close:hover {
+  transform: scale(1.1);
+}
+
+/* ----------------------------- */
+/*        RESPONSIVE BREAKPOINTS  */
+/* ----------------------------- */
+@media (max-width: 1024px) {
+  .gallery-page {
+    padding: 6px 1em 30px 1em;
+  }
+  .masonry-item { border-radius: 12px; }
+  .masonry-image { border-radius: 12px; }
+  .image-overlay { border-radius: 12px; padding: 8px; }
+  .image-info h3 { font-size: 1.1em; }
+  .image-info p { font-size: 0.85em; }
+  .like-btn, .share-btn { font-size: 1.3em; }
+  .gallery-modal__prev, .gallery-modal__next { width: 45px; height: 45px; font-size: 1.2em; }
+  .gallery-modal__prev { left: -50px; }
+  .gallery-modal__next { right: -50px; }
+}
+
+@media (max-width: 600px) {
+  .gallery-page { padding: 10em 4px 20px 4px; justify-content: center; display: flex; }
+  .masonry-item { width: 100%; min-height: 220px; border-radius: 8px; }
+  .masonry-image { border-radius: 8px; }
+  .image-overlay { border-radius: 8px; padding: 6px; }
+  .image-info h3 { font-size: 0.9em; }
+  .image-info p { font-size: 0.7em; }
+  .like-btn, .share-btn { font-size: 1em; }
+  .share-btn span { display: none; }
+  .gallery-modal__image { max-height: 65vh; }
+  .gallery-modal__prev, .gallery-modal__next { width: 40px; height: 40px; font-size: 0.9em; }
+  .gallery-modal__prev { left: -45px; }
+  .gallery-modal__next { right: -45px; }
+}
+
+/* ----------------------------- */
+/*        ACCESSIBILITY           */
+/* ----------------------------- */
+.masonry-item:focus-visible,
+.like-btn:focus-visible,
+.share-btn:focus-visible,
+.gallery-modal__close:focus-visible,
+.gallery-modal__prev:focus-visible,
+.gallery-modal__next:focus-visible {
+  outline: 2px solid var(--accent, #4da3ff);
+  outline-offset: 4px;
+}
+
+/* ----------------------------- */
+/*        MOBILE TOUCH OVERRIDES  */
+/* ----------------------------- */
+@media (hover: none) {
+  .image-overlay {
+    opacity: 1;
+    background: linear-gradient(to top, rgba(0,0,0,0.75), transparent 60%);
+  }
+}

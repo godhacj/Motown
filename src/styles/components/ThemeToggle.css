@@ -1,0 +1,105 @@
+.theme-toggle-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5em;
+  width: 2.5em;
+  border-radius: 100%;
+  background: rgba(255, 255, 255, 0.503);
+  box-shadow: inset var(--card-shadow);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.theme-toggle-container[data-expanded="false"] {
+  justify-content: left;
+}
+
+.theme-toggle-container[data-expanded="true"] {
+  width: 340px;
+  height: 100%;
+  border-radius: 20px;
+}
+
+/* Responsive widths */
+@media (max-width: 768px) {
+  .theme-toggle-container[data-expanded="true"] {
+    width: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .theme-toggle-container[data-expanded="true"] {
+    width: 240px;
+  }
+}
+
+@media (max-width: 400px) {
+  .theme-toggle-container[data-expanded="true"] {
+    width: 200px;
+  }
+}
+
+.theme-toggle-trigger,
+.theme-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: fit-content;
+  height: fit-content;
+  padding: 10px;
+  border-radius: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.theme-toggle-trigger:hover,
+.theme-option:hover {
+  background: var(--background-hover);
+  transform: translateY(-1px);
+}
+
+.theme-toggle-trigger.active {
+  background: var(--background-subtle);
+}
+
+.theme-toggle-trigger.active:hover {
+  background: var(--background-subtle);
+}
+
+.theme-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 90%;
+  gap: 0.7rem;
+  margin-left: 0.5rem;
+}
+
+.theme-option {
+  flex: 1;
+  min-width: 3rem;
+}
+
+.theme-option.active {
+  background: var(--background-subtle);
+  /* box-shadow: 0 0 0 2px var(--color-accent); */
+}
+
+.theme-option.active:hover {
+  background: var(--background-hover);
+}

@@ -1,0 +1,167 @@
+/* ===== Map Popups (Google Maps style) ===== */
+.map-popup {
+  width: 250px;
+  max-width: 250px;
+  text-align: center;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  font-family: Arial, sans-serif;
+  line-height: 1.4;
+}
+
+.map-popup img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.map-popup h3 {
+  margin: 5px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.map-popup p {
+  font-size: 14px;
+  margin: 3px 0;
+  color: #333;
+}
+
+.map-popup button {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #4285F4;
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.map-popup button:hover {
+  background: var(--color-accent-hover);
+}
+
+/* ===== Tooltip Styling ===== */
+.leaflet-tooltip {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== Map Container Styling ===== */
+.map-main {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--background-page);
+}
+
+.map-page {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  justify-content: center;
+  align-items: center;
+  background: var(--background-page);
+  background-size: cover;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+.map-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100vw;
+  padding: 0;
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 1000;
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+.map__content {
+  width: 100%;
+  height: 100%;
+}
+
+#leaflet-map {
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+/* ===== Zoom and Locate Controls Styling ===== */
+.leaflet-control-zoom-locate {
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  background: var(--background-elevated) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--box-shadow) !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+.leaflet-control-zoom-locate a {
+  background: var(--background-elevated) !important;
+  color: var(--color-text-primary) !important;
+  border: none !important;
+  width: 50px !important;
+  height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 24px !important;
+  font-weight: bold !important;
+  transition: background-color 0.2s ease !important;
+  padding: 8px !important;
+}
+
+.leaflet-control-locate-button,
+.leaflet-control-home-button {
+  color: black !important;
+}
+
+/* Dark-mode control color overrides removed; use theme variables */
+
+.leaflet-control-zoom-locate a:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-control-zoom-locate a:not(:last-child) {
+  border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ===== Marker Cursor & Hover Effect ===== */
+.leaflet-marker-icon {
+  cursor: pointer !important;
+  transition: transform 0.2s ease;
+}
+
+.leaflet-marker-icon:hover {
+  transform: scale(1.2); /* subtle hover zoom like Google Maps */
+}
+
+
+
+/* Dark-mode overrides removed; global theme variables control colors */

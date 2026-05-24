@@ -1,0 +1,273 @@
+.announcement-main {
+  /* Fix the main container to the viewport so inner .page can scroll independently */
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  width: 100vw;
+  height: 100vh;
+  overflow: auto; /* allow scrolling within announcement */
+}
+
+.announcement-page {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  overflow: auto; /* make inner content scrollable */
+  justify-content: center;
+  align-items: start;
+  background: var(--background-1);
+  background-size: cover;
+  /* add space at top so fixed Topbar doesn't overlap content */
+  padding-top: calc(5em + 12px);
+}
+
+.announcement {
+    background: var(--background-surface);
+    background-size: auto;
+  max-width: 80vw;
+  margin: 0 auto;
+  font-family: var(--font-family, 'Arial, sans-serif');
+}
+
+.announcement-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 20px;
+    background: var(--background-surface);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+  position: relative;
+}
+
+.announcement-create-btn-fixed {
+  position: fixed;
+  bottom: 5rem;
+  right: 2rem;
+    background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+    background: var(--color-success);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.announcement-header h1 {
+    color: var(--color-text-primary);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.announcement-header p {
+    color: var(--color-text-secondary);
+  opacity: 0.8;
+  margin: 0;
+}
+
+    background: var(--background-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.announcement-card {
+  background: var(--background-elevated);
+  border-radius: 12px;
+  padding: 24px;
+    box-shadow: var(--card-shadow);
+  border-left: 5px solid #007bff;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+    color: var(--color-text-primary);
+.announcement-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.announcement-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+    background: var(--background-surface);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.announcement-title {
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  margin: 0;
+  font-weight: 600;
+  flex: 1;
+}
+
+.announcement-priority {
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+    background: var(--background-subtle);
+  letter-spacing: 0.5px;
+}
+
+.announcement-meta {
+  margin-bottom: 16px;
+}
+
+.announcement-date {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+    background: var(--color-accent);
+  font-weight: 500;
+}
+
+.announcement-content {
+    background: var(--color-success);
+}
+
+.announcement-content {
+    background: var(--color-success);
+}
+.announcement-content p {
+  color: var(--color-text-primary);
+
+.announcement-form-container {
+  position: fixed;
+  bottom: 8rem;
+  right: 2rem;
+  background: var(--background-elevated);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--card-shadow);
+  max-width: 400px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.announcement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--color);
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--background-subtle);
+  color: var(--color);
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-color, #007bff);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.submit-btn,
+.cancel-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-btn {
+  background: var(--color-accent);
+  color: white;
+}
+
+.submit-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.cancel-btn {
+  background: var(--color-danger);
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: var(--color-danger);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .announcement {
+    padding: 15px;
+  }
+
+  .announcement-header h1 {
+    font-size: 2rem;
+  }
+
+  .announcement-create-btn {
+    position: static;
+    margin-top: 20px;
+    width: 100%;
+  }
+
+  .announcement-card {
+    padding: 20px;
+  }
+
+  .announcement-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .announcement-title {
+    font-size: 1.3rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .submit-btn,
+  .cancel-btn {
+    width: 100%;
+  }
+}

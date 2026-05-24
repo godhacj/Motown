@@ -1,0 +1,115 @@
+/* Sidebar basic styles — shows/hides sidebar and overlay when `open` / `visible` classes are applied */
+
+.sidebar-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	z-index: 999;
+}
+.sidebar-overlay.visible {
+	display: block;
+}
+
+.sidebar {
+	position: fixed;
+	top: 0;
+	left: -100vw;
+	width: 280px;
+	height: 100vh;
+	background: rgba(255, 255, 255, 0.35);
+	box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+	transition: left 220ms ease;
+	z-index: 1000;
+	overflow-y: auto;
+	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+}
+.sidebar.open {
+	left: 0;
+}
+
+/* Component-level dark-mode overrides removed; use global theme variables */
+
+.sidebar .sidebar-close {
+	background: none;
+	border: none;
+	font-size: 1.4rem;
+	cursor: pointer;
+	margin-bottom: 0.5rem;
+	align-self: flex-end;
+}
+
+.sidebar nav {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+
+.sidebar nav .sidebar-main {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 auto 0;
+	flex: 1;
+}
+
+.sidebar nav .sidebar-footer {
+	list-style: none;
+	padding: 1rem 0 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border, rgba(0,0,0,0.1));
+	margin-top: auto;
+	margin-bottom: 2rem;
+}
+
+.sidebar nav li {
+	margin: 0.3rem 0;
+}
+.sidebar nav li a {
+	color: inherit;
+	text-decoration: none;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 1rem 0.5rem;
+	border-radius: 4px;
+	transition: background 150ms ease, color 150ms ease, clip-path 150ms ease;
+	font-size: 1.08rem;
+	position: relative;
+}
+
+.sidebar nav li a:hover,
+.sidebar nav li.active a {
+	background-color: var(--background-surface);
+	color: var(--color-text-primary);
+	clip-path: polygon(98.75% 49.94%, 81.82% 100%, 0% 100%, 0% 0%, 81.49% 0%);
+}
+
+/* Dark mode overrides: invert sidebar colors from light mode */
+/* Dark-mode sidebar overrides removed */
+
+.sidebar nav .sidebar-icon {
+	font-size: 1.62rem;
+	flex-shrink: 0;
+	width: 1.62rem;
+	height: 1.62rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color, currentColor);
+}
+
+.sidebar nav li a:hover .sidebar-icon,
+.sidebar nav li.active a .sidebar-icon {
+	color: var(--colo-text-primary);
+}
+
+.sidebar nav .sidebar-label {
+	flex: 1;
+	word-break: break-word;
+}
+.sidebar nav li.active a {
+	font-weight: 600;
+}
+

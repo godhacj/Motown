@@ -1,0 +1,290 @@
+.page-main {
+  /* Fix the main container to the viewport so inner .page can scroll independently */
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  width: 100vw;
+  height: 100vh;
+  background: var(--background-surface);
+  /* allow scrolling within page */
+}
+
+.page-page {
+  padding: 8px;
+  padding-top: 115px; /* add space at top so fixed Topbar doesn't overlap content */
+  width: 100%;
+  height: 100%;
+  overflow: auto; /* make inner content scrollable */
+  justify-content: center;
+  align-items: center;
+  background: var(--background-surface);
+  background-size: auto;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+.page-content {
+  /* Add your page-specific content styles here */
+  padding: 20px;
+  padding-bottom: 120px; /* 20px + 100px white space */
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.post {
+  background: var(--background-surface);
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  width: 690px;
+  margin: 0 auto;
+}
+
+.post-image {
+  width: 100%;
+  height: 432px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-info {
+  padding: 15px;
+}
+
+.post-title {
+  margin: 0 0 8px 0;
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.post-description {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+  opacity: 0.8;
+}
+
+.post-actions {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 1.5em;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.like-btn {
+  color: var(--color-danger);
+}
+
+.like-btn:hover {
+  color: var(--color-danger);
+  opacity: 0.7;
+}
+
+.action-count {
+  font-size: 0.8em;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+.comments-section {
+  padding: 15px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.comments-list {
+  margin-bottom: 15px;
+}
+
+.comment {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: var(--background-surface);
+  border-radius: 8px;
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+}
+
+.comment-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.comment-input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--background-surface);
+  color: var(--color-text-primary);
+  font-size: 0.9em;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comment-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+}
+
+.comment-input::placeholder {
+  color: rgba(127, 127, 127, 0.8);
+}
+
+.attachment-menu-container {
+  position: relative;
+}
+
+.attach-btn, .send-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--background-elevated);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.attach-btn:hover, .send-btn:hover {
+  transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.send-btn {
+  background: var(--color);
+  color: var(--background-2);
+}
+
+.send-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color);
+}
+
+.attachment-menu {
+  position: absolute;
+  bottom: 50px;
+  left: 0;
+  background: var(--background-2);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 100;
+}
+
+.attachment-option {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  padding: 8px 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+}
+
+.attachment-option:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.share-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.share-dialog {
+  background: var(--background-surface);
+  border-radius: 15px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--card-shadow);
+  text-align: center;
+}
+
+.share-dialog h3 {
+  margin: 0 0 20px 0;
+  font-size: 1.2em;
+  color: var(--color-text-primary);
+}
+
+.share-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.share-option {
+  background: var(--background-1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 0.9em;
+  color: var(--color);
+  transition: background-color 0.2s ease;
+}
+
+.share-option:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.close-dialog {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease;
+}
+
+.close-dialog:hover {
+  background-color: var(--accent-color-hover);
+}

@@ -1,0 +1,64 @@
+.signout-main {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+}
+
+.signout-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.signed-out-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  margin-top: 24em;
+  text-align: center;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.signed-out-message span {
+  font-size: 5em;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ===================== RESPONSIVE DESIGN ===================== */
+@media (max-width: 1024px) {
+  .signed-out-message {
+    margin-top: 20em;
+  }
+
+  .signed-out-message span {
+    font-size: 3.5em;
+  }
+}
+
+@media (max-width: 768px) {
+  .signed-out-message {
+    margin-top: 16em;
+  }
+
+  .signed-out-message span {
+    font-size: 2.5em;
+  }
+}
+
+@media (max-width: 480px) {
+  .signed-out-message {
+    margin-top: 12em;
+  }
+
+  .signed-out-message span {
+    font-size: 1.8em;
+  }
+}

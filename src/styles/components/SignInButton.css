@@ -1,0 +1,116 @@
+.signin-wrapper {
+  position: fixed;
+  bottom: 3rem;
+  right: 3rem;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+      font-weight: 600;
+}
+
+.signin-button {
+  width: 14em;
+  height: 4em;
+  border-radius: 1.5em;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  border: none;
+  padding: 0;
+    font-size: 1rem;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  box-sizing: border-box;
+}
+
+.signin-button:hover {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.signin-button:active {
+  transform: translateY(0);
+}
+
+.signin-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  text-align: left;
+}
+
+.signin-icon {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
+}
+
+.signin-icon.open {
+  transform: rotate(0deg);
+}
+
+.signin-menu {
+  width: 14em;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  border-radius: 1.5em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.signin-option {
+  height: 4em;
+  padding: 0 1rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.signin-option:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: translateX(-4px);
+}
+
+.signin-option:active {
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateX(-2px);
+}
+
+.signin-option:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Enhanced contrast for light mode */
+:root[data-theme="light"] .signin-option {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] .signin-option:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .signin-option:active {
+  background: rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+}
+

@@ -1,0 +1,21 @@
+/* Chatbox */
+.chatbox {
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  border-radius: var(--radius-md);
+}
+
+.chatbox__messages {
+  min-height: 80px;
+  margin-bottom: 8px;
+}
+
+.chatbox__input {
+  display: flex;
+  gap: 8px;
+}
+
+.chatbox__input input {
+  flex: 1;
+  padding: 6px 8px;
+}

@@ -1,0 +1,32 @@
+/* Backgrounds for the application. The active background is read from the
+   CSS variable `--bg-image` which can be changed from JavaScript or
+   overridden in other styles. Images are fixed to the viewport. */
+
+.App-background {
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  background-image: var(--bg-image);
+  height: 100vh;
+  width: 100vw;
+  transition: background-image 400ms ease-in-out;
+  z-index: -1; /* keep background behind content */
+}
+
+.App-content {
+  position: relative;
+  z-index: 1; /* render above the fixed background */
+}
+
+/* Fallback/defaults based on theme. These provide sensible defaults so the
+   app still shows a background if JavaScript doesn't set `--bg-image`. */
+html[data-theme="light"] .App {
+  --bg-image: url('../assets/light/light_1.webp');
+}
+
+html[data-theme="dark"] .App {
+  --bg-image: url('../assets/dark/light_1.webp');
+}
+
+/* Helper variables you can tweak here to change defaults for light/dark
+   or add more variables like --bg-image-1, --bg-image-2 for multi-image
+   CSS-only solutions. */

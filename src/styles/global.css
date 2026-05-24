@@ -1,0 +1,226 @@
+/* ── LIGHT (default) ─────────────────────────────────────── */
+:root,
+:root[data-theme="light"] {
+  --background-page:       #f1f5f9;
+  --background-surface:    #ffffff;
+  --background-elevated:   #ffffff;
+  --background-subtle:     #f8fafc;
+
+  --color-text-primary:    #0f172a;
+  --color-text-secondary:  #475569;
+  --color-text-muted:      #94a3b8;
+  --color-text-bars:       #0f172a;
+
+  --color-accent:          #2563eb;
+  --color-accent-hover:    #1e40af;
+  --color-accent-fg:       #ffffff;
+
+  --color-success:         #10b981;
+  --color-danger:          #ef4444;
+  --color-warning:         #f59e0b;
+
+  --border-color:          rgba(15, 23, 42, 0.08);
+  --border-color-strong:   rgba(15, 23, 42, 0.25);
+  --background-hover:      #e2e8f0;
+  --border-color-hover:    rgba(15, 23, 42, 0.35);
+
+  --topbar-bg:             rgba(255, 255, 255, 0.6);
+  --topbar-shadow:         0 2px 8px rgba(0, 0, 0, 0.13);
+  --topbar-backdrop:       blur(12px);
+
+  --sidebar-bg:            #ffffff;
+  --sidebar-border:        rgba(15, 23, 42, 0.08);
+
+  --card-bg:               #ffffff;
+  --card-shadow:           0 1px 4px rgba(15, 23, 42, 0.525);
+
+  --input-bg:              #ffffff;
+  --input-border:          rgba(15, 23, 42, 0.14);
+  --input-placeholder:     #94a3b8;
+
+  --font-name:             'Open Sans', sans-serif;
+  --font-size-base:        16px;
+  --radius-md:             8px;
+  --radius-lg:             12px;
+}
+
+/* ── DARK ─────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --background-page:       #0a0f1a;
+  --background-surface:    #0f1724;
+  --background-elevated:   #162032;
+  --background-subtle:     #111827;
+
+  --color-text-primary:    #f1f5f9;
+  --color-text-secondary:  #94a3b8;
+  --color-text-muted:      #475569;
+  --color-text-bars:       #080d18e7;
+
+  --color-accent:          #3b82f6;
+  --color-accent-hover:    #2563eb;
+  --color-accent-fg:       #ffffff;
+
+  --color-success:         #059669;
+  --color-danger:          #ef4444;
+  --color-warning:         #d97706;
+
+  --border-color:          rgba(255, 255, 255, 0.08);
+  --border-color-strong:   rgba(255, 255, 255, 0.25);
+  --background-hover:      #1e293b;
+  --border-color-hover:    rgba(255, 255, 255, 0.35);
+
+  --topbar-bg:             rgba(10, 15, 26, 0.7);
+  --topbar-shadow:         0 2px 8px rgba(0, 0, 0, 0.40);
+  --topbar-backdrop:       blur(12px);
+
+  --sidebar-bg:            #0f1724;
+  --sidebar-border:        rgba(255, 255, 255, 0.06);
+
+  --card-bg:               #162032;
+  --card-shadow:           0 1px 4px rgba(220, 220, 220, 0.152);
+
+  --input-bg:              #111827;
+  --input-border:          rgba(255, 255, 255, 0.10);
+  --input-placeholder:     #475569;
+
+  --font-name:             'Open Sans', sans-serif;
+  --font-size-base:        16px;
+  --radius-md:             8px;
+  --radius-lg:             12px;
+}
+
+/* ── OCEAN ────────────────────────────────────────────────── */
+:root[data-theme="ocean"] {
+  --background-page:       #0c1e35;
+  --background-surface:    #102a47;
+  --background-elevated:   #163659;
+  --background-subtle:     #0d2237;
+
+  --color-text-primary:    #e0f2fe;
+  --color-text-secondary:  #7dd3fc;
+  --color-text-muted:      #38bdf8;
+  --color-text-bars:       #0f172a;
+
+  --color-accent:          #0ea5e9;
+  --color-accent-hover:    #0369a1;
+  --color-accent-fg:       #ffffff;
+
+  --color-success:         #34d399;
+  --color-danger:          #f87171;
+  --color-warning:         #fbbf24;
+
+  --border-color:          rgba(14, 165, 233, 0.15);
+  --border-color-strong:   rgba(14, 165, 233, 0.35);
+  --background-hover:      #164e63;
+  --border-color-hover:    rgba(14, 165, 233, 0.50);
+
+  --topbar-bg:             rgba(12, 30, 53, 0.75);
+  --topbar-shadow:         0 2px 8px rgba(0, 0, 0, 0.50);
+  --topbar-backdrop:       blur(12px);
+
+  --sidebar-bg:            #102a47;
+  --sidebar-border:        rgba(14, 165, 233, 0.12);
+
+  --card-bg:               #163659;
+  --card-shadow:           0 1px 4px rgba(128, 128, 128, 0.258);
+
+  --input-bg:              #0d2237;
+  --input-border:          rgba(14, 165, 233, 0.18);
+  --input-placeholder:     #38bdf8;
+
+  --font-name:             'Open Sans', sans-serif;
+  --font-size-base:        16px;
+  --radius-md:             8px;
+  --radius-lg:             12px;
+}
+
+/* ── FOREST ───────────────────────────────────────────────── */
+:root[data-theme="forest"] {
+  --background-page:       #0d1f13;
+  --background-surface:    #132a1a;
+  --background-elevated:   #1a3823;
+  --background-subtle:     #0f2216;
+
+  --color-text-primary:    #dcfce7;
+  --color-text-secondary:  #86efac;
+  --color-text-muted:      #4ade80;
+  --color-text-bars:       #0f172a;
+
+  --color-accent:          #22c55e;
+  --color-accent-hover:    #15803d;
+  --color-accent-fg:       #ffffff;
+
+  --color-success:         #4ade80;
+  --color-danger:          #f87171;
+  --color-warning:         #fbbf24;
+
+  --border-color:          rgba(34, 197, 94, 0.14);
+  --border-color-strong:   rgba(34, 197, 94, 0.35);
+  --background-hover:      #1e402a;
+  --border-color-hover:    rgba(34, 197, 94, 0.50);
+
+  --topbar-bg:             rgba(13, 31, 19, 0.75);
+  --topbar-shadow:         0 2px 8px rgba(0, 0, 0, 0.45);
+  --topbar-backdrop:       blur(12px);
+
+  --sidebar-bg:            #132a1a;
+  --sidebar-border:        rgba(34, 197, 94, 0.10);
+
+  --card-bg:               #1a3823;
+  --card-shadow:           0 1px 4px rgba(99, 99, 99, 0.493);
+
+  --input-bg:              #0f2216;
+  --input-border:          rgba(34, 197, 94, 0.16);
+  --input-placeholder:     #4ade80;
+
+  --font-name:             'Open Sans', sans-serif;
+  --font-size-base:        16px;
+  --radius-md:             8px;
+  --radius-lg:             12px;
+}
+
+/* ── SUNSET ───────────────────────────────────────────────── */
+:root[data-theme="sunset"] {
+  --background-page:       #1c0d0a;
+  --background-surface:    #2a1208;
+  --background-elevated:   #3b1a0c;
+  --background-subtle:     #1f0e0b;
+
+  --color-text-primary:    #fff1ee;
+  --color-text-secondary:  #fca5a5;
+  --color-text-muted:      #f87171;
+  --color-text-bars:       #0f172a;
+
+  --color-accent:          #f97316;
+  --color-accent-hover:    #c2410c;
+  --color-accent-fg:       #ffffff;
+
+  --color-success:         #34d399;
+  --color-danger:          #ef4444;
+  --color-warning:         #fbbf24;
+
+  --border-color:          rgba(249, 115, 22, 0.14);
+  --border-color-strong:   rgba(249, 115, 22, 0.35);
+  --background-hover:      #402515;
+  --border-color-hover:    rgba(249, 115, 22, 0.50);
+
+  --topbar-bg:             rgba(28, 13, 10, 0.75);
+  --topbar-shadow:         0 2px 8px rgba(0, 0, 0, 0.50);
+  --topbar-backdrop:       blur(12px);
+
+  --sidebar-bg:            #2a1208;
+  --sidebar-border:        rgba(249, 115, 22, 0.10);
+
+  --card-bg:               #3b1a0c;
+  --card-shadow:           0 1px 4px rgba(129, 129, 129, 0.41);
+
+  --input-bg:              #1f0e0b;
+  --input-border:          rgba(249, 115, 22, 0.16);
+  --input-placeholder:     #f87171;
+
+  --font-name:             'Open Sans', sans-serif;
+  --font-size-base:        16px;
+  --radius-md:             8px;
+  --radius-lg:             12px;
+}
+

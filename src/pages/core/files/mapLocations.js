@@ -1,0 +1,21 @@
+export const locations = [
+  { name: 'Achimota School', coords: [5.628386289179363, -0.2128380324123463], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Achimota_School_main_gate.jpg/320px-Achimota_School_main_gate.jpg' },
+  { name: 'Assembly hall', coords: [5.627990605465742, -0.21353732197881137], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Achimota_Assembly_Hall.jpg/320px-Achimota_Assembly_Hall.jpg' },
+  { name: 'Cadet square', coords: [5.62780139657629, -0.21427542428344284], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Achimota_Cadet_Square.jpg/320px-Achimota_Cadet_Square.jpg' },
+  { name: 'Aggrey Chapel', coords: [5.6270578802762135, -0.21286567136838566], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Aggrey_Chapel.jpg/320px-Aggrey_Chapel.jpg' },
+  { name: 'Achimota Girls Gym', coords: [5.627493196219682, -0.21118627575889679], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Achimota_Girls_Gym.jpg/320px-Achimota_Girls_Gym.jpg' },
+  { name: 'Eastern Dinning Hall', coords: [5.629456000731749, -0.21294378273245676], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Eastern_Dining_Hall.jpg/320px-Eastern_Dining_Hall.jpg' },
+  { name: 'Art School', coords: [5.629523218308048, -0.2135209913122506], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Art_School.jpg/320px-Art_School.jpg' },
+  { name: '7 unit block', coords: [5.630397584865888, -0.214218811787661], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/7_Unit_Block.jpg/320px-7_Unit_Block.jpg' },
+  { name: '18 unit block', coords: [5.630590236342957, -0.21512866345620515], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/18_Unit_Block.jpg/320px-18_Unit_Block.jpg' },
+  { name: '12Unit Block', coords: [5.630073768929489, -0.2154393947425098], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/12_Unit_Block.jpg/320px-12_Unit_Block.jpg' },
+  { name: 'Tullow Science Block', coords: [5.6306803266387275, -0.21462169896928085], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Tullow_Science_Block.jpg/320px-Tullow_Science_Block.jpg' },
+  { name: 'PTA Lab', coords: [5.629665709734598, -0.21398072533731122], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/PTA_Lab.jpg/320px-PTA_Lab.jpg' },
+  { name: 'New Assembly Hall', coords: [5.630591596906607, -0.21124775654792413], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/New_Assembly_Hall.jpg/320px-New_Assembly_Hall.jpg' },
+  { name: 'Atta Mill House', coords: [5.6297836047713545, -0.2100935722518827], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Atta_Mill_House.jpg/320px-Atta_Mill_House.jpg' },
+  { name: 'New House', coords: [5.629795487016823, -0.20933738259273826], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/New_House.jpg/320px-New_House.jpg' },
+  { name: 'Achimota Cricket Oval', coords: [5.628963729218877, -0.20707279343202625], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Achimota_Cricket_Oval.jpg/320px-Achimota_Cricket_Oval.jpg' },
+  { name: 'Achimota Cricket park', coords: [5.628737966190695, -0.20583105041279962], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Achimota_Cricket_Park.jpg/320px-Achimota_Cricket_Park.jpg' },
+  { name: 'Achimota Oval', coords: [5.6303381093102125, -0.20545693548667424], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Achimota_Oval.jpg/320px-Achimota_Oval.jpg' },
+  { name: 'Hockey Pitch', coords: [5.627966152064931, -0.20864072888444632], imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Hockey_Pitch.jpg/320px-Hockey_Pitch.jpg' }
+]

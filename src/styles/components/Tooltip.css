@@ -1,0 +1,113 @@
+/* ===================== TOOLTIP WRAPPER ===================== */
+.tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+/* ===================== TOOLTIP BASE ===================== */
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 6px;
+  background: var(--color-text-primary);
+  color: var(--background-page);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+/* ===================== TOOLTIP POSITIONS ===================== */
+.tooltip-top {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+}
+
+.tooltip-bottom {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+}
+
+.tooltip-left {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 8px;
+}
+
+.tooltip-right {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+}
+
+/* ===================== TOOLTIP ARROW ===================== */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: inherit;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+/* Arrow positioning for each direction */
+.tooltip-top::before {
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tooltip-bottom::before {
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tooltip-left::before {
+  right: -3px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.tooltip-right::before {
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* ===================== TOOLTIP ANIMATION ===================== */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark theme adjustments */
+:root[data-theme="dark"] .tooltip,
+:root[data-theme="ocean"] .tooltip,
+:root[data-theme="forest"] .tooltip,
+:root[data-theme="sunset"] .tooltip {
+  background: var(--color-text-primary);
+  color: var(--background-page);
+}
+
+:root[data-theme="light"] .tooltip {
+  background: var(--color-text-primary);
+  color: var(--background-page);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

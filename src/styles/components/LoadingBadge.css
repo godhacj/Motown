@@ -1,0 +1,51 @@
+/* Loading Badge - additive styling on top of Badge.css */
+.loading-badge {
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.15));
+  transform: scale(0.8);
+}
+
+/* Animate keys sequentially from left to right */
+.loading-badge .badge-container .bottom .loading-key {
+  animation: keyHoverWave 3s ease-in-out infinite;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(5) {
+  animation-delay: 0.6s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(6) {
+  animation-delay: 0.75s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(7) {
+  animation-delay: 0.9s;
+}
+
+.loading-badge .badge-container .bottom .loading-key:nth-child(8) {
+  animation-delay: 1.05s;
+}
+
+@keyframes keyHoverWave {
+  0%, 100% {
+    background-color: var(--background-elevated);
+  }
+  50% {
+    background-color: var(--key-hover);
+  }
+}
