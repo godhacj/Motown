@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icons } from '../assets/icons.js'
 import ThemeToggle from './ThemeToggle'
 import { useNotch } from '../contexts/NotchContext.jsx'
-import { FiX, FiLogOut, FiSettings, FiChevronRight } from 'react-icons/fi'
+import { FiX, FiLogOut, FiSettings, FiChevronRight, FiUser } from 'react-icons/fi'
 import '../styles/components/Topbar.css'
 
 function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
@@ -18,8 +18,36 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
   const [searchOpen,  setSearchOpen]  = React.useState(false)
   const [themeOpen,   setThemeOpen]   = React.useState(false)
   const [showProfile, setShowProfile] = React.useState(false)
-  const [profile,     setProfile]     = React.useState({ name: 'Guest', picture: null, id: null, email: null, adminType: null })
+  const [profile,     setProfile]     = React.useState({ name: 'Guest', picture: null, id: null, email: null, adminType: null, role: null })
   const [screenWidth, setScreenWidth] = React.useState(() => window.innerWidth)
+
+  // Read signed-in profile from localStorage
+  const loadProfile = React.useCallback(() => {
+    try {
+      const stored = localStorage.getItem('signedInProfile')
+      if (!stored) { setProfile({ name: 'Guest', picture: null, id: null, email: null, adminType: null, role: null }); return }
+      const p = JSON.parse(stored)
+      setProfile({
+        name:      p.name      || p.username || 'Student',
+        picture:   p.photo     || null,
+        id:        p.id        || p.username || null,
+        email:     p.email     || null,
+        adminType: p.adminType || null,
+        role:      p.role      || null,
+        username:  p.username  || null,
+      })
+    } catch { /* ignore */ }
+  }, [])
+
+  React.useEffect(() => {
+    loadProfile()
+    window.addEventListener('profileChanged', loadProfile)
+    window.addEventListener('storage', loadProfile)
+    return () => {
+      window.removeEventListener('profileChanged', loadProfile)
+      window.removeEventListener('storage', loadProfile)
+    }
+  }, [loadProfile])
 
   // Track screen width
   React.useEffect(() => {
@@ -96,29 +124,45 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
     return () => document.removeEventListener('keydown', handler)
   }, [showProfile])
 
+  const isLoggedIn = profile.role !== null || profile.id !== null
+
   const handleSignIn = () => {
     setShowProfile(false)
     navigate('/login/student')
+  }
+
+  const handleSignOut = () => {
+    localStorage.removeItem('signedInProfile')
+    window.dispatchEvent(new Event('profileChanged'))
+    setShowProfile(false)
+    navigate('/')
   }
 
   const handlePictureChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setProfile(prev => ({ ...prev, picture: reader.result }))
+    reader.onload = () => {
+      setProfile(prev => ({ ...prev, picture: reader.result }))
+      // persist updated photo locally
+      try {
+        const stored = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
+        localStorage.setItem('signedInProfile', JSON.stringify({ ...stored, photo: reader.result }))
+      } catch { /* ignore */ }
+    }
     reader.readAsDataURL(file)
   }
 
-  // Derive role label and subtitle from stored profile fields
+  // Derive role label from stored profile fields
   const profileRole = profile.adminType
     ? `${profile.adminType} Admin`
-    : profile.name === 'Teacher'
-      ? 'Teacher'
-      : profile.id
-        ? 'Student'
+    : profile.role === 'student' || (profile.id && !profile.adminType && profile.name !== 'Teacher')
+      ? 'Student'
+      : profile.role === 'teacher' || profile.name === 'Teacher'
+        ? 'Teacher'
         : 'Guest'
 
-  const profileSub = profile.email || profile.id || null
+  const profileSub = profile.email || (profile.id ? `ID: ${profile.id}` : null)
 
   const QUICK_LINKS = [
     { label: 'Home',     to: '/',         icon: Icons.home },
@@ -291,7 +335,12 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
                         <img src={profile.picture} alt="Profile" />
                       ) : (
                         <div className="pd-avatar__placeholder">
-                          <Icons.profile />
+                          {profile.name && profile.name !== 'Guest'
+                            ? <span className="pd-avatar__initials">
+                                {profile.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                              </span>
+                            : <Icons.profile />
+                          }
                         </div>
                       )}
                       <div className="pd-avatar__edit" aria-hidden="true">
@@ -327,6 +376,16 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
                         <FiChevronRight size={14} className="pd-nav__arrow" />
                       </button>
                     ))}
+                    {isLoggedIn && profile.role === 'student' && (
+                      <button
+                        className="pd-nav__item"
+                        onClick={() => { setShowProfile(false); navigate('/login/student') }}
+                      >
+                        <span className="pd-nav__icon"><FiUser size={16} /></span>
+                        <span className="pd-nav__label">Student Portal</span>
+                        <FiChevronRight size={14} className="pd-nav__arrow" />
+                      </button>
+                    )}
                     <button
                       className="pd-nav__item"
                       onClick={() => { setShowProfile(false); navigate('/settings') }}
@@ -340,11 +399,18 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig }) {
                   {/* Divider */}
                   <div className="pd-divider" />
 
-                  {/* Sign in */}
-                  <button className="pd-signout" onClick={handleSignIn}>
-                    <FiLogOut size={15} />
-                    Sign in
-                  </button>
+                  {/* Sign in / Sign out */}
+                  {isLoggedIn ? (
+                    <button className="pd-signout pd-signout--out" onClick={handleSignOut}>
+                      <FiLogOut size={15} />
+                      Sign out
+                    </button>
+                  ) : (
+                    <button className="pd-signout" onClick={handleSignIn}>
+                      <FiLogOut size={15} />
+                      Sign in
+                    </button>
+                  )}
 
                 </div>
               </>,

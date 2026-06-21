@@ -6,8 +6,11 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "seed": "node seed.js",
-    "seed:student": "node seedStudent.js"
+    "schema": "node schema.js",
+    "seed": "node seedAll.js",
+    "seed:append": "node seedAll.js --append",
+    "seed:student": "node seedStudent.js",
+    "seed:legacy": "node seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

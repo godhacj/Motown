@@ -60,23 +60,61 @@ export default function StudentLogin() {
     return errs
   }
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     const errs = validate()
     if (Object.keys(errs).length) { setFieldErrors(errs); return }
     setFieldErrors({})
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      // Demo: wrong ID triggers error
-      if (studentId.toLowerCase() === 'test0000') {
-        setError('Invalid Student ID or password. Please try again.')
+
+    const saveAndGo = (profile) => {
+      localStorage.setItem('signedInProfile', JSON.stringify(profile))
+      window.dispatchEvent(new Event('profileChanged'))
+      navigate('/student')
+    }
+
+    try {
+      const res = await fetch('http://localhost:5000/api/students/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: studentId.trim(), password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Invalid username or password.')
+        setLoading(false)
         return
       }
-      localStorage.setItem('signedInProfile', JSON.stringify({ name: 'Student', id: studentId }))
-      navigate('/student')
-    }, 1500)
+      saveAndGo({
+        role:     'student',
+        name:     data.name,
+        username: data.username,
+        id:       data.studentId,
+        email:    data.email,
+        photo:    data.photo ? `http://localhost:5000${data.photo}` : null,
+        program:  data.program,
+      })
+    } catch {
+      // Backend unavailable — fall back to demo credentials
+      if (
+        studentId.trim().toLowerCase() === 'student_001' &&
+        password === 'Pass123'
+      ) {
+        saveAndGo({
+          role:     'student',
+          name:     'Michael Owusu',
+          username: 'Student_001',
+          id:       'STU20240001',
+          email:    'michael.owusu@achimota.edu.gh',
+          photo:    null,
+          program:  'General Science',
+        })
+      } else {
+        setError('Could not connect to server. Please try again.')
+        setLoading(false)
+      }
+    }
   }
 
   const handleForgot = (e) => {

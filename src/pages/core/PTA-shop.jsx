@@ -1,9 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
 import { Icons } from '../../assets/icons'
 import { FiPlus, FiMinus, FiTrash2, FiShoppingBag, FiChevronLeft, FiChevronRight, FiTag } from 'react-icons/fi'
-import { products, billboardImages, CATEGORIES } from '../../routes/shopProducts'
+import { products as FALLBACK_PRODUCTS, billboardImages, CATEGORIES as FALLBACK_CATEGORIES } from '../../routes/shopProducts'
 import '../../styles/core/PTA-shop.css'
+
+const API = 'http://localhost:5000'
+
+// billboard images stay as-is (Unsplash URLs, no backend needed)
+const BILLBOARD = billboardImages
+
+function normalise(p) {
+  return {
+    ...p,
+    id: p._id || p.id,
+    image: p.image?.startsWith('/media/') ? `${API}${p.image}` : p.image,
+  }
+}
 
 function Avatar({ size = 36 }) {
   return (
@@ -24,7 +37,7 @@ function ProductCard({ product, cartQty, onAdd, onRemove }) {
         <h3 className="shop-card__name">{product.name}</h3>
         <p className="shop-card__desc">{product.description}</p>
         <div className="shop-card__footer">
-          <span className="shop-card__price">GH₵{product.price.toFixed(2)}</span>
+          <span className="shop-card__price">GH₵{Number(product.price).toFixed(2)}</span>
           {cartQty === 0 ? (
             <button className="shop-card__add-btn" onClick={() => onAdd(product)} aria-label="Add to cart">
               <FiPlus /> Add
@@ -68,12 +81,32 @@ export default function PTAShop() {
   const { setSideMenu, setNotchText, setSearchConfig } = useOutletContext()
   const navigate = useNavigate()
 
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [fade, setFade] = useState(true)
+  const [products,       setProducts]       = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [currentSlide,   setCurrentSlide]   = useState(0)
+  const [fade,           setFade]           = useState(true)
   const [activeCategory, setActiveCategory] = useState('All')
-  const [cart, setCart] = useState([])
-  const [cartOpen, setCartOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [cart,           setCart]           = useState([])
+  const [cartOpen,       setCartOpen]       = useState(false)
+  const [searchQuery,    setSearchQuery]    = useState('')
+
+  // Fetch products from API, fall back to static list
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/products`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { if (!cancelled) setProducts(data.map(normalise)) })
+      .catch(() => { if (!cancelled) setProducts(FALLBACK_PRODUCTS.map(normalise)) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Derive categories from live data
+  const categories = useMemo(() => {
+    if (products.length === 0) return FALLBACK_CATEGORIES
+    const cats = [...new Set(products.map(p => p.category).filter(Boolean))]
+    return ['All', ...cats]
+  }, [products])
 
   useEffect(() => {
     setNotchText('PTA Shop')
@@ -85,12 +118,12 @@ export default function PTAShop() {
     })
     setSideMenu([
       { title: 'Home',     to: '/',         icon: Icons.home },
-      { title: 'Gallery',  to: '/gallery',   icon: Icons.gallery },
-      { title: 'Shop',     to: '/pta-shop',  icon: Icons.shopping },
-      { title: 'Map',      to: '/map',       icon: Icons.map },
-      { title: 'Page',     to: '/page',      icon: Icons.page },
-      { title: 'About',    to: '/about',     icon: Icons.about },
-      { title: 'Settings', to: '/settings',  icon: Icons.settings },
+      { title: 'Gallery',  to: '/gallery',  icon: Icons.gallery },
+      { title: 'Shop',     to: '/pta-shop', icon: Icons.shopping },
+      { title: 'Map',      to: '/map',      icon: Icons.map },
+      { title: 'Page',     to: '/page',     icon: Icons.page },
+      { title: 'About',    to: '/about',    icon: Icons.about },
+      { title: 'Settings', to: '/settings', icon: Icons.settings },
     ])
   }, [setSideMenu, setNotchText, setSearchConfig])
 
@@ -99,15 +132,15 @@ export default function PTAShop() {
     const t = setInterval(() => {
       setFade(false)
       setTimeout(() => {
-        setCurrentSlide(p => (p + 1) % billboardImages.length)
+        setCurrentSlide(p => (p + 1) % BILLBOARD.length)
         setFade(true)
       }, 250)
     }, 3500)
     return () => clearInterval(t)
   }, [])
 
-  const prevSlide = () => setCurrentSlide(p => (p - 1 + billboardImages.length) % billboardImages.length)
-  const nextSlide = () => setCurrentSlide(p => (p + 1) % billboardImages.length)
+  const prevSlide = () => setCurrentSlide(p => (p - 1 + BILLBOARD.length) % BILLBOARD.length)
+  const nextSlide = () => setCurrentSlide(p => (p + 1) % BILLBOARD.length)
 
   // Cart helpers
   const addToCart = useCallback((product) => {
@@ -134,11 +167,13 @@ export default function PTAShop() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
 
-  const filteredProducts = products.filter(p => {
-    const matchesCat = activeCategory === 'All' || p.category === activeCategory
-    const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery) || p.description.toLowerCase().includes(searchQuery)
+  const filteredProducts = useMemo(() => products.filter(p => {
+    const matchesCat    = activeCategory === 'All' || p.category === activeCategory
+    const matchesSearch = !searchQuery
+      || p.name?.toLowerCase().includes(searchQuery)
+      || p.description?.toLowerCase().includes(searchQuery)
     return matchesCat && matchesSearch
-  })
+  }), [products, activeCategory, searchQuery])
 
   const goToCheckout = () => {
     if (cart.length === 0) return
@@ -152,7 +187,7 @@ export default function PTAShop() {
         {/* ── Billboard ── */}
         <div className="shop-billboard">
           <img
-            src={billboardImages[currentSlide]}
+            src={BILLBOARD[currentSlide]}
             alt={`Promotion ${currentSlide + 1}`}
             className={`shop-billboard__img${fade ? '' : ' shop-billboard__img--fade'}`}
           />
@@ -169,7 +204,7 @@ export default function PTAShop() {
             <FiChevronRight />
           </button>
           <div className="shop-billboard__dots">
-            {billboardImages.map((_, i) => (
+            {BILLBOARD.map((_, i) => (
               <button
                 key={i}
                 className={`shop-billboard__dot${i === currentSlide ? ' shop-billboard__dot--active' : ''}`}
@@ -185,7 +220,7 @@ export default function PTAShop() {
 
           {/* ── Categories ── */}
           <div className="shop-categories">
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button
                 key={cat}
                 className={`shop-cat-btn${activeCategory === cat ? ' shop-cat-btn--active' : ''}`}
@@ -209,11 +244,10 @@ export default function PTAShop() {
                 </h2>
               </div>
 
-              {filteredProducts.length === 0 ? (
-                <div className="shop-empty">
-                  <FiShoppingBag />
-                  <p>No products found.</p>
-                </div>
+              {loading ? (
+                <div className="shop-empty"><FiShoppingBag /><p>Loading products…</p></div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="shop-empty"><FiShoppingBag /><p>No products found.</p></div>
               ) : (
                 <div className="shop-grid">
                   {filteredProducts.map(product => (

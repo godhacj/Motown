@@ -409,7 +409,7 @@ const CONF_HISTORY = [
 
 const CONF_LINK = 'https://meet.achimota.edu.gh/room/SCI-4820'
 
-function PartConference() {
+function PartConference({ setHideTopbar }) {
   /* room state */
   const [inRoom, setInRoom]         = useState(false)
   const [layout, setLayout]         = useState('grid')
@@ -433,6 +433,12 @@ function PartConference() {
   const [toast, setToast]           = useState(null)
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+
+  /* hide topbar while in room, restore on exit */
+  useEffect(() => {
+    setHideTopbar?.(inRoom)
+    return () => setHideTopbar?.(false)
+  }, [inRoom, setHideTopbar])
 
   const showToast = (msg) => {
     setToast(msg)
@@ -931,7 +937,7 @@ const PARTS = [
 ]
 
 export default function Chat() {
-  const { setSideMenu, setSearchConfig, setNotchText, applyNotchTabs, setNotchActiveTab } = useOutletContext()
+  const { setSideMenu, setSearchConfig, setNotchText, applyNotchTabs, setNotchActiveTab, setHideTopbar } = useOutletContext()
   const [part, setPart] = useState('inbox')
 
   useEffect(() => {
@@ -974,7 +980,7 @@ export default function Chat() {
       <div className="ch-body">
         {part === 'inbox'      && <PartInbox />}
         {part === 'groups'     && <PartGroups />}
-        {part === 'conference' && <PartConference />}
+        {part === 'conference' && <PartConference setHideTopbar={setHideTopbar} />}
         {part === 'report'     && <PartReport />}
       </div>
     </div>

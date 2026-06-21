@@ -621,6 +621,13 @@
   overflow: hidden;
 }
 
+.pd-avatar__initials {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-secondary);
+  letter-spacing: -0.02em;
+}
+
 .pd-avatar__edit {
   position: absolute;
   bottom: -2px;
@@ -783,6 +790,16 @@
 
 .pd-signout:active {
   opacity: 0.88;
+}
+
+.pd-signout--out {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1.5px solid var(--color-danger);
+}
+
+.pd-signout--out:hover {
+  background: rgba(239, 68, 68, 0.08);
 }
 
 /* ═══════════════════════════════════════════
