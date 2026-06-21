@@ -3,11 +3,14 @@ import { Routes, Route } from 'react-router-dom'
 import './styles/App.css'
 import './styles/global.css'
 import './styles/backgrounds.css'
+import './styles/SettingsConfig.css'
+import { useSettingsSync } from './hooks/useSettingsSync'
 
 import {
-  Layout, Home, Library, Management, Settings, SignOut, NotFound, Academics, Club, Domestic, House, AggreyChapel, Catholic, Infrastructure, Records, StaffData, StudentData, Announcement, Chat, LibraryUsers, Syllabus, About, Gallery, Map, Page, PtaShop, AdminLogin, StudentLogin, TeacherLogin, Student, ProspectStudent, Teacher} from './routes/routes'
+  Layout, Home, Library, Management, Settings, SignOut, NotFound, Academics, Club, Domestic, House, AggreyChapel, Catholic, Infrastructure, Records, StaffData, StudentData, Announcement, Chat, LibraryUsers, Syllabus, About, Gallery, Map, Page, PtaShop, Checkout, AdminLogin, StudentLogin, TeacherLogin, Student, ProspectStudent, Teacher} from './routes/routes'
 
 function App() {
+  useSettingsSync()
   return (
     <div className="App-content">
         <Routes>
@@ -25,6 +28,7 @@ function App() {
             <Route path="map" element={<Map />} />
             <Route path="page" element={<Page />} />
             <Route path="pta-shop" element={<PtaShop />} />
+            <Route path="pta-shop/checkout" element={<Checkout />} />
 
             {/* Admin (nested) */}
             <Route path="admin/">
@@ -62,6 +66,7 @@ function App() {
               <Route path="map" element={<Map />} />
               <Route path="page" element={<Page />} />
               <Route path="pta-shop" element={<PtaShop />} />
+              <Route path="pta-shop/checkout" element={<Checkout />} />
             </Route>
 
             {/* Login (nested) */}

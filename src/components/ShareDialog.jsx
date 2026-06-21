@@ -1,99 +1,70 @@
-import React, { useCallback } from 'react'
-import { Icons } from '../assets/icons'
-
-function shareToPlatform(platform, { url, title }) {
-  const text = title ? `Check out: ${title}` : 'Check this out!'
-
-  switch (platform) {
-    case 'facebook':
-      return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
-    case 'twitter':
-      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`
-    case 'linkedin':
-      return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`
-    case 'whatsapp':
-      return `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`
-    case 'telegram':
-      return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-    case 'copy-link':
-      return null
-    default:
-      return null
-  }
-}
+import React from 'react';
 
 export default function ShareDialog({ image, onClose }) {
-  const onOverlayClick = useCallback(
-    (e) => {
-      if (e.target !== e.currentTarget) return
-      if (typeof onClose === 'function') onClose()
-    },
-    [onClose]
-  )
+  if (!image) return null;
+  const shareUrl = `${window.location.origin}/gallery/${image.id}`;
+  const shareTitle = image.title || '';
 
+  const handleOverlayClick = () => {
+    if (typeof onClose === 'function') onClose();
+  };
 
-  const handleShare = useCallback(
-    async (platform) => {
-      const url = window.location.href
-      const title = image?.title
+  const handleDialogClick = (e) => {
+    e.stopPropagation();
+  };
 
-      if (platform === 'copy-link') {
-        try {
-          await navigator.clipboard.writeText(url)
-        } catch {
-          // fallback
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      // fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = shareUrl;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    if (typeof onClose === 'function') onClose();
+  };
 
-          const textarea = document.createElement('textarea')
-          textarea.value = url
-          document.body.appendChild(textarea)
-          textarea.select()
-          document.execCommand('copy')
-          document.body.removeChild(textarea)
-        }
-        if (typeof onClose === 'function') onClose()
-        return
-      }
+  const handleFacebook = () => {
+    window.open(
+      `https://facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
 
-      const shareUrl = shareToPlatform(platform, { url, title })
-      if (shareUrl) window.open(shareUrl, '_blank', 'noopener,noreferrer')
-      if (typeof onClose === 'function') onClose()
-    },
-    [image, onClose]
-  )
+  const handleTwitter = () => {
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
 
-  if (!image) return null
+  const handleWhatsApp = () => {
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(shareTitle + ' ' + shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
 
   return (
-    <div className="share-dialog-overlay" onClick={onOverlayClick} role="dialog" aria-modal="true">
-      <div className="share-dialog" onClick={(e) => e.stopPropagation()}>
-        <h4>Share this image</h4>
-
+    <div className="share-dialog-overlay" onClick={handleOverlayClick}>
+      <div className="share-dialog" onClick={handleDialogClick}>
+        <button className="share-dialog-close" onClick={onClose} aria-label="Close share dialog">✕</button>
+        <h4>Share "{image.title}"</h4>
         <div className="share-options">
-          <button onClick={() => handleShare('facebook')} className="share-option" aria-label="Share on Facebook">
-            {typeof Icons?.facebook !== 'undefined' ? <Icons.facebook /> : 'Facebook'}
-          </button>
-          <button onClick={() => handleShare('twitter')} className="share-option" aria-label="Share on Twitter">
-            {typeof Icons?.twitter !== 'undefined' ? <Icons.twitter /> : 'Twitter'}
-          </button>
-          <button onClick={() => handleShare('linkedin')} className="share-option" aria-label="Share on LinkedIn">
-            {typeof Icons?.linkedin !== 'undefined' ? <Icons.linkedin /> : 'LinkedIn'}
-          </button>
-          <button onClick={() => handleShare('whatsapp')} className="share-option" aria-label="Share on WhatsApp">
-            {typeof Icons?.whatsapp !== 'undefined' ? <Icons.whatsapp /> : 'WhatsApp'}
-          </button>
-          <button onClick={() => handleShare('telegram')} className="share-option" aria-label="Share on Telegram">
-            {typeof Icons?.telegram !== 'undefined' ? <Icons.telegram /> : 'Telegram'}
-          </button>
-          <button onClick={() => handleShare('copy-link')} className="share-option" aria-label="Copy link">
-            {typeof Icons?.link !== 'undefined' ? <Icons.link /> : 'Copy link'}
-          </button>
+          <button onClick={handleCopyLink}>Copy Link</button>
+          <button onClick={handleFacebook}>Facebook</button>
+          <button onClick={handleTwitter}>Twitter</button>
+          <button onClick={handleWhatsApp}>WhatsApp</button>
         </div>
-
-        <button onClick={onClose} className="share-dialog-close" aria-label="Close share dialog">
-          ×
-        </button>
       </div>
     </div>
-  )
+  );
 }
 

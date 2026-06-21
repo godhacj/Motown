@@ -34,6 +34,7 @@ import Gallery from '../pages/core/Gallery'
 import Map from '../pages/core/Map'
 import Page from '../pages/core/Page'
 import PtaShop from '../pages/core/PTA-shop'
+import Checkout from '../pages/core/Checkout'
 
 // Logins
 import AdminLogin from '../pages/Log-in-pages/AdminLogin'
@@ -80,6 +81,7 @@ export {
   Map,
   Page,
   PtaShop,
+  Checkout,
 
   // Logins
   AdminLogin,

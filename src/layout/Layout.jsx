@@ -1,5 +1,6 @@
 import Topbar from "../components/Topbar";
 import Sidebar from "../components/Sidebar";
+import LoadScreen from "../components/LoadScreen";
 import { Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNotch } from '../contexts/NotchContext.jsx'
@@ -9,12 +10,14 @@ function Layout() {
   const [isOpen, setIsOpen] = useState(false);
   const [sideMenu, setSideMenu] = useState([]);
   const [searchConfig, setSearchConfig] = useState({ visible: false });
-  const { setNotchText, setNotchIcon } = useNotch();
+  const [hideTopbar, setHideTopbar] = useState(false);
+  const { setNotchText, setNotchIcon, setNotchTabs, setNotchActiveTab, applyNotchTabs } = useNotch();
   const location = useLocation();
 
-  // Update activeMenu when location changes
   const activeMenu = location.pathname;
 
+  // Reset notch to plain-text mode whenever the route changes.
+  // Pages that want tab mode will call applyNotchTabs() in their own useEffect.
   useEffect(() => {
     const pathToName = {
       '/': 'Home',
@@ -24,7 +27,6 @@ function Layout() {
       '/page': 'Page',
       '/about': 'About',
       '/settings': 'Settings',
-      // Add more as needed
     };
     const pathToIcon = {
       '/': Icons.home,
@@ -41,23 +43,43 @@ function Layout() {
 
     setNotchText(pageName);
     setNotchIcon(<IconComponent />);
-  }, [location.pathname, setNotchText, setNotchIcon]);
-
-  const handleOpen = () => {
-    // Menu opens from child pages
-  };
+    // Clear any tab navigation from the previous page
+    setNotchTabs([]);
+    setNotchActiveTab(null);
+  }, [location.pathname, setNotchText, setNotchIcon, setNotchTabs, setNotchActiveTab]);
 
   return (
+    <LoadScreen>
     <div>
-      <Topbar isOpen={isOpen} setIsOpen={setIsOpen} onOpen={handleOpen} searchConfig={searchConfig} setSearchConfig={setSearchConfig} />
+      {!hideTopbar && (
+        <Topbar
+          isOpen={isOpen}
+          setIsOpen={setIsOpen}
+          searchConfig={searchConfig}
+          setSearchConfig={setSearchConfig}
+        />
+      )}
       <Sidebar
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         sideMenu={sideMenu}
         activeMenu={activeMenu}
       />
-      <Outlet context={{ setIsOpen, setSideMenu, setSearchConfig, setNotchText, setNotchIcon }} />
+      <Outlet context={{
+        setIsOpen,
+        setSideMenu,
+        setSearchConfig,
+        setNotchText,
+        setNotchIcon,
+        // Tab-nav API
+        applyNotchTabs,
+        setNotchTabs,
+        setNotchActiveTab,
+        // Topbar visibility
+        setHideTopbar,
+      }} />
     </div>
+    </LoadScreen>
   );
 }
 

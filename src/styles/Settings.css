@@ -1,37 +1,467 @@
-.settings-main{
-  /* Fix the main container to the viewport so inner .page can scroll independently */
+/* ═══════════════════════════════════════════
+   SETTINGS — shell
+═══════════════════════════════════════════ */
+.settings-main {
   position: fixed;
-  inset: 0; /* top:0; right:0; bottom:0; left:0 */
-  width: 100vw;
-  height: 100vh;
-  overflow: auto; /* allow scrolling within settings */
+  inset: 0;
+  overflow: hidden;
 }
 
-.settings-page{
-  display: grid;
+.settings-page {
   width: 100%;
   height: 100%;
-  overflow: auto; /* make inner content scrollable */
-  justify-content: center;
-  align-items: start;
-  background: var(--background-surface);
-  background-size: auto;
-  /* add space at top so fixed Topbar doesn't overlap content */
-  padding-top: calc(5em + 12px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--background-page);
+  padding-top: calc(4rem + 24px);
+  padding-bottom: 3rem;
+  box-sizing: border-box;
+  /* flex column + align-items: center constrains height to viewport,
+     blocking scroll. Use a block layout with max-width on children instead. */
 }
 
-.settings {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+/* ═══════════════════════════════════════════
+   INNER WIDTH CAP
+═══════════════════════════════════════════ */
+.sett-header,
+.sett-section,
+.sett-danger-zone {
+  width: calc(100% - 40px);
+  max-width: 760px;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.settings h1 {
+/* ═══════════════════════════════════════════
+   PAGE HEADER
+═══════════════════════════════════════════ */
+.sett-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.sett-header__title {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: var(--color-text-primary);
-  margin-bottom: 20px;
 }
 
-.settings p {
+.sett-header__sub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Saved flash badge ── */
+.sett-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 999px;
+  padding: 4px 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.sett-saved--show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════
+   SECTION
+═══════════════════════════════════════════ */
+.sett-section {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.sett-section__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 18px 20px;
+  cursor: pointer;
   color: var(--color-text-primary);
-  font-size: 16px;
+  font-family: var(--font-name);
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.sett-section__header:hover {
+  background: var(--background-hover);
+}
+
+.sett-section__title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sett-section__icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.sett-section__title {
+  font-size: 0.975rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.sett-chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.sett-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Body — animated open/close */
+.sett-section__body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.sett-section__body--open {
+  max-height: 9999px;
+  transition: max-height 0.5s ease;
+}
+
+/* ═══════════════════════════════════════════
+   ROW
+═══════════════════════════════════════════ */
+.sett-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sett-row__label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sett-row__label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.sett-row__hint {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.sett-row__control {
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   TOGGLE (switch)
+═══════════════════════════════════════════ */
+.sett-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--border-color-strong);
+  cursor: pointer;
+  transition: background 0.22s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.sett-toggle--on {
+  background: var(--color-accent);
+}
+
+.sett-toggle--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sett-toggle__thumb {
+  position: absolute;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sett-toggle--on .sett-toggle__thumb {
+  left: calc(100% - 21px);
+}
+
+/* ═══════════════════════════════════════════
+   SELECT
+═══════════════════════════════════════════ */
+.sett-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sett-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-name);
+  font-size: 0.85rem;
+  padding: 7px 32px 7px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+  min-width: 140px;
+}
+
+.sett-select:hover {
+  border-color: var(--border-color-strong);
+}
+
+.sett-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.sett-select-arrow {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* ═══════════════════════════════════════════
+   SEGMENTED CONTROL
+═══════════════════════════════════════════ */
+.sett-seg {
+  display: inline-flex;
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.sett-seg__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-name);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.sett-seg__btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+}
+
+.sett-seg__btn:hover:not(.sett-seg__btn--active) {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+}
+
+.sett-seg__btn--active {
+  background: var(--background-elevated);
+  color: var(--color-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ═══════════════════════════════════════════
+   TEXT INPUT
+═══════════════════════════════════════════ */
+.sett-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-name);
+  font-size: 0.875rem;
+  padding: 7px 12px;
+  outline: none;
+  width: 200px;
+  max-width: 100%;
+  transition: border-color 0.15s ease;
+}
+
+.sett-input::placeholder {
+  color: var(--input-placeholder);
+}
+
+.sett-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+/* ═══════════════════════════════════════════
+   DANGER ZONE
+═══════════════════════════════════════════ */
+.sett-danger-zone {
+  margin-top: 8px;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.sett-danger-zone__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sett-danger-zone__text strong {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.sett-danger-zone__text span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.sett-danger-zone__btn {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  font-family: var(--font-name);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sett-danger-zone__btn:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .settings-page {
+    padding-top: calc(3.5rem + 16px);
+  }
+
+  .sett-header {
+    padding: 0 12px 16px;
+    width: calc(100% - 24px);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sett-section {
+    margin-bottom: 12px;
+    width: calc(100% - 24px);
+  }
+
+  .sett-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .sett-row__control {
+    width: 100%;
+  }
+
+  .sett-seg {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .sett-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .sett-input {
+    width: 100%;
+  }
+
+  .sett-danger-zone {
+    margin-top: 8px;
+    width: calc(100% - 24px);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sett-danger-zone__btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .sett-section__header {
+    padding: 14px 14px;
+  }
+
+  .sett-row {
+    padding: 12px 14px;
+  }
 }

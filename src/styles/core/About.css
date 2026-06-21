@@ -1,52 +1,580 @@
-.about-main{
-  /* Fix the main container to the viewport so inner .page can scroll independently */
+/* ─────────────────────────────────────────────
+   ABOUT PAGE — layout shell
+───────────────────────────────────────────── */
+.about-main {
   position: fixed;
-  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  overflow: auto; /* allow scrolling within about */
+  overflow: hidden;
 }
 
-.about-page{
-  display: grid;
+.about-page {
   width: 100%;
   height: 100%;
-  overflow: auto; /* make inner content scrollable */
-  justify-content: center;
-  align-items: start;
-  background: var(--background-1);
-  background-size: cover;
-  /* add space at top so fixed Topbar doesn't overlap content */
-  padding-top: calc(5em + 12px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--background-page);
+  /* No padding-top — the sticky banner fills the topbar gap */
+  padding-bottom: 3rem;
+  box-sizing: border-box;
 }
 
-.about {
-  padding: 20px;
+/* ─────────────────────────────────────────────
+   BANNER
+───────────────────────────────────────────── */
+.about-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* height driven by inline style from JS */
+  min-height: 8vh;
+  overflow: hidden;
+  z-index: 10;
+  /* smooth height transitions as user scrolls */
+  will-change: height, opacity;
+  /* push content below the fixed topbar */
+  padding-top: calc(4rem + 24px);
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
-.about__content {
-  margin-top: 20px;
-  display: grid;
-  gap: 20px;
-}
-
-.about__history,
-.about__mission,
-.about__values {
+.about-banner__img-wrap {
+  position: absolute;
+  inset: 0;
   background: var(--background-elevated);
-  padding: 20px;
-  border-radius: 8px;
+  /* swap in: background-image: url('...'); background-size: cover; background-position: center; */
+}
+
+.about-banner__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  color: var(--color-accent-fg);
+  opacity: 0.92;
+}
+
+.about-banner__placeholder span {
+  font-size: clamp(0.9rem, 2.5vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.about-banner__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: clamp(10px, 3vh, 24px);
+  background: linear-gradient(to top, rgba(0,0,0,0.52) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.about-banner__title {
+  margin: 0 0 4px;
+  font-size: clamp(1.2rem, 3.5vw, 2.2rem);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  letter-spacing: 0.02em;
+}
+
+.about-banner__sub {
+  margin: 0;
+  font-size: clamp(0.72rem, 1.8vw, 0.95rem);
+  font-weight: 600;
+  color: rgba(255,255,255,0.82);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* Gap between banner and the first card */
+.about-banner + .about-hero {
+  margin-top: 20px;
+}
+
+/* ─────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────── */
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--background-elevated);
+  border-radius: var(--radius-lg);
   box-shadow: var(--card-shadow);
+  padding: 32px 28px;
+  margin: 0 20px 20px;
+  border: 1px solid var(--border-color);
+}
+
+.about-hero__badge {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-hero__name {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.about__values-list {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0 0;
+.about-hero__tagline {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
 }
 
-.about__values-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+.about-hero__description {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 560px;
+}
+
+/* ─────────────────────────────────────────────
+   INFO STRIP
+───────────────────────────────────────────── */
+.about-info-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--background-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  margin: 0 20px 24px;
+  padding: 16px 20px;
+  gap: 0;
+}
+
+.about-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 20px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.about-info-item__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.about-info-item__value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.about-info-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-color);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────
+   BODY GRID
+───────────────────────────────────────────── */
+.about-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 0 20px;
+}
+
+.about-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─────────────────────────────────────────────
+   CARD
+───────────────────────────────────────────── */
+.about-card {
+  background: var(--background-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.about-card__title {
+  margin: 0 0 4px;
+  padding: 20px 20px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.about-card__subtitle {
+  margin: 0 0 16px;
+  padding: 0 20px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* ─────────────────────────────────────────────
+   ANTHEM
+───────────────────────────────────────────── */
+.about-card__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 20px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  text-align: left;
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.about-card__toggle:hover {
+  background: var(--background-hover);
+}
+
+.about-card__toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.about-card__toggle-icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.about-anthem-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s ease;
+  padding: 0 20px;
+}
+
+.about-anthem-body--open {
+  max-height: 400px;
+  padding: 4px 20px 20px;
+}
+
+.about-anthem-line {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ─────────────────────────────────────────────
+   HOUSES
+───────────────────────────────────────────── */
+.about-card__toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 8px;
+  line-height: 1.6;
+}
+
+.about-houses-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s ease;
+  padding: 0 20px;
+}
+
+.about-houses-body--open {
+  max-height: 600px;
+  padding: 4px 20px 20px;
+}
+
+.houses-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.house-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.house-chip:hover {
+  background: var(--background-hover);
+  border-color: var(--border-color-hover);
+}
+
+.house-chip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.house-chip__name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────
+   FAQ
+───────────────────────────────────────────── */
+.faq-list {
+  padding: 8px 0 4px;
+}
+
+.faq-item {
+  border-top: 1px solid var(--border-color);
+}
+
+.faq-item:last-child {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 14px 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: left;
+  transition: background 0.15s ease;
+  font-family: var(--font-name);
+}
+
+.faq-question:hover {
+  background: var(--background-hover);
+}
+
+.faq-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.25s ease;
+}
+
+.faq-chevron--open {
+  transform: rotate(180deg);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.faq-item--open .faq-answer {
+  max-height: 200px;
+}
+
+.faq-answer p {
+  margin: 0;
+  padding: 0 20px 16px;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────────────────
+   SERVICE CARDS
+───────────────────────────────────────────── */
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 20px 20px;
+}
+
+.service-card {
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.service-card__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.service-card__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.service-card__row--muted {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.service-card__icon {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  font-size: 0.85rem;
+}
+
+/* ─────────────────────────────────────────────
+   SCHOOL PROFILE GRID
+───────────────────────────────────────────── */
+.about-profile-grid {
+  padding: 12px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.about-profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.about-profile-row:last-child {
+  border-bottom: none;
+}
+
+.about-profile-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.about-profile-value {
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE — TABLET
+───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .about-body {
+    grid-template-columns: 1fr;
+  }
+
+  .about-info-strip {
+    gap: 8px;
+  }
+
+  .about-info-divider {
+    display: none;
+  }
+
+  .about-info-item {
+    padding: 6px 12px;
+    min-width: 0;
+    flex: 0 0 calc(50% - 24px);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE — MOBILE
+───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .about-page {
+    padding-bottom: 2rem;
+  }
+
+  .about-banner {
+    padding-top: calc(3.5rem + 16px);
+  }
+
+  .about-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 0 12px 16px;
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .about-info-strip {
+    margin: 0 12px 16px;
+    padding: 12px;
+  }
+
+  .about-info-item {
+    flex: 0 0 100%;
+    padding: 4px 0;
+  }
+
+  .about-body {
+    padding: 0 12px;
+    gap: 16px;
+  }
+
+  .houses-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

@@ -20,6 +20,22 @@ try {
   }
 } catch (e) {}
 
+// Apply settings attributes before first paint to avoid a flash
+try {
+  const SETTING_DEFAULTS = {
+    fontScale: 'medium', reducedMotion: false,
+    highContrast: false, largeText: false, focusIndicators: true,
+  }
+  const raw = localStorage.getItem('motownSettings')
+  const cfg = raw ? { ...SETTING_DEFAULTS, ...JSON.parse(raw) } : SETTING_DEFAULTS
+  const root = document.documentElement
+  root.setAttribute('data-font-scale',       cfg.fontScale)
+  root.setAttribute('data-reduced-motion',   String(cfg.reducedMotion))
+  root.setAttribute('data-high-contrast',    String(cfg.highContrast))
+  root.setAttribute('data-large-text',       String(cfg.largeText))
+  root.setAttribute('data-focus-indicators', String(cfg.focusIndicators))
+} catch (e) {}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>

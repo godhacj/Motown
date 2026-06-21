@@ -2,104 +2,158 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
+/* ── Container ── */
 .theme-toggle-container {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 2.5em;
-  width: 2.5em;
-  border-radius: 100%;
-  background: rgba(255, 255, 255, 0.503);
+  /* Collapsed: just big enough for one button */
+  height: var(--icon-btn-size, 2.8em);
+  width: var(--icon-btn-size, 2.8em);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.5);
   box-shadow: inset var(--card-shadow);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Do NOT use overflow:hidden here — it clips the trigger icon.
+     Clipping is handled per-child where needed. */
+  overflow: visible;
+  flex-shrink: 0;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed */
+.theme-toggle-container[data-expanded="false"] {
+  justify-content: center;
+}
+
+/* Expanded */
+.theme-toggle-container[data-expanded="true"] {
+  width: 340px;
+  border-radius: 20px;
+  justify-content: flex-start;
+  /* Only clip when expanded so options don't spill outside the pill */
   overflow: hidden;
 }
 
-.theme-toggle-container[data-expanded="false"] {
-  justify-content: left;
+/* Force-expanded inside takeover bar */
+.topbar-theme-full .theme-toggle-container[data-expanded="true"] {
+  width: 100%;
+  overflow: hidden;
 }
 
-.theme-toggle-container[data-expanded="true"] {
-  width: 340px;
-  height: 100%;
-  border-radius: 20px;
-}
-
-/* Responsive widths */
-@media (max-width: 768px) {
-  .theme-toggle-container[data-expanded="true"] {
-    width: 280px;
-  }
-}
-
-@media (max-width: 480px) {
-  .theme-toggle-container[data-expanded="true"] {
-    width: 240px;
-  }
-}
-
-@media (max-width: 400px) {
-  .theme-toggle-container[data-expanded="true"] {
-    width: 200px;
-  }
-}
-
-.theme-toggle-trigger,
-.theme-option {
+/* ── Trigger button (always visible, shows current theme) ── */
+.theme-toggle-trigger {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  width: fit-content;
-  height: fit-content;
-  padding: 10px;
-  border-radius: 100%;
+  flex-shrink: 0;
+  width: var(--icon-btn-size, 2.8em);
+  min-width: var(--icon-btn-size, 2.8em);
+  height: var(--icon-btn-size, 2.8em);
+  border-radius: 50%;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--color-text-primary);
-  font-size: 1.5rem;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-.theme-toggle-trigger:hover,
-.theme-option:hover {
-  background: var(--background-hover);
-  transform: translateY(-1px);
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .theme-toggle-trigger.active {
   background: var(--background-subtle);
 }
 
-.theme-toggle-trigger.active:hover {
-  background: var(--background-subtle);
+.theme-toggle-trigger:hover {
+  background: var(--background-hover);
+  transform: translateY(-1px);
 }
 
+/* ── Icon inside trigger — explicit px size, not em, so it never
+   depends on the em chain or gets clipped ── */
+.theme-toggle-trigger svg {
+  position: relative;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+  /* Feather icons are stroke-based — ensure they inherit text color */
+  stroke: currentColor;
+  fill: none;
+}
+
+/* ── Options row (hidden when collapsed) ── */
 .theme-options {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 90%;
-  gap: 0.7rem;
-  margin-left: 0.5rem;
+  flex: 1;
+  justify-content: space-evenly;
+  /* Hide options when container is collapsed */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  /* Prevent options from widening the collapsed container */
+  overflow: hidden;
+  width: 0;
 }
 
+.theme-toggle-container[data-expanded="true"] .theme-options {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.2s ease 0.08s;
+  overflow: visible;
+  width: auto;
+}
+
+/* ── Option buttons ── */
 .theme-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   flex: 1;
-  min-width: 3rem;
+  min-width: var(--icon-btn-size, 2.8em);
+  height: var(--icon-btn-size, 2.8em);
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.theme-option svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+}
+
+.theme-option:hover {
+  background: var(--background-hover);
+  transform: translateY(-1px);
 }
 
 .theme-option.active {
   background: var(--background-subtle);
-  /* box-shadow: 0 0 0 2px var(--color-accent); */
 }
 
 .theme-option.active:hover {
   background: var(--background-hover);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .theme-toggle-container[data-expanded="true"] {
+    width: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .theme-toggle-container[data-expanded="true"] {
+    width: 260px;
+  }
 }

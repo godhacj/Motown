@@ -1,44 +1,48 @@
 /* ===================== CORE CONTAINERS ===================== */
-.badge-container{
+.badge-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 
-.badge-cover{
+.badge-cover {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 /* ===================== BADGE SVG ===================== */
 .shield-svg {
-  width: 31em;
-  height: 36em;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 100;
+  /*
+    Target: fill ~55% of viewport width on mid screens, capped at 31em on
+    desktop and floored at 18em so it never shrinks too small.
+    The 55vw sweet-spot keeps it large between 400px–1000px.
+  */
+  width: clamp(18em, 55vw, 31em);
+  height: auto;
+  display: block;
+  position: relative;
+  z-index: 1;
 }
 
-/* SVG internal container */
-.badge-container{
+/* SVG internal container (rendered inside foreignObject) */
+.badge-container {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
-.badge-container .top{
+.badge-container .top {
   width: 100%;
   height: 12%;
-  /* top bar color will be rendered via pseudo-element for opacity control */
   position: relative;
 }
+
 .badge-container .top::before {
   content: '';
   position: absolute;
@@ -48,17 +52,18 @@
   z-index: -1;
 }
 
-.badge-container .bottom{
+.badge-container .bottom {
   width: 100%;
   height: 88%;
   display: flex;
 }
 
-.badge-container .bottom .key{
+.badge-container .bottom .key {
   width: 12.5%;
   border: 2px solid var(--color-text-primary);
   position: relative;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
 }
 
 .badge-container .bottom .key::before {
@@ -70,11 +75,11 @@
   z-index: -1;
 }
 
-.badge-container .bottom .key:hover{
+.badge-container .bottom .key:hover {
   background: var(--background-hover);
 }
 
-.badge-container .bottom .key .key-hole{
+.badge-container .bottom .key .key-hole {
   position: absolute;
   width: 100%;
   height: 45%;
@@ -83,7 +88,7 @@
   z-index: 20;
 }
 
-.badge-container .bottom .key .key-hole div{
+.badge-container .bottom .key .key-hole div {
   position: absolute;
   bottom: -17.5%;
   left: 1%;
@@ -93,64 +98,54 @@
   clip-path: polygon(50% 100%, 0 0, 100% 0);
 }
 
-/* ===================== POPUP (CRITICAL FIXES) ===================== */
-.badge-popup{
-  position: fixed;     
-  /* background layer handled by pseudo-element for opacity control */
+/* ===================== MOTTO ===================== */
+.motto {
+  text-align: center;
+  margin-top: calc(0.5rem + 0.5vw);
+  position: relative;
+  z-index: 1;
+  padding: 0 1rem;
+}
+
+.motto span {
+  font-size: clamp(1rem, 3.8vw, 2.8rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: 0.04em;
+  /* Allow wrapping on very narrow screens instead of overflowing */
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* ===================== POPUP ===================== */
+.badge-popup {
+  position: fixed;
   color: var(--color-text-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
   z-index: 999;
-  background: var( --topbar-bg);
-  width: 30em;
-  height: 40em;
-  padding: 10px;
+  background: var(--background-elevated);
+  width: clamp(18em, 30vw, 30em);
+  height: clamp(26em, 42vh, 40em);
+  padding: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  touch-action: none; 
+  touch-action: none;
   cursor: grab;
-  animation: popupAppear 0.3s ease-out;
+  animation: popupAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  overflow: hidden;
 }
 
-/* translucent background only */
-.badge-popup::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--background-elevated);
-  opacity: 0.7;
-  border-radius: inherit;
-  z-index: -1;
-}
-
-/* Drag feedback */
-.badge-popup:active{
+.badge-popup:active {
   cursor: grabbing;
-}
-
-
-.badge-popup-key-0,
-.badge-popup-key-1,
-.badge-popup-key-2,
-.badge-popup-key-3 {
-  /* Right side positioning handled by JS, but we can add visual distinction if needed */
-}
-
-
-.badge-popup-key-4,
-.badge-popup-key-5,
-.badge-popup-key-6,
-.badge-popup-key-7 {
-  /* Left side positioning handled by JS, but we can add visual distinction if needed */
 }
 
 /* ===================== POPUP ANIMATIONS ===================== */
 @keyframes popupAppear {
   from {
     opacity: 0;
-    transform: scale(0.85) translateY(-20px);
+    transform: scale(0.9) translateY(-12px);
   }
   to {
     opacity: 1;
@@ -158,8 +153,8 @@
   }
 }
 
-.badge-popup.fade-out{
-  animation: popupDisappear 0.2s ease-in forwards;
+.badge-popup.fade-out {
+  animation: popupDisappear 0.18s ease-in forwards;
 }
 
 @keyframes popupDisappear {
@@ -169,230 +164,196 @@
   }
   to {
     opacity: 0;
-    transform: scale(0.85);
+    transform: scale(0.9);
   }
 }
 
 /* ===================== POPUP HEADER ===================== */
-.badge-popup-header{
+.badge-popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
-/* Close button remains clickable */
-.badge-popup-header button{
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--color);
-  width: 48px;
-  height: 48px;
-}
-
-/* ===================== IMAGE ===================== */
-.badge-popup img{
-  width: 100%;
-  height: 70%;
-  object-fit: cover;
-  margin: 12px 0;
-  pointer-events: none; /* prevents drag stealing */
-}
-
-/* ===================== TEXT ===================== */
-.badge-popup p{
-  margin: 8px 16px;
-  font-size: 14px;
-}
-
-/* ===================== ACTION BUTTONS ===================== */
-.badge-popup-actions{
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--border-color);
-}
-
-.badge-popup-actions button{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px;
-  border: 1px solid var(--border-color);
-  background: var(--background-surface);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.badge-popup-actions button:hover{
-  background: var(--background-hover);
-  transform: translateY(-1px);
-}
-
-.badge-popup-actions button.liked{
-  background: rgba(0, 0, 0, 0.542);
-  color: white;
-}
-
-/* ===================== MOTTO ===================== */
-.motto{
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -100%);
-  margin-top: 24em;
-  text-align: center;
-  z-index: 100;
-  white-space: nowrap;
-}
-
-.motto span{
-  font-size: 5em;
+.badge-popup-header h3 {
+  margin: 0;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-/* ===================== RESPONSIVE DESIGN ===================== */
-@media (max-width: 1024px) {
-  .shield-svg {
-    width: 28em;
-    height: 32em;
-  }
-
-  .badge-popup {
-    width: 26em;
-    height: 36em;
-  }
-
-  .badge-popup-header button {
-    width: 44px;
-    height: 44px;
-  }
-
-  .badge-popup p {
-    font-size: 13px;
-  }
-
-  .motto {
-    margin-top: 20em;
-  }
-
-  .motto span {
-    font-size: 4em;
-  }
+.badge-popup-header button {
+  background: var(--background-hover);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
-@media (max-width: 768px) {
-  .shield-svg {
-    width: 22em;
-    height: 25em;
+.badge-popup-header button:hover {
+  background: var(--border-color);
+}
+
+/* ===================== IMAGE ===================== */
+.badge-popup img {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* ===================== TEXT ===================== */
+.badge-popup p {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+/* ===================== ACTION BUTTONS ===================== */
+.badge-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.badge-popup-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.badge-popup-actions button:hover {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+}
+
+.badge-popup-actions button.liked {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge-popup-actions button.liked:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+/* ===================== MOBILE — bottom sheet ===================== */
+@media (max-width: 600px) {
+  /* Let the global clamp handle sizing — no override needed here */
+
+  .motto span {
+    font-size: clamp(1rem, 5vw, 1.8rem);
   }
 
+  /* On mobile the popup becomes a bottom sheet */
   .badge-popup {
-    width: 22em;
-    height: 32em;
-    border-radius: var(--radius-lg);
+    position: fixed;
+    left: 0 !important;
+    right: 0;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 85vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    cursor: default;
+    animation: sheetUp 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
   }
 
-  .badge-popup-header {
-    padding: 10px 14px;
+  .badge-popup:active {
+    cursor: default;
   }
 
-  .badge-popup-header button {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+  @keyframes sheetUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .badge-popup.fade-out {
+    animation: sheetDown 0.2s ease-in forwards;
+  }
+
+  @keyframes sheetDown {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
+
+  /* Pull indicator */
+  .badge-popup::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
   }
 
   .badge-popup img {
-    margin: 10px 0;
-  }
-
-  .badge-popup p {
-    margin: 6px 14px;
-    font-size: 12px;
-  }
-
-  .badge-popup-actions {
-    gap: 6px;
-    padding: 10px;
-  }
-
-  .badge-popup-actions button {
-    padding: 6px 10px;
-    font-size: 12px;
-    border-radius: var(--radius-md);
-  }
-
-  .motto {
-    margin-top: 16em;
-  }
-
-  .motto span {
-    font-size: 3em;
+    max-height: 40vh;
+    flex: none;
   }
 }
 
 @media (max-width: 480px) {
   .shield-svg {
-    width: 18em;
-    height: 20em;
-  }
-
-  .badge-popup {
-    width: 18em;
-    height: 26em;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  }
-
-  .badge-popup-header {
-    padding: 8px 12px;
-  }
-
-  .badge-popup-header button {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-  }
-
-  .badge-popup img {
-    margin: 8px 0;
-  }
-
-  .badge-popup p {
-    margin: 5px 12px;
-    font-size: 11px;
-  }
-
-  .badge-popup-actions {
-    gap: 5px;
-    padding: 8px 12px;
-  }
-
-  .badge-popup-actions button {
-    padding: 5px 8px;
-    font-size: 11px;
-    gap: 4px;
-  }
-
-  .badge-popup-actions button svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .motto {
-    margin-top: 12em;
+    /* Cap the badge so motto stays visible without scrolling */
+    width: clamp(12em, 60vw, 16em);
   }
 
   .motto span {
-    font-size: 2em;
+    font-size: clamp(0.9rem, 4.5vw, 1.4rem);
+  }
+}
+
+@media (max-width: 400px) {
+  .shield-svg {
+    width: clamp(11em, 58vw, 14em);
+  }
+
+  .motto span {
+    font-size: clamp(0.85rem, 4.5vw, 1.2rem);
   }
 }

@@ -59,7 +59,12 @@ export default function Badge({ className = '', isLoading = false }) {
 
   const handleShare = (e) => {
     e.stopPropagation();
-    alert('Shared!');
+    const item = keyData[popup.index];
+    if (navigator.share) {
+      navigator.share({ title: item.title, text: item.description }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(item.title + ' — ' + item.description).catch(() => {});
+    }
   };
 
   // ===================== DRAG =====================
@@ -188,12 +193,13 @@ export default function Badge({ className = '', isLoading = false }) {
               <button
                 onClick={toggleLike}
                 className={liked[popup.index] ? 'liked' : ''}
+                aria-label={liked[popup.index] ? 'Unlike' : 'Like'}
               >
-                <Icons.heartFill /> 
+                {liked[popup.index] ? <Icons.heartFill /> : <Icons.heart />}
               </button>
 
-              <button onClick={handleShare}>
-                <Icons.share /> ,
+              <button onClick={handleShare} aria-label="Share">
+                <Icons.share />
               </button>
             </div>
           </div>

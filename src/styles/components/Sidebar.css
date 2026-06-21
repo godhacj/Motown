@@ -1,115 +1,368 @@
-/* Sidebar basic styles — shows/hides sidebar and overlay when `open` / `visible` classes are applied */
-
+/* ═══════════════════════════════════════════
+   OVERLAY
+═══════════════════════════════════════════ */
 .sidebar-overlay {
-	display: none;
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.4);
-	z-index: 999;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
+
 .sidebar-overlay.visible {
-	display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
+/* ═══════════════════════════════════════════
+   PANEL  — frosted glass, like a piano body
+═══════════════════════════════════════════ */
 .sidebar {
-	position: fixed;
-	top: 0;
-	left: -100vw;
-	width: 280px;
-	height: 100vh;
-	background: rgba(255, 255, 255, 0.35);
-	box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-	transition: left 220ms ease;
-	z-index: 1000;
-	overflow-y: auto;
-	padding: 1rem;
-	display: flex;
-	flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 100dvh;
+  /* semi-transparent glass */
+  background: color-mix(in srgb, var(--background-elevated) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border-right: 1px solid var(--border-color);
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.22);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .sidebar.open {
-	left: 0;
+  transform: translateX(0);
 }
 
-/* Component-level dark-mode overrides removed; use global theme variables */
-
-.sidebar .sidebar-close {
-	background: none;
-	border: none;
-	font-size: 1.4rem;
-	cursor: pointer;
-	margin-bottom: 0.5rem;
-	align-self: flex-end;
+/* ═══════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════ */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.sidebar-brand-name {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.sidebar-brand-sub {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.sidebar-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
+}
+
+.sidebar-close:hover {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+}
+
+/* ═══════════════════════════════════════════
+   NAV BODY
+═══════════════════════════════════════════ */
 .sidebar nav {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 0 0;
 }
 
-.sidebar nav .sidebar-main {
-	list-style: none;
-	padding: 0;
-	margin: 0 0 auto 0;
-	flex: 1;
+.sidebar-section-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  padding: 10px 22px 5px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.sidebar nav .sidebar-footer {
-	list-style: none;
-	padding: 1rem 0 0 0;
-	margin: 0;
-	border-top: 1px solid var(--border, rgba(0,0,0,0.1));
-	margin-top: auto;
-	margin-bottom: 2rem;
+.sidebar-main {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* no gap — keys sit flush like piano keys */
 }
 
+/* ═══════════════════════════════════════════
+   PIANO KEYS — each nav item is a key
+═══════════════════════════════════════════ */
 .sidebar nav li {
-	margin: 0.3rem 0;
+  margin: 0;
+  position: relative;
 }
+
 .sidebar nav li a {
-	color: inherit;
-	text-decoration: none;
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	padding: 1rem 0.5rem;
-	border-radius: 4px;
-	transition: background 150ms ease, color 150ms ease, clip-path 150ms ease;
-	font-size: 1.08rem;
-	position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  /* left padding creates the "white key body" width */
+  padding: 15px 20px 15px 22px;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-size: 0.94rem;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-color);
+  transition: color 0.18s ease;
 }
 
-.sidebar nav li a:hover,
+/* The "piano key" fill — a dark block that slides in from the left
+   and has a triangular notch cut out of its right edge (like badge keys) */
+.sidebar nav li a::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-text-primary);
+  opacity: 0;
+  /* polygon matches the badge key-hole bottom triangle, pointing right */
+  clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
+  transition: opacity 0.18s ease, clip-path 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.sidebar nav li a:hover::before {
+  opacity: 0.07;
+}
+
+.sidebar nav li.active a::before {
+  opacity: 1;
+  clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
+}
+
+/* content sits above the key fill */
+.sidebar nav li a > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar nav li a:hover {
+  color: var(--color-text-primary);
+}
+
 .sidebar nav li.active a {
-	background-color: var(--background-surface);
-	color: var(--color-text-primary);
-	clip-path: polygon(98.75% 49.94%, 81.82% 100%, 0% 100%, 0% 0%, 81.49% 0%);
+  color: var(--color-accent-fg);
+  font-weight: 700;
 }
 
-/* Dark mode overrides: invert sidebar colors from light mode */
-/* Dark-mode sidebar overrides removed */
-
-.sidebar nav .sidebar-icon {
-	font-size: 1.62rem;
-	flex-shrink: 0;
-	width: 1.62rem;
-	height: 1.62rem;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--color, currentColor);
+/* The accent stripe on the very left edge — like a key's left border highlight */
+.sidebar nav li.active a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent);
+  z-index: 2;
 }
 
-.sidebar nav li a:hover .sidebar-icon,
-.sidebar nav li.active a .sidebar-icon {
-	color: var(--colo-text-primary);
+/* ═══════════════════════════════════════════
+   ICON WRAP — the "key hole" square
+═══════════════════════════════════════════ */
+.sidebar-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--background-subtle) 60%, transparent);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.sidebar nav .sidebar-label {
-	flex: 1;
-	word-break: break-word;
-}
-.sidebar nav li.active a {
-	font-weight: 600;
+.sidebar nav li.active a .sidebar-icon-wrap {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
+.sidebar-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════
+   COLLAPSIBLE GROUP
+═══════════════════════════════════════════ */
+.sidebar-group { position: relative; }
+
+/* trigger row — same piano-key shape as NavItem */
+.sidebar-group-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 20px 15px 22px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--color-text-secondary);
+  font-size: 0.94rem;
+  font-weight: 500;
+  font-family: var(--font-name);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  transition: color 0.18s ease;
+}
+
+.sidebar-group-trigger::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-text-primary);
+  opacity: 0;
+  clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
+  transition: opacity 0.18s ease;
+  z-index: 0;
+}
+
+.sidebar-group-trigger:hover::before { opacity: 0.07; }
+.sidebar-group-trigger:hover { color: var(--color-text-primary); }
+
+.sidebar-group-trigger--has-active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.sidebar-group-trigger--has-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent);
+  z-index: 2;
+}
+
+.sidebar-group-trigger > * { position: relative; z-index: 1; }
+
+.sidebar-group-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-group-chevron--open { transform: rotate(180deg); }
+
+/* accordion body */
+.sidebar-group-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-group-body--open {
+  max-height: var(--group-height, 500px);
+}
+
+.sidebar-group-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--background-subtle) 50%, transparent);
+}
+
+/* indent child items slightly to show nesting */
+.sidebar-group-list li a {
+  padding-left: 32px;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ═══════════════════════════════════════════
+   FOOTER — Settings key, pinned at bottom
+═══════════════════════════════════════════ */
+.sidebar-footer {
+  list-style: none;
+  padding: 0 0 20px;
+  margin: 0;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}

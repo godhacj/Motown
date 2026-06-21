@@ -1,39 +1,153 @@
+/* ═══════════════════════════════════════════
+   TOPBAR SHELL
+═══════════════════════════════════════════ */
 .topbar {
   position: fixed;
   top: 10px;
-  left: 5%;
+  left: 50%;
+  transform: translateX(-50%);
   width: 90%;
   height: 4.5em;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  border: none;
+  gap: 0.5rem;
   border-radius: 2em;
   background: var(--topbar-bg);
-  backdrop-filter: var(--topbar-backdrop);
   -webkit-backdrop-filter: var(--topbar-backdrop);
+  backdrop-filter: var(--topbar-backdrop);
   background-clip: padding-box;
   box-shadow: var(--topbar-shadow);
   z-index: 1000;
-  padding: 0 1rem;
+  padding: 0 0.75rem;
+  box-sizing: border-box;
   --icon-btn-size: 2.8em;
+  /* overflow must be visible so the profile dialog and theme dropdown
+     can render outside the topbar's bounding box */
+  overflow: visible;
+  transition: padding 0.2s ease;
 }
 
-.topbar:hover {
-  box-shadow: var(--topbar-shadow);
-  transition-duration: .4s;
+/* ═══════════════════════════════════════════
+   SEARCH TAKEOVER
+   Full-width search bar replaces entire topbar
+═══════════════════════════════════════════ */
+.topbar--search-takeover,
+.topbar--theme-takeover {
+  padding: 0 0.5rem;
 }
 
-/* ============ LEFT SECTION ============ */
+.topbar-search-full {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 0.25rem;
+  animation: tb-fade-in 0.18s ease;
+}
+
+.topbar-search-full__input {
+  flex: 1;
+  height: 2.6em;
+  background: transparent;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: none;
+  font-size: 1rem;
+  font-family: var(--font-name);
+  color: var(--color-text-primary);
+  padding: 0 0.75rem;
+  min-width: 0;
+}
+
+.topbar-search-full__input::placeholder {
+  color: var(--color-text-primary);
+  opacity: 0.55;
+}
+
+.topbar-search-full__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  transition: background 0.2s ease;
+}
+
+.topbar-search-full__close:hover {
+  background: var(--background-hover);
+}
+
+/* ═══════════════════════════════════════════
+   THEME TAKEOVER
+   Full-width theme picker replaces entire topbar
+═══════════════════════════════════════════ */
+.topbar-theme-full {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 0.25rem;
+  animation: tb-fade-in 0.18s ease;
+}
+
+.topbar-theme-full .theme-toggle-root {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-theme-full .theme-toggle-container {
+  width: 100% !important;
+  border-radius: 1.5em !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.topbar-theme-full__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  transition: background 0.2s ease;
+}
+
+.topbar-theme-full__close:hover {
+  background: var(--background-hover);
+}
+
+@keyframes tb-fade-in {
+  from { opacity: 0; transform: scaleX(0.97); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+
+/* ═══════════════════════════════════════════
+   LEFT SECTION
+═══════════════════════════════════════════ */
 .topbar-left {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   flex: 0 0 auto;
-  flex-shrink: 0;
+  gap: 0.35rem;
   height: 100%;
-  gap: 0.5rem;
+  /* Don't let the left section grow and push the notch */
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .sidebar-toggle {
@@ -42,13 +156,12 @@
   justify-content: center;
   width: var(--icon-btn-size);
   height: var(--icon-btn-size);
-  border-radius: 100%;
+  border-radius: 50%;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--color-text-primary);
-  font-size: 1.5rem;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease;
   flex-shrink: 0;
 }
 
@@ -56,25 +169,35 @@
   background: var(--background-hover);
 }
 
-.sidebar-toggle svg {
-  width: 1.4em;
-  height: 1.4em;
+/* All icon buttons in the topbar use the same icon size regardless of screen width */
+.sidebar-toggle svg,
+.search-btn svg,
+.profile-btn svg,
+.topbar-search-full__close svg,
+.topbar-theme-full__close svg {
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .theme-toggle-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-shrink: 0;
+  position: relative;
+  height: 100%;
+  overflow: visible;
 }
 
-/* ============ MIDDLE SECTION ============ */
+/* ═══════════════════════════════════════════
+   MIDDLE — NOTCH
+═══════════════════════════════════════════ */
 .topbar-middle {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Let the notch take available space but don't let it grow infinitely */
   flex: 1 1 auto;
-  min-width: 2.8em;
+  min-width: 0;
   height: 100%;
   overflow: visible;
 }
@@ -84,21 +207,26 @@
   align-items: center;
   justify-content: center;
   height: 80%;
-  width: 50%;
+  width: 55%;
   max-width: 300px;
   min-width: 2.8em;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
   color: var(--color-text-primary);
   text-align: center;
-  opacity: 0.8;
+  opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: rgba(255, 255, 255, 0.503);
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 1.5em;
   box-shadow: inset var(--card-shadow);
   cursor: pointer;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease,
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notch:hover {
@@ -112,63 +240,186 @@
   justify-content: center;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 .notch-icon svg {
-  width: 1.3em;
-  height: 1.3em;
+  width: 1.2em;
+  height: 1.2em;
 }
 
-/* Mobile notch collapse — only triggered by data attributes, never by flex pressure */
-@media (max-width: 999px) {
-  .notch {
-    transition: width 0.3s ease, border-radius 0.3s ease, transform 0.3s ease;
-  }
-
-  .notch[data-collapsed="true"] {
-    width: var(--icon-btn-size);
-    min-width: var(--icon-btn-size);
-    max-width: var(--icon-btn-size);
-    border-radius: 50%;
-  }
-
-  .notch[data-shift="left"] {
-    transform: translateX(-40px);
-  }
-
-  .notch[data-shift="right"] {
-    transform: translateX(40px);
-  }
+/* Collapsed — shrinks to icon button size */
+.notch[data-collapsed="true"] {
+  width: var(--icon-btn-size);
+  min-width: var(--icon-btn-size);
+  max-width: var(--icon-btn-size);
+  border-radius: 50%;
 }
 
-/* ============ SEARCH ============ */
-.search-input {
-  height: 100%;
+/* Shift notch left/right when a panel opens on the same side */
+.notch[data-shift="left"] {
+  transform: translateX(-24px);
+}
+.notch[data-shift="right"] {
+  transform: translateX(24px);
+}
+
+/* ═══════════════════════════════════════════
+   NOTCH — TAB-NAV MODE
+   Stretches across most of the topbar centre
+   and renders a segmented tab strip.
+═══════════════════════════════════════════ */
+
+/* In nav mode the topbar-middle gets more horizontal space */
+.topbar--nav-mode .topbar-middle {
+  flex: 1 1 auto;
+}
+
+.notch--nav {
+  /* Override plain-notch sizing */
   width: 100%;
-  font-size: 1rem;
-  padding: 1rem;
-  padding-right: 3rem;
-  color: var(--color-text-primary);
-  text-align: left;
+  max-width: 640px;
+  height: 80%;
+  min-width: 0;
+  cursor: default;
+  /* Same pill shape + glass surface */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Individual tab button */
+.notch-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  height: 100%;
+  padding: 0 10px;
   border: none;
-  border-radius: 1.5em;
   background: transparent;
-  outline: none;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease 0.1s;
+  border-radius: 1.2em;
+  font-family: var(--font-name);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.search-wrapper[data-open="true"] .search-input {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.search-input::placeholder {
+.notch-tab:hover:not(.notch-tab--active) {
   color: var(--color-text-primary);
-  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.35);
 }
 
+/* Active tab */
+.notch-tab--active {
+  background: var(--background-elevated);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.13);
+}
+
+.notch-tab__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.9em;
+}
+
+.notch-tab__icon svg {
+  width: 1em;
+  height: 1em;
+  stroke: currentColor;
+  fill: none;
+}
+
+.notch-tab__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Active pip — small accent dot under label */
+.notch-tab__pip {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--color-accent);
+}
+
+/* ─── Responsive: fewer labels on small screens ─── */
+@media (max-width: 700px) {
+  .notch--nav {
+    max-width: 100%;
+    padding: 3px;
+    gap: 1px;
+  }
+
+  .notch-tab {
+    font-size: 0.72rem;
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  /* Hide tab labels when there are many tabs and screen is narrow —
+     icons only. Pages should supply icons for mobile. */
+  .notch--nav[data-tab-count="5"] .notch-tab__label,
+  .notch--nav[data-tab-count="6"] .notch-tab__label,
+  .notch--nav[data-tab-count="7"] .notch-tab__label,
+  .notch--nav[data-tab-count="8"] .notch-tab__label,
+  .notch--nav[data-tab-count="9"] .notch-tab__label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .notch--nav {
+    padding: 3px 2px;
+  }
+
+  .notch-tab {
+    font-size: 0.68rem;
+    padding: 0 4px;
+  }
+
+  /* Always hide labels on very small screens */
+  .notch-tab__label {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RIGHT SECTION
+═══════════════════════════════════════════ */
+.topbar-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Search wrapper — only used on wide screens */
 .search-wrapper {
   position: relative;
   display: flex;
@@ -177,8 +428,8 @@
   height: var(--icon-btn-size);
   width: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
-  border-radius: 1.5em;
-  background: rgba(255, 255, 255, 0.503);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.5);
   box-shadow: inset var(--card-shadow);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -186,25 +437,44 @@
 }
 
 .search-wrapper[data-open="true"] {
-  width: min(400px, 60vw);
+  width: min(360px, 50vw);
 }
 
-@media (max-width: 768px) {
-  .search-wrapper[data-open="true"] {
-    width: min(220px, 55vw);
-  }
+.search-input {
+  height: 100%;
+  width: 100%;
+  font-size: 1rem;
+  padding: 0 1rem;
+  padding-right: 3rem;
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: 100px;
+  background: transparent;
+  outline: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease 0.08s;
+  font-family: var(--font-name);
+  white-space: nowrap;
 }
 
-@media (max-width: 480px) {
-  .search-wrapper[data-open="true"] {
-    width: min(160px, 50vw);
-  }
+.search-wrapper[data-open="true"] .search-input {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-@media (max-width: 400px) {
-  .search-wrapper[data-open="true"] {
-    width: min(130px, 48vw);
-  }
+.search-wrapper[data-open="true"] .search-btn{
+   display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 50%;
+  right: 0;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-primary);
+  opacity: 0.6;
 }
 
 .search-btn {
@@ -213,18 +483,18 @@
   justify-content: center;
   position: absolute;
   top: 50%;
-  right: 0;
+  right: 10%;
   transform: translateY(-50%);
   width: var(--icon-btn-size);
   height: var(--icon-btn-size);
-  border-radius: 100%;
+  border-radius: 50%;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--color-text-primary);
-  font-size: 1.2rem;
   z-index: 10;
   flex-shrink: 0;
+  transition: background 0.2s ease;
 }
 
 .search-btn:hover {
@@ -232,23 +502,8 @@
 }
 
 .search-btn svg {
-  position: relative;
-  left: .3em;
-  width: 1.2em;
-  height: 1.2em;
-}
-
-/* ============ RIGHT SECTION ============ */
-.topbar-right {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex: 0 0 auto;
-  flex-shrink: 0;
-  height: 100%;
-  gap: 0.5rem;
-  overflow: visible;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .profile-btn {
@@ -257,13 +512,12 @@
   justify-content: center;
   width: var(--icon-btn-size);
   height: var(--icon-btn-size);
-  border-radius: 100%;
+  border-radius: 50%;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--color-text-primary);
-  font-size: 1.5rem;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease;
   flex-shrink: 0;
 }
 
@@ -271,182 +525,358 @@
   background: var(--background-hover);
 }
 
-.profile-dialog {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.5rem;
-  background: var(--background-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: 1.75rem;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
-  padding: 1.5rem;
-  width: 180px;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 1100;
-}
-
-.profile-picture-wrapper {
-  position: relative;
-  width: 110px;
-  height: 110px;
-  margin-bottom: 1rem;
-}
-
-.profile-picture {
-  display: block;
+/* ═══════════════════════════════════════════
+   PROFILE BUTTON
+═══════════════════════════════════════════ */
+.profile-btn__avatar {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  /* overflow: hidden; */
-  background: var(--background-surface);
-  position: relative;
-  cursor: pointer;
-  border: 2px solid var(--border-color);
-}
-
-.profile-picture img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
 }
 
-.profile-picture .placeholder {
-  width: 100%;
-  height: 100%;
-  background: var(--background-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary);
-  font-size: 2rem;
-  border-radius: 100%;
+.profile-btn--active {
+  background: var(--background-hover);
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
-.profile-picture .edit-icon {
+/* ═══════════════════════════════════════════
+   PROFILE DIALOG
+═══════════════════════════════════════════ */
+/* Backdrop: invisible click-catcher on desktop, dim overlay on mobile */
+.profile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  background: transparent;
+}
+
+/* Dialog: portalled to body — position with fixed + viewport coords */
+.profile-dialog {
+  position: fixed;
+  /* Desktop: pin below the topbar on the right side */
+  top: calc(10px + 4.5em + 0.65rem);
+  right: calc((100vw - 90%) / 2);
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1.25rem;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  z-index: 1100;
+  animation: tb-fade-in 0.15s ease;
+}
+
+.profile-dialog__close {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  background: var(--background-surface);
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: var(--background-subtle);
   border-radius: 50%;
-  width: 2.4rem;
-  height: 2.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.14);
-  border: 1px solid var(--border-color-hover);
+  cursor: pointer;
+  color: var(--color-text-secondary);
 }
 
-.profile-name {
-  font-weight: 600;
-  margin-bottom: 1rem;
+/* ── Hero (avatar + identity) ── */
+.pd-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+
+.pd-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: block;
+  border: 2.5px solid var(--border-color-strong);
+  overflow: visible;
+}
+
+.pd-avatar img,
+.pd-avatar__placeholder {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-subtle);
+  color: var(--color-text-secondary);
+  font-size: 1.6rem;
+  overflow: hidden;
+}
+
+.pd-avatar__edit {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 1.7rem;
+  height: 1.7rem;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  border: 2px solid var(--background-elevated);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: background 0.15s ease;
+}
+
+.pd-avatar:hover .pd-avatar__edit {
+  background: var(--color-accent-hover);
+}
+
+.pd-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.pd-name {
+  font-weight: 700;
+  font-size: 1rem;
   color: var(--color-text-primary);
   text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.signout-btn {
-  margin-top: auto;
-  padding: 0.85rem 1rem;
+.pd-role-badge {
+  display: inline-block;
+  padding: 0.18em 0.6em;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--background-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--border-color);
+  width: fit-content;
+}
+
+.pd-role-badge[data-role="student"]    { background: rgba(59,130,246,0.12); color: #3b82f6; border-color: rgba(59,130,246,0.25); }
+.pd-role-badge[data-role="teacher"]    { background: rgba(34,197,94,0.12);  color: #16a34a; border-color: rgba(34,197,94,0.25); }
+.pd-role-badge[data-role="house"],
+.pd-role-badge[data-role="academic"],
+.pd-role-badge[data-role="data"],
+.pd-role-badge[data-role="club"],
+.pd-role-badge[data-role="domestic"],
+.pd-role-badge[data-role="chapel"],
+.pd-role-badge[data-role="library"],
+.pd-role-badge[data-role="management"],
+.pd-role-badge[data-role="media"]      { background: rgba(249,115,22,0.12); color: #ea7323; border-color: rgba(249,115,22,0.25); }
+
+.pd-sub {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+/* ── Divider ── */
+.pd-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0.6rem 0;
+}
+
+/* ── Quick nav ── */
+.pd-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pd-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
   border: none;
-  background: var(--color-danger);
+  background: transparent;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-family: var(--font-name);
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pd-nav__item:hover {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+}
+
+.pd-nav__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--background-subtle);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.pd-nav__item:hover .pd-nav__icon {
+  background: var(--color-accent);
   color: var(--color-accent-fg);
-  border-radius: 1rem;
+}
+
+.pd-nav__label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.pd-nav__arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Sign in ── */
+.pd-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border: none;
+  border-radius: 0.85rem;
   cursor: pointer;
   width: 100%;
-  font-weight: 700;
-  transition: background 0.2s ease, transform 0.2s ease;
+  font-weight: 600;
+  font-size: 0.875rem;
+  font-family: var(--font-name);
+  transition: background 0.15s ease;
 }
 
-.signout-btn:hover {
-  background: rgba(239, 68, 68, 0.9);
-  transform: translateY(-1px);
+.pd-signout:hover {
+  background: var(--color-accent-hover);
 }
 
-.signout-btn:active {
-  transform: translateY(0);
+.pd-signout:active {
+  opacity: 0.88;
 }
 
-/* ============ RESPONSIVE ============ */
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════ */
 @media (max-width: 768px) {
   .topbar {
     width: 95%;
     height: 4em;
-    padding: 0 0.75rem;
-    gap: 0.5rem;
-    --icon-btn-size: 2.4em;
+    gap: 0.3rem;
+  }
+
+  .notch {
+    font-size: 0.9rem;
+    width: 50%;
+  }
+
+  .search-wrapper[data-open="true"] {
+    width: min(260px, 45vw);
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    width: 94%;
+    height: 3.8em;
+    padding: 0 0.5rem;
+    gap: 0.25rem;
   }
 
   .notch {
     font-size: 0.85rem;
   }
 
-  .sidebar-toggle svg,
-  .search-btn svg,
-  .profile-btn svg {
-    width: 1.3em;
-    height: 1.3em;
+  /* On tight screens the search-wrapper is icon-only (takeover handles the rest) */
+  .search-wrapper {
+    background: transparent;
+    box-shadow: none;
   }
 }
 
 @media (max-width: 480px) {
   .topbar {
     width: 94%;
-    height: 3.8em;
-    padding: 0 0.5rem;
-    gap: 0.35rem;
-    --icon-btn-size: 2.2em;
-  }
-
-  .topbar-left {
-    gap: 0.2rem;
-  }
-
-  .topbar-right {
+    height: 3.6em;
     gap: 0.2rem;
   }
 
   .notch {
-    font-size: 0.75rem;
-  }
-
-  .sidebar-toggle svg,
-  .search-btn svg,
-  .profile-btn svg {
-    width: 1.2em;
-    height: 1.2em;
+    font-size: 0.8rem;
   }
 }
 
 @media (max-width: 400px) {
   .topbar {
     width: 94%;
-    height: 3.6em;
+    height: 3.4em;
     padding: 0 0.4rem;
-    gap: 0.25rem;
-    --icon-btn-size: 2em;
-  }
-
-  .topbar-left {
     gap: 0.15rem;
-  }
-
-  .topbar-right {
-    gap: 0.15rem;
+    top: 6px;
+    border-radius: 1.5em;
   }
 
   .notch {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .topbar {
+    width: 96%;
+    height: 3.2em;
+    padding: 0 0.3rem;
+    gap: 0.1rem;
+  }
+}
+
+/* ── Mobile: bottom-sheet profile dialog ── */
+@media (max-width: 480px) {
+  .profile-backdrop {
+    background: rgba(0, 0, 0, 0.4);
   }
 
-  .sidebar-toggle svg,
-  .search-btn svg,
-  .profile-btn svg {
-    width: 1.1em;
-    height: 1.1em;
+  .profile-dialog {
+    top: auto;
+    top: 4.7em;
+    right: 0.5em;
+    width: 70%;
+    max-width: 50%;
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+
+  .search-wrapper[data-open="true"] .search-input{
+    outline: none;
   }
 }

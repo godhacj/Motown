@@ -1,0 +1,87 @@
+.load-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--background-page);
+  pointer-events: none;
+
+  /* fade transitions */
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.load-screen--enter {
+  opacity: 0;
+}
+
+.load-screen--hold {
+  opacity: 1;
+}
+
+.load-screen--exit {
+  opacity: 0;
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Wordmark ─────────────────────────────────────────────── */
+.load-screen__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.load-screen__wordmark {
+  font-family: var(--font-name);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1) 0.06s,
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) 0.06s;
+}
+
+.load-screen--hold .load-screen__wordmark,
+.load-screen--exit .load-screen__wordmark {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.load-screen__bar-track {
+  width: min(200px, 50vw);
+  height: 3px;
+  background: var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.load-screen__bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--color-accent);
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.08s;
+}
+
+.load-screen--hold .load-screen__bar,
+.load-screen--exit .load-screen__bar {
+  width: 100%;
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+[data-reduced-motion="true"] .load-screen__wordmark {
+  transition: opacity 0.1s ease;
+  transform: none !important;
+}
+
+[data-reduced-motion="true"] .load-screen__bar {
+  transition: width 0.5s ease;
+}

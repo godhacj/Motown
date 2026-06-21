@@ -1,0 +1,76 @@
+/* ═══════════════════════════════════════════════════════════════
+   SETTINGS CONFIG
+   All rules in this file are driven by data-* attributes that
+   useSettingsSync() writes onto <html> whenever motownSettings
+   changes in localStorage.  No JavaScript required at render time.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── FONT SCALE ─────────────────────────────────────────────── */
+/* Scales the base rem from which everything inherits */
+:root[data-font-scale="small"]  { font-size: 13px; }
+:root[data-font-scale="medium"] { font-size: 16px; }
+:root[data-font-scale="large"]  { font-size: 19px; }
+
+/* ── LARGE TEXT MODE ────────────────────────────────────────── */
+/* Boosts reading content specifically without touching UI chrome */
+:root[data-large-text="true"] body,
+:root[data-large-text="true"] p,
+:root[data-large-text="true"] li,
+:root[data-large-text="true"] td,
+:root[data-large-text="true"] .faq-answer p,
+:root[data-large-text="true"] .about-hero__description,
+:root[data-large-text="true"] .sett-row__hint,
+:root[data-large-text="true"] .badge-popup p {
+  font-size: 1.1em;
+  line-height: 1.75;
+}
+
+/* ── REDUCED MOTION ─────────────────────────────────────────── */
+/* Overrides every transition and animation app-wide */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── HIGH CONTRAST ──────────────────────────────────────────── */
+/* Strengthens borders, text contrast, and removes soft shadows */
+:root[data-high-contrast="true"] {
+  --border-color:        rgba(128, 128, 128, 0.55);
+  --border-color-strong: rgba(128, 128, 128, 0.9);
+  --color-text-secondary: var(--color-text-primary);
+  --color-text-muted:     var(--color-text-secondary);
+  --card-shadow:         0 0 0 1.5px var(--border-color-strong);
+  --topbar-shadow:       0 0 0 1.5px var(--border-color-strong);
+}
+
+:root[data-high-contrast="true"] .about-card,
+:root[data-high-contrast="true"] .sett-section,
+:root[data-high-contrast="true"] .service-card,
+:root[data-high-contrast="true"] .badge-popup,
+:root[data-high-contrast="true"] .profile-dialog,
+:root[data-high-contrast="true"] .notch,
+:root[data-high-contrast="true"] .theme-toggle-container {
+  border-width: 2px;
+  border-color: var(--border-color-strong);
+}
+
+/* ── FOCUS INDICATORS ───────────────────────────────────────── */
+/* When enabled (default): visible keyboard focus rings.
+   When disabled: suppress them for pointer-only users.        */
+:root[data-focus-indicators="true"] *:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+:root[data-focus-indicators="false"] *:focus-visible {
+  outline: none;
+}
+
+/* Strip the browser default so our rules above are the only source of truth */
+* {
+  outline: none;
+}

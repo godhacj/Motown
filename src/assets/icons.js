@@ -15,7 +15,11 @@ import {
   FiEye,
   FiEyeOff,
   FiShield,
-  FiBell
+  FiBell,
+  FiMessageSquare,
+  FiBook,
+  FiUsers,
+  FiBookOpen,
 } from "react-icons/fi";
 
 import { FaHeart, 
@@ -31,6 +35,7 @@ import { FaHeart,
 import { IoShareSocialOutline, 
   IoArrowBack, 
   IoArrowForward } from "react-icons/io5";
+import { AiOutlineShareAlt } from 'react-icons/ai'
 import { MdPerson } from 'react-icons/md'
 
 export const Icons = {
@@ -47,7 +52,7 @@ export const Icons = {
   close: FiX,
   heart: FiHeart,
   heartFill: FaHeart,
-  share: IoShareSocialOutline,
+  share: AiOutlineShareAlt,
   back: IoArrowBack,
   forward: IoArrowForward,
   comment: FaRegComment,
@@ -63,5 +68,9 @@ export const Icons = {
   eye: FiEye,
   eyeOff: FiEyeOff,
   security: FiShield,
-  bell: FiBell
+  bell: FiBell,
+  chat: FiMessageSquare,
+  library: FiBook,
+  users: FiUsers,
+  syllabus: FiBookOpen,
 }

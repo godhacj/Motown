@@ -1,71 +1,106 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiChevronDown } from 'react-icons/fi'
+import { FiChevronDown, FiUser, FiShield, FiBookOpen, FiLogIn, FiEye } from 'react-icons/fi'
 import '../styles/components/SignInButton.css'
 
+const OPTIONS = [
+  {
+    label: 'Guest',
+    path: '/',
+    icon: FiEye,
+    desc: 'Browse without signing in',
+    accent: '#94a3b8',
+    isDefault: true,
+  },
+  {
+    label: 'Student',
+    path: '/login/student',
+    icon: FiBookOpen,
+    desc: 'Access your student portal',
+    accent: '#3b82f6',
+  },
+  {
+    label: 'Teacher',
+    path: '/login/teacher',
+    icon: FiUser,
+    desc: 'Staff & teacher dashboard',
+    accent: '#22c55e',
+  },
+  {
+    label: 'Admin',
+    path: '/login/admin',
+    icon: FiShield,
+    desc: 'School administration',
+    accent: '#f97316',
+  },
+]
+
 export default function SignInButton() {
-  const [open, setOpen] = React.useState(false)
-  const [role, setRole] = React.useState('Guest')
-  const navigate = useNavigate()
-  const wrapperRef = React.useRef(null)
+  const [open, setOpen] = useState(false)
+  const navigate   = useNavigate()
+  const wrapperRef = useRef(null)
 
-  const options = [
-    { label: 'Student', path: '/login/student' },
-    { label: 'Admin', path: '/login/admin' },
-    { label: 'Teacher', path: '/login/teacher' },
-  ]
-
-  React.useEffect(() => {
-    const storedProfile = localStorage.getItem('signedInProfile')
-    if (storedProfile) {
-      try {
-        const parsed = JSON.parse(storedProfile)
-        setRole(parsed.name || 'Guest')
-      } catch (error) {
-        localStorage.removeItem('signedInProfile')
-      }
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false)
     }
-  }, [])
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open])
 
   const handleSelect = (opt) => {
-    const nextProfile = { name: opt.label, picture: null }
-    localStorage.setItem('signedInProfile', JSON.stringify(nextProfile))
-    setRole(opt.label)
     setOpen(false)
     navigate(opt.path)
   }
 
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setOpen(false)
-      }
-    }
-
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [open])
-
   return (
-    <div className="signin-wrapper" ref={wrapperRef}>
-      {open && (
-        <div className="signin-menu">
-          {options.map((opt) => (
-            <div key={opt.label} className="signin-option" onClick={() => handleSelect(opt)}>
-              {opt.label}
-            </div>
-          ))}
-        </div>
-      )}
-      <button className="signin-button" onClick={() => setOpen((v) => !v)} title="Select login role">
-        <span className="signin-text">Sign In As: {role}</span>
-        <FiChevronDown className={`signin-icon ${open ? 'open' : ''}`} size={20} />
+    <div className="sib-wrapper" ref={wrapperRef}>
+
+      {/* ── Dropdown menu — opens above the button ── */}
+      <div className={`sib-menu${open ? ' sib-menu--open' : ''}`} role="menu">
+        <div className="sib-menu__header">Sign in as</div>
+        {OPTIONS.map((opt) => (
+          <button
+            key={opt.label}
+            className="sib-option"
+            role="menuitem"
+            onClick={() => handleSelect(opt)}
+            style={{ '--opt-accent': opt.accent }}
+          >
+            <span className="sib-option__icon">
+              <opt.icon />
+            </span>
+            <span className="sib-option__text">
+              <span className="sib-option__label">{opt.label}</span>
+              <span className="sib-option__desc">{opt.desc}</span>
+            </span>
+            <FiLogIn className="sib-option__arrow" />
+          </button>
+        ))}
+      </div>
+
+      {/* ── Trigger button ── */}
+      <button
+        className={`sib-trigger${open ? ' sib-trigger--open' : ''}`}
+        onClick={() => setOpen(v => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <FiUser className="sib-trigger__icon" />
+        <span className="sib-trigger__label">Guest</span>
+        <FiChevronDown className={`sib-trigger__chevron${open ? ' sib-trigger__chevron--up' : ''}`} />
       </button>
+
     </div>
   )
 }

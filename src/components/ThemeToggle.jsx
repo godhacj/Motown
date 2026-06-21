@@ -12,52 +12,54 @@ const THEMES = [
   { id: 'sunset', label: 'Sunset', Icon: FiCloud },
 ]
 
-export default function ThemeToggle() {
+// forceExpanded — always show all options (used in takeover mode)
+// disableHover  — suppress the hover-to-expand behaviour (click handled by parent)
+// onSelect      — called after a theme is chosen (lets parent close takeover)
+export default function ThemeToggle({ forceExpanded = false, disableHover = false, onSelect }) {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-  const ref = useRef(null)
+  const [mounted,  setMounted]  = useState(false)
+  const [expanded, setExpanded] = useState(forceExpanded)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setExpanded(forceExpanded) }, [forceExpanded])
 
   if (!mounted) return null
 
   const current = THEMES.find(t => t.id === theme) ?? THEMES[0]
 
-  const handleThemeSelect = (themeId) => {
-    setTheme(themeId)
+  const handleSelect = (id) => {
+    setTheme(id)
+    onSelect?.()
   }
 
-  const handleMouseEnter = () => {
-    setExpanded(true)
-  }
-
-  const handleMouseLeave = () => {
-    setExpanded(false)
-  }
+  const handleMouseEnter = () => { if (!disableHover) setExpanded(true) }
+  const handleMouseLeave = () => { if (!disableHover && !forceExpanded) setExpanded(false) }
 
   return (
-    <div className="theme-toggle-root" ref={ref} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <div
+      className="theme-toggle-root"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="theme-toggle-container" data-expanded={expanded}>
         <button
           className="theme-toggle-trigger active"
           aria-label={`Current theme: ${current.label}`}
           title={`Current theme: ${current.label}`}
         >
-          <current.Icon size={20} />
+          <current.Icon />
         </button>
 
-        <div className="theme-options">
+        <div className="theme-options" aria-hidden={!expanded}>
           {THEMES.map(t => (
             <Tooltip key={t.id} text={t.label} position="bottom">
               <button
-                className={`theme-option ${theme === t.id ? 'active' : ''}`}
-                onClick={() => handleThemeSelect(t.id)}
+                className={`theme-option${theme === t.id ? ' active' : ''}`}
+                onClick={() => handleSelect(t.id)}
                 aria-label={`Switch to ${t.label} theme`}
+                tabIndex={expanded ? 0 : -1}
               >
-                <t.Icon size={20} />
+                <t.Icon />
               </button>
             </Tooltip>
           ))}
