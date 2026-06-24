@@ -4,8 +4,7 @@ import { Icons } from '../../assets/icons'
 import { FiPlus, FiMinus, FiTrash2, FiShoppingBag, FiChevronLeft, FiChevronRight, FiTag } from 'react-icons/fi'
 import { products as FALLBACK_PRODUCTS, billboardImages, CATEGORIES as FALLBACK_CATEGORIES } from '../../routes/shopProducts'
 import '../../styles/core/PTA-shop.css'
-
-const API = 'http://localhost:5000'
+import API from '../../config/api'
 
 // billboard images stay as-is (Unsplash URLs, no backend needed)
 const BILLBOARD = billboardImages

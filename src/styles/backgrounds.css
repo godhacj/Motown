@@ -12,10 +12,7 @@
   z-index: -1; /* keep background behind content */
 }
 
-.App-content {
-  position: relative;
-  z-index: 1; /* render above the fixed background */
-}
+/* .App-content is defined in App.css — no duplicate needed here */
 
 /* Fallback/defaults based on theme. These provide sensible defaults so the
    app still shows a background if JavaScript doesn't set `--bg-image`. */

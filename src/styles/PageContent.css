@@ -1,0 +1,245 @@
+/* ═══════════════════════════════════════════════════════════
+   PageContent.css
+   Shared layout for all admin / advanced pages that use the
+   .page-container pattern.  Every class here is consumed by
+   at least one of:
+     admin/Academics, Club, Domestic, House,
+     admin/Chapel/Aggrey-chapel, Catholic,
+     admin/Data/Infrastructure, Records, Staff-data, Student-data,
+     advanced/Library-Users, Syllabus
+═══════════════════════════════════════════════════════════ */
+
+/* ── Outer scroll shell ───────────────────────────────────── */
+.page-container {
+  width: 100%;
+  min-height: 100%;
+  padding: calc(4.5rem + 28px) 1.25rem 3rem;
+  box-sizing: border-box;
+  background: var(--background-page);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Page header ──────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: var(--font-name);
+  line-height: 1.2;
+}
+
+.page-header p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Stats row ────────────────────────────────────────────── */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.stat-box {
+  background: var(--background-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-value,
+.stat-box .number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.stat-label,
+.stat-box .label {
+  font-size: 0.775rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Content grid (feature cards) ────────────────────────── */
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.content-card {
+  background: var(--background-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.content-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.content-card h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.content-card p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* ── Card icon circle ─────────────────────────────────────── */
+.card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ── Action button ────────────────────────────────────────── */
+.page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border: none;
+  font-size: 0.8375rem;
+  font-weight: 600;
+  font-family: var(--font-name);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.page-button:hover {
+  background: var(--color-accent-hover);
+}
+
+/* ── Table container ──────────────────────────────────────── */
+.table-container {
+  background: var(--background-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.table-container h2 {
+  margin: 0;
+  padding: 1rem 1.25rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table-container thead {
+  background: var(--background-page);
+}
+
+.table-container th {
+  padding: 0.75rem 1.25rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-container td {
+  padding: 0.875rem 1.25rem;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.table-container tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-container tbody tr:hover td {
+  background: var(--background-hover);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .page-container {
+    padding: calc(4.5rem + 20px) 0.875rem 2.5rem;
+    gap: 1.1rem;
+  }
+
+  .page-header h1 { font-size: 1.25rem; }
+
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .table-container table {
+    min-width: 480px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-section {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-value,
+  .stat-box .number {
+    font-size: 1.4rem;
+  }
+}

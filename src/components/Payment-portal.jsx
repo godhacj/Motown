@@ -33,25 +33,25 @@ function fmtExpiry(v) {
 // ── Sub-screens ───────────────────────────────────────────────────────────────
 function MethodSelect({ selected, onSelect, onNext }) {
   return (
-    <div className="pp-screen">
-      <p className="pp-subtitle">Choose how you want to pay</p>
-      <div className="pp-methods">
+    <div className="pay-screen">
+      <p className="pay-subtitle">Choose how you want to pay</p>
+      <div className="pay-methods">
         {METHODS.map(m => (
           <button
             key={m.id}
-            className={`pp-method${selected === m.id ? ' pp-method--active' : ''}`}
+            className={`pay-method${selected === m.id ? ' pay-method--active' : ''}`}
             onClick={() => onSelect(m.id)}
           >
-            <span className="pp-method__icon"><m.icon /></span>
-            <span className="pp-method__body">
-              <span className="pp-method__label">{m.label}</span>
-              <span className="pp-method__desc">{m.description}</span>
+            <span className="pay-method__icon"><m.icon /></span>
+            <span className="pay-method__body">
+              <span className="pay-method__label">{m.label}</span>
+              <span className="pay-method__desc">{m.description}</span>
             </span>
-            <span className={`pp-method__radio${selected === m.id ? ' pp-method__radio--checked' : ''}`} />
+            <span className={`pay-method__radio${selected === m.id ? ' pay-method__radio--checked' : ''}`} />
           </button>
         ))}
       </div>
-      <button className="pp-primary-btn" onClick={onNext} disabled={!selected}>
+      <button className="pay-primary-btn" onClick={onNext} disabled={!selected}>
         Continue
       </button>
     </div>
@@ -76,28 +76,28 @@ function MomoForm({ amount, onBack, onOtp }) {
   }
 
   return (
-    <div className="pp-screen">
-      <button className="pp-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
-      <p className="pp-subtitle">Enter your MoMo details</p>
+    <div className="pay-screen">
+      <button className="pay-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
+      <p className="pay-subtitle">Enter your MoMo details</p>
 
-      <div className="pp-field-group">
-        <label className="pp-label">Network</label>
-        <div className="pp-network-pills">
+      <div className="pay-field-group">
+        <label className="pay-label">Network</label>
+        <div className="pay-network-pills">
           {networks.map(n => (
             <button
               key={n}
-              className={`pp-network-pill${network === n ? ' pp-network-pill--active' : ''}`}
+              className={`pay-network-pill${network === n ? ' pay-network-pill--active' : ''}`}
               onClick={() => setNetwork(n)}
             >{n}</button>
           ))}
         </div>
       </div>
 
-      <div className="pp-field-group">
-        <label className="pp-label" htmlFor="momo-phone">Phone Number</label>
+      <div className="pay-field-group">
+        <label className="pay-label" htmlFor="momo-phone">Phone Number</label>
         <input
           id="momo-phone"
-          className="pp-input"
+          className="pay-input"
           type="tel"
           placeholder="0XX XXX XXXX"
           value={phone}
@@ -106,11 +106,11 @@ function MomoForm({ amount, onBack, onOtp }) {
         />
       </div>
 
-      <div className="pp-field-group">
-        <label className="pp-label" htmlFor="momo-name">Account Name</label>
+      <div className="pay-field-group">
+        <label className="pay-label" htmlFor="momo-name">Account Name</label>
         <input
           id="momo-name"
-          className="pp-input"
+          className="pay-input"
           type="text"
           placeholder="Name on MoMo account"
           value={name}
@@ -118,18 +118,18 @@ function MomoForm({ amount, onBack, onOtp }) {
         />
       </div>
 
-      <div className="pp-amount-summary">
+      <div className="pay-amount-summary">
         <span>Amount to pay</span>
-        <span className="pp-amount-value">GH₵{amount.toFixed(2)}</span>
+        <span className="pay-amount-value">GH₵{amount.toFixed(2)}</span>
       </div>
 
-      {error && <p className="pp-error"><FiAlertCircle /> {error}</p>}
+      {error && <p className="pay-error"><FiAlertCircle /> {error}</p>}
 
-      <button className="pp-primary-btn" onClick={handleSubmit} disabled={!valid || loading}>
-        {loading ? <><FiLoader className="pp-spin" /> Sending prompt…</> : 'Pay Now'}
+      <button className="pay-primary-btn" onClick={handleSubmit} disabled={!valid || loading}>
+        {loading ? <><FiLoader className="pay-spin" /> Sending prompt…</> : 'Pay Now'}
       </button>
 
-      <p className="pp-secure-note"><FiLock /> Secured by Achimota PTA Pay</p>
+      <p className="pay-secure-note"><FiLock /> Secured by Achimota PTA Pay</p>
     </div>
   )
 }
@@ -153,20 +153,20 @@ function CardForm({ amount, onBack, onSuccess }) {
   }
 
   return (
-    <div className="pp-screen">
-      <button className="pp-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
-      <p className="pp-subtitle">Enter your card details</p>
+    <div className="pay-screen">
+      <button className="pay-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
+      <p className="pay-subtitle">Enter your card details</p>
 
-      <div className="pp-card-brands">
-        <span className="pp-card-brand pp-card-brand--visa">VISA</span>
-        <span className="pp-card-brand pp-card-brand--mc">MC</span>
+      <div className="pay-card-brands">
+        <span className="pay-card-brand pay-card-brand--visa">VISA</span>
+        <span className="pay-card-brand pay-card-brand--mc">MC</span>
       </div>
 
-      <div className="pp-field-group">
-        <label className="pp-label" htmlFor="card-number">Card Number</label>
+      <div className="pay-field-group">
+        <label className="pay-label" htmlFor="card-number">Card Number</label>
         <input
           id="card-number"
-          className="pp-input pp-input--mono"
+          className="pay-input pay-input--mono"
           type="text"
           inputMode="numeric"
           placeholder="0000 0000 0000 0000"
@@ -176,11 +176,11 @@ function CardForm({ amount, onBack, onSuccess }) {
         />
       </div>
 
-      <div className="pp-field-group">
-        <label className="pp-label" htmlFor="card-name">Cardholder Name</label>
+      <div className="pay-field-group">
+        <label className="pay-label" htmlFor="card-name">Cardholder Name</label>
         <input
           id="card-name"
-          className="pp-input"
+          className="pay-input"
           type="text"
           placeholder="Name as on card"
           value={name}
@@ -188,12 +188,12 @@ function CardForm({ amount, onBack, onSuccess }) {
         />
       </div>
 
-      <div className="pp-row">
-        <div className="pp-field-group">
-          <label className="pp-label" htmlFor="card-expiry">Expiry</label>
+      <div className="pay-row">
+        <div className="pay-field-group">
+          <label className="pay-label" htmlFor="card-expiry">Expiry</label>
           <input
             id="card-expiry"
-            className="pp-input pp-input--mono"
+            className="pay-input pay-input--mono"
             type="text"
             inputMode="numeric"
             placeholder="MM/YY"
@@ -202,11 +202,11 @@ function CardForm({ amount, onBack, onSuccess }) {
             maxLength={5}
           />
         </div>
-        <div className="pp-field-group">
-          <label className="pp-label" htmlFor="card-cvv">CVV</label>
+        <div className="pay-field-group">
+          <label className="pay-label" htmlFor="card-cvv">CVV</label>
           <input
             id="card-cvv"
-            className="pp-input pp-input--mono"
+            className="pay-input pay-input--mono"
             type="password"
             inputMode="numeric"
             placeholder="•••"
@@ -217,18 +217,18 @@ function CardForm({ amount, onBack, onSuccess }) {
         </div>
       </div>
 
-      <div className="pp-amount-summary">
+      <div className="pay-amount-summary">
         <span>Amount to pay</span>
-        <span className="pp-amount-value">GH₵{amount.toFixed(2)}</span>
+        <span className="pay-amount-value">GH₵{amount.toFixed(2)}</span>
       </div>
 
-      {error && <p className="pp-error"><FiAlertCircle /> {error}</p>}
+      {error && <p className="pay-error"><FiAlertCircle /> {error}</p>}
 
-      <button className="pp-primary-btn" onClick={handleSubmit} disabled={!valid || loading}>
-        {loading ? <><FiLoader className="pp-spin" /> Processing…</> : 'Pay Now'}
+      <button className="pay-primary-btn" onClick={handleSubmit} disabled={!valid || loading}>
+        {loading ? <><FiLoader className="pay-spin" /> Processing…</> : 'Pay Now'}
       </button>
 
-      <p className="pp-secure-note"><FiLock /> 3D Secure · SSL Encrypted</p>
+      <p className="pay-secure-note"><FiLock /> 3D Secure · SSL Encrypted</p>
     </div>
   )
 }
@@ -273,19 +273,19 @@ function OtpScreen({ phone, amount, onSuccess, onBack }) {
   }
 
   return (
-    <div className="pp-screen">
-      <button className="pp-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
-      <div className="pp-otp-icon">
+    <div className="pay-screen">
+      <button className="pay-back-btn" onClick={onBack}><FiChevronLeft /> Back</button>
+      <div className="pay-otp-icon">
         <FiSmartphone />
       </div>
-      <p className="pp-subtitle">Enter the 6-digit code sent to<br /><strong>{phone}</strong></p>
+      <p className="pay-subtitle">Enter the 6-digit code sent to<br /><strong>{phone}</strong></p>
 
-      <div className="pp-otp-boxes" onPaste={handlePaste}>
+      <div className="pay-otp-boxes" onPaste={handlePaste}>
         {otp.map((d, i) => (
           <input
             key={i}
             ref={el => inputs.current[i] = el}
-            className={`pp-otp-box${d ? ' pp-otp-box--filled' : ''}`}
+            className={`pay-otp-box${d ? ' pay-otp-box--filled' : ''}`}
             type="text"
             inputMode="numeric"
             maxLength={1}
@@ -296,19 +296,19 @@ function OtpScreen({ phone, amount, onSuccess, onBack }) {
         ))}
       </div>
 
-      {error && <p className="pp-error"><FiAlertCircle /> {error}</p>}
-      {resent && <p className="pp-success-note"><FiCheck /> Code resent!</p>}
+      {error && <p className="pay-error"><FiAlertCircle /> {error}</p>}
+      {resent && <p className="pay-success-note"><FiCheck /> Code resent!</p>}
 
-      <div className="pp-amount-summary">
+      <div className="pay-amount-summary">
         <span>Authorising payment of</span>
-        <span className="pp-amount-value">GH₵{amount.toFixed(2)}</span>
+        <span className="pay-amount-value">GH₵{amount.toFixed(2)}</span>
       </div>
 
-      <button className="pp-primary-btn" onClick={handleVerify} disabled={!filled || loading}>
-        {loading ? <><FiLoader className="pp-spin" /> Verifying…</> : 'Verify & Pay'}
+      <button className="pay-primary-btn" onClick={handleVerify} disabled={!filled || loading}>
+        {loading ? <><FiLoader className="pay-spin" /> Verifying…</> : 'Verify & Pay'}
       </button>
 
-      <button className="pp-link-btn" onClick={handleResend} disabled={resent}>
+      <button className="pay-link-btn" onClick={handleResend} disabled={resent}>
         {resent ? 'Code sent!' : 'Resend code'}
       </button>
     </div>
@@ -317,20 +317,20 @@ function OtpScreen({ phone, amount, onSuccess, onBack }) {
 
 function SuccessScreen({ amount, method, onClose }) {
   return (
-    <div className="pp-screen pp-screen--center">
-      <div className="pp-success-ring">
-        <FiCheck className="pp-success-check" />
+    <div className="pay-screen pay-screen--center">
+      <div className="pay-success-ring">
+        <FiCheck className="pay-success-check" />
       </div>
-      <h3 className="pp-success-title">Payment Successful!</h3>
-      <p className="pp-success-amount">GH₵{amount.toFixed(2)}</p>
-      <p className="pp-success-detail">
+      <h3 className="pay-success-title">Payment Successful!</h3>
+      <p className="pay-success-amount">GH₵{amount.toFixed(2)}</p>
+      <p className="pay-success-detail">
         Paid via {METHODS.find(m => m.id === method)?.label || method}.
         <br />A receipt has been sent to your registered contact.
       </p>
-      <div className="pp-success-ref">
+      <div className="pay-success-ref">
         Ref: ACH-{Date.now().toString().slice(-8).toUpperCase()}
       </div>
-      <button className="pp-primary-btn pp-primary-btn--success" onClick={onClose}>
+      <button className="pay-primary-btn pay-primary-btn--success" onClick={onClose}>
         Done
       </button>
     </div>
@@ -367,14 +367,14 @@ export default function PaymentPortal({ amount = 0, onClose, onSuccess }) {
   }
 
   return (
-    <div className="pp-overlay" onClick={onClose}>
-      <div className="pp-dialog" onClick={e => e.stopPropagation()}>
+    <div className="pay-overlay" onClick={onClose}>
+      <div className="pay-dialog" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="pp-header">
-          <h2 className="pp-title">{stepTitles[step]}</h2>
+        <div className="pay-header">
+          <h2 className="pay-title">{stepTitles[step]}</h2>
           {step !== 'success' && (
-            <button className="pp-close-btn" onClick={onClose} aria-label="Close">
+            <button className="pay-close-btn" onClick={onClose} aria-label="Close">
               <FiX />
             </button>
           )}
@@ -382,7 +382,7 @@ export default function PaymentPortal({ amount = 0, onClose, onSuccess }) {
 
         {/* Step indicator */}
         {step !== 'success' && (
-          <div className="pp-steps">
+          <div className="pay-steps">
             {['method', 'details', 'verify'].map((s, i) => {
               const active = (s === 'method' && step === 'method') ||
                              (s === 'details' && (step === 'momo' || step === 'card')) ||
@@ -391,11 +391,11 @@ export default function PaymentPortal({ amount = 0, onClose, onSuccess }) {
                            (i === 1 && step === 'otp')
               return (
                 <React.Fragment key={s}>
-                  <div className={`pp-step${active ? ' pp-step--active' : ''}${done ? ' pp-step--done' : ''}`}>
-                    <span className="pp-step__dot">{done ? <FiCheck /> : i + 1}</span>
-                    <span className="pp-step__label">{['Method', 'Details', 'Verify'][i]}</span>
+                  <div className={`pay-step${active ? ' pay-step--active' : ''}${done ? ' pay-step--done' : ''}`}>
+                    <span className="pay-step__dot">{done ? <FiCheck /> : i + 1}</span>
+                    <span className="pay-step__label">{['Method', 'Details', 'Verify'][i]}</span>
                   </div>
-                  {i < 2 && <div className={`pp-step-line${done ? ' pp-step-line--done' : ''}`} />}
+                  {i < 2 && <div className={`pay-step-line${done ? ' pay-step-line--done' : ''}`} />}
                 </React.Fragment>
               )
             })}

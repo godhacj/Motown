@@ -668,6 +668,7 @@ const MapLocation = mongoose.models.MapLocation || mongoose.model('MapLocation',
 
 const schoolProfileSchema = new mongoose.Schema({
   schoolName: { type: String, default: 'Achimota School' },
+  type:       { type: String, default: 'Public Boarding / Day' },
   founded:    { type: Number, default: 1924 },
   location:   { type: String, default: 'Accra, Ghana' },
   motto:      { type: String, default: 'Ut Omnes Unum Sint' },
@@ -683,6 +684,11 @@ const schoolProfileSchema = new mongoose.Schema({
   houses:          [{ name: String, color: String }],
   chaplaincy:      [{ name: String, denomination: String, chaplain: String }],
   serviceContacts: [{ service: String, phone: String, email: String, hours: String }],
+
+  faqs: [{
+    question: { type: String },
+    answer:   { type: String },
+  }],
 
   socialMedia: {
     facebook:  { type: String },

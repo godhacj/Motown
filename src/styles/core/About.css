@@ -15,7 +15,6 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--background-page);
-  /* No padding-top — the sticky banner fills the topbar gap */
   padding-bottom: 3rem;
   box-sizing: border-box;
 }
@@ -24,14 +23,11 @@
    BANNER
 ───────────────────────────────────────────── */
 .about-banner {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
   width: 100%;
   /* height driven by inline style from JS */
   min-height: 8vh;
   overflow: hidden;
-  z-index: 10;
   /* smooth height transitions as user scrolls */
   will-change: height, opacity;
   /* push content below the fixed topbar */
@@ -101,7 +97,7 @@
 
 /* Gap between banner and the first card */
 .about-banner + .about-hero {
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 /* ─────────────────────────────────────────────
@@ -548,7 +544,7 @@
   }
 
   .about-banner {
-    padding-top: calc(3.5rem + 16px);
+    padding-top: calc(4rem + 16px);
   }
 
   .about-hero {

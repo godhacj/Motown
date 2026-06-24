@@ -7,8 +7,7 @@ import GalleryModal from '../../components/GalleryModal'
 import ShareDialog from '../../components/ShareDialog'
 import useColumnCount from '../../components/useColumnCount'
 import '../../styles/core/Gallery.css'
-
-const API = 'http://localhost:5000'
+import API from '../../config/api'
 const LIKES_KEY = 'gallery-likes'
 
 function normalise(item) {

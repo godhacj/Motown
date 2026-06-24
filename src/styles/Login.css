@@ -647,18 +647,7 @@
   }
 }
 
-/* ═══════════════════════════════════════
-   LEGACY — AdminLogin / TeacherLogin
-   These classes kept so old files don't break
-═══════════════════════════════════════ */
-.page {
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
-  background: var(--background-page);
-}
-
-.page-content {
+.sl-page-content {
   min-height: 100%;
   display: flex;
   flex-direction: column;

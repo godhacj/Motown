@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { FiBookOpen, FiLock, FiEye, FiEyeOff, FiAlertCircle, FiArrowLeft, FiLoader, FiUser, FiShield } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import '../../styles/Login.css'
+import API from '../../config/api'
 
 const ID_REGEX = /^[A-Za-z][A-Za-z0-9_]{2,19}$/
 
@@ -75,7 +76,7 @@ export default function StudentLogin() {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/students/login', {
+      const res = await fetch(`${API}/api/students/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: studentId.trim(), password }),
@@ -92,7 +93,7 @@ export default function StudentLogin() {
         username: data.username,
         id:       data.studentId,
         email:    data.email,
-        photo:    data.photo ? `http://localhost:5000${data.photo}` : null,
+        photo:    data.photo ? `${API}${data.photo}` : null,
         program:  data.program,
       })
     } catch {
