@@ -207,6 +207,53 @@
   background: var(--background-hover);
 }
 
+/* ── Admin portal helpers ─────────────────────────────────── */
+.ap-loading {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ap-error {
+  padding: 0.875rem 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+[data-theme="dark"] .ap-error {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.3);
+  color: #f87171;
+}
+
+.ap-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.ap-filters select {
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--background-surface);
+  color: var(--color-text-primary);
+  font-size: 0.8375rem;
+  font-family: var(--font-name);
+  cursor: pointer;
+}
+
+.ap-tab-inactive {
+  background: var(--background-surface) !important;
+  color: var(--color-text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   .page-container {

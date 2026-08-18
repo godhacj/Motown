@@ -21,6 +21,9 @@ import Infrastructure from '../pages/admin/Data/Infrastructure'
 import Records from '../pages/admin/Data/Records'
 import StaffData from '../pages/admin/Data/Staff-data'
 import StudentData from '../pages/admin/Data/Student-data'
+import AdminLibrary from '../pages/admin/Library'
+import Media from '../pages/admin/Media'
+import Accounts from '../pages/admin/Accounts'
 
 // Advanced
 import Announcement from '../pages/advanced/Announcement'
@@ -68,6 +71,9 @@ export {
   Records,
   StaffData,
   StudentData,
+  AdminLibrary,
+  Media,
+  Accounts,
 
   // Advanced
   Announcement,

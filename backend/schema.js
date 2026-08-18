@@ -55,8 +55,7 @@ const additionalRecordSchema = new mongoose.Schema({
 
 const studentSchema = new mongoose.Schema({
   // Auth
-  username: { type: String, required: true, unique: true, trim: true,
-              match: /^[A-Za-z][A-Za-z0-9_]{2,19}$/ },
+  username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
   role:     { type: String, default: 'student' },
 
@@ -123,25 +122,34 @@ studentSchema.index({ indexNumber: 1 }, { sparse: true })
 const Student = mongoose.models.Student || mongoose.model('Student', studentSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. TEACHERS
+// 2. TEACHERS  (extended for Teacher Portal)
 // ─────────────────────────────────────────────────────────────────────────────
+
+const DEPT_ENUM = ['General Science','General Arts','Visual Arts','Home Economics','Agriculture']
+const YEAR_ENUM = ['SHS 1','SHS 2','SHS 3']
 
 const teacherSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
-  role:     { type: String, default: 'teacher' },
+  role:     { type: String, enum: ['teacher','hod','hod_assistant'], default: 'teacher' },
 
   firstName:      { type: String, required: true },
   lastName:       { type: String, required: true },
   email:          { type: String, lowercase: true },
   phone:          { type: String },
-  photo:          { type: String },  // /media/avatars/<file>
+  photo:          { type: String },
   gender:         { type: String, enum: ['Male','Female','Other'] },
   nationality:    { type: String, default: 'Ghanaian' },
   address:        { type: String },
 
   staffId:        { type: String },
-  department:     { type: String, enum: ['Science','Arts','Commerce','Languages','Technical','Humanities','PE','ICT','Other'] },
+  // Achimota-specific department enum
+  department:     { type: String, enum: DEPT_ENUM },
+  yearGroup:      { type: String, enum: YEAR_ENUM },
+  // Teacher Portal references (set by seed / admin)
+  classTeacherOf: { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass' },
+  subject:        { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+  // Legacy / admin fields
   subjects:       [{ type: String }],
   classesHandled: [{ type: String }],
   position:       { type: String },
@@ -517,6 +525,28 @@ messageSchema.index({ groupType: 1 })
 const Message = mongoose.models.Message || mongoose.model('Message', messageSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 15b. REPORTS  (incident / absence / feedback / general reports)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const reportSchema = new mongoose.Schema({
+  submitterId:   { type: mongoose.Schema.Types.ObjectId, required: true },
+  submitterRole: { type: String, enum: ['Student', 'Teacher'] },
+  submitterName: { type: String },   // null when submitted anonymously
+  anonymous:     { type: Boolean, default: false },
+  type:          { type: String, enum: ['Incident Report', 'Absence Report', 'Feedback to Teacher', 'General Report'], required: true },
+  subject:       { type: String, required: true, trim: true },
+  body:          { type: String, required: true },
+  status:        { type: String, enum: ['pending', 'reviewed'], default: 'pending' },
+  reviewedBy:    { type: mongoose.Schema.Types.ObjectId },
+  reviewedAt:    { type: Date },
+  reviewNote:    { type: String },
+}, { timestamps: true })
+
+reportSchema.index({ submitterId: 1, createdAt: -1 })
+
+const Report = mongoose.models.Report || mongoose.model('Report', reportSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 16. LIBRARY RESOURCES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -733,6 +763,317 @@ conferenceSchema.index({ status: 1, startedAt: -1 })
 const Conference = mongoose.models.Conference || mongoose.model('Conference', conferenceSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 23. SUBJECTS  (Teacher Portal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const subjectSchema = new mongoose.Schema({
+  name:        { type: String, required: true, trim: true },
+  code:        { type: String, trim: true },
+  departments: [{ type: String, enum: ['General Science','General Arts','Visual Arts','Home Economics','Agriculture'] }],
+}, { timestamps: true })
+
+subjectSchema.index({ code: 1 }, { unique: true, sparse: true })
+
+const Subject = mongoose.models.Subject || mongoose.model('Subject', subjectSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 24. ACHIMOTA CLASSES  (Teacher Portal — 105 classes)
+// Named AchiClass to avoid collision with JS reserved word
+// ─────────────────────────────────────────────────────────────────────────────
+
+const prefectSlotSchema = new mongoose.Schema({
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  role:    { type: String },
+}, { _id: false })
+
+const achiClassSchema = new mongoose.Schema({
+  name:         { type: String, required: true, unique: true, trim: true },
+  department:   { type: String, required: true, enum: ['General Science','General Arts','Visual Arts','Home Economics','Agriculture'] },
+  yearGroup:    { type: String, required: true, enum: ['SHS 1','SHS 2','SHS 3'] },
+  classTeacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  students:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
+  prefects:     [prefectSlotSchema],
+}, { timestamps: true })
+
+achiClassSchema.index({ department: 1, yearGroup: 1 })
+
+const AchiClass = mongoose.models.AchiClass || mongoose.model('AchiClass', achiClassSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 25. TIMETABLE  (one per class per term)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const periodSchema = new mongoose.Schema({
+  day:       { type: String, required: true, enum: ['Mon','Tue','Wed','Thu','Fri'] },
+  startTime: { type: String, required: true },  // e.g. "07:30"
+  endTime:   { type: String, required: true },  // e.g. "08:10"
+  subject:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+  teacher:   { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+}, { _id: false })
+
+const timetableSchema = new mongoose.Schema({
+  class:     { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass', required: true },
+  term:      { type: String, required: true, enum: ['Term 1','Term 2','Term 3'] },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  periods:   [periodSchema],
+}, { timestamps: true })
+
+timetableSchema.index({ class: 1, term: 1 }, { unique: true })
+
+const Timetable = mongoose.models.Timetable || mongoose.model('Timetable', timetableSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 26. CLASS ATTENDANCE  (daily register — Teacher Portal)
+// Renamed ClassAttendance to avoid collision with existing Attendance model
+// ─────────────────────────────────────────────────────────────────────────────
+
+const classAttendanceRecordSchema = new mongoose.Schema({
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  status:  { type: String, enum: ['present','absent'], default: 'present' },
+}, { _id: false })
+
+const classAttendanceSchema = new mongoose.Schema({
+  class:    { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass', required: true },
+  date:     { type: Date, required: true },
+  markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  records:  [classAttendanceRecordSchema],
+}, { timestamps: true })
+
+classAttendanceSchema.index({ class: 1, date: 1 }, { unique: true })
+
+const ClassAttendance = mongoose.models.ClassAttendance || mongoose.model('ClassAttendance', classAttendanceSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 27. CLASS ASSESSMENT  (teacher-created — Teacher Portal)
+// Renamed to avoid collision with existing academic Assessment model
+// ─────────────────────────────────────────────────────────────────────────────
+
+const classAssessmentScoreSchema = new mongoose.Schema({
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  score:   { type: Number },
+}, { _id: false })
+
+const classAssessmentSchema = new mongoose.Schema({
+  name:       { type: String, required: true, trim: true },
+  type:       { type: String, enum: ['project','exercise','homework','custom'], required: true },
+  customType: { type: String },
+  maxScore:   { type: Number, required: true },
+  subject:    { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+  class:      { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass', required: true },
+  date:       { type: Date },
+  createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  scores:     [classAssessmentScoreSchema],
+}, { timestamps: true })
+
+classAssessmentSchema.index({ class: 1, createdAt: -1 })
+
+const ClassAssessment = mongoose.models.ClassAssessment || mongoose.model('ClassAssessment', classAssessmentSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 28. ROSTER DOC  (rich-text duty roster + prefect list — Teacher Portal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const rosterDocSchema = new mongoose.Schema({
+  class:     { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass', required: true, unique: true },
+  title:     { type: String, default: 'Class Roster' },
+  content:   { type: String, default: '' },  // TipTap JSON string
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+}, { timestamps: true })
+
+const RosterDoc = mongoose.models.RosterDoc || mongoose.model('RosterDoc', rosterDocSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 29. LESSON NOTES  (Teacher Portal → surfaces on Syllabus + Library)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const lessonNoteSchema = new mongoose.Schema({
+  teacher:   { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', required: true },
+  subject:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+  class:     { type: mongoose.Schema.Types.ObjectId, ref: 'AchiClass' },
+  term:      { type: String, enum: ['Term 1','Term 2','Term 3'] },
+  title:     { type: String, required: true, trim: true },
+  content:   { type: String, default: '' },  // TipTap JSON string
+  visibleOn: [{ type: String, enum: ['syllabus','library'] }],
+}, { timestamps: true })
+
+lessonNoteSchema.index({ teacher: 1, term: 1, createdAt: -1 })
+lessonNoteSchema.index({ visibleOn: 1 })
+
+const LessonNote = mongoose.models.LessonNote || mongoose.model('LessonNote', lessonNoteSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 30. ADMIN USER  (multi-portal admin family)
+// One model covers all ten sub-portals. Each login carries a portal label and
+// an optional scope object (house ref, data mode, chapel stream, etc.).
+// Management (headmaster) passes every portal guard.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const adminUserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, trim: true },
+  password: { type: String, required: true },
+
+  portal: {
+    type: String,
+    required: true,
+    enum: ['house','academics','data','domestic','chapel','library','club','media','management','accounts'],
+  },
+
+  // Friendly display name (person or role title)
+  displayName: { type: String },
+
+  // Scope — meaning varies by portal:
+  //   house      → { house: ObjectId ref AchiHouse, level: 'house'|'senior' }
+  //   data       → { mode: 'student'|'teacher'|'infrastructure'|'record' }
+  //   chapel     → { stream: 'Aggrey'|'Catholic' }
+  //   club       → { club: ObjectId ref Club }
+  //   others     → {}
+  scope: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+  status: { type: String, enum: ['active','suspended'], default: 'active' },
+}, { timestamps: true })
+
+const AdminUser = mongoose.models.AdminUser || mongoose.model('AdminUser', adminUserSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 31. ACHI HOUSE  (Achimota's 19 boarding + day houses)
+// Separate from the legacy House model to avoid breaking existing refs.
+// Students are linked bidirectionally: Student.house → AchiHouse._id
+// ─────────────────────────────────────────────────────────────────────────────
+
+const achiHouseSchema = new mongoose.Schema({
+  name:       { type: String, required: true, unique: true, trim: true },
+  type:       { type: String, enum: ['boarding','day'], default: 'boarding' },
+  gender:     { type: String, enum: ['boys','girls','mixed'], required: true },
+  compound:   { type: String, enum: ['Eastern','Western'], default: null },
+
+  housemaster: { type: String },   // staff name stub — full ref comes later
+
+  // Students assigned to this house (ObjectId refs into Student collection)
+  students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
+
+  // House events / competition points (carried over from legacy model concept)
+  points: { type: Number, default: 0 },
+  events: [{
+    eventName:    { type: String },
+    date:         { type: Date },
+    result:       { type: String },
+    pointsEarned: { type: Number },
+  }],
+}, { timestamps: true })
+
+const AchiHouse = mongoose.models.AchiHouse || mongoose.model('AchiHouse', achiHouseSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 32. APPROVAL  (shared approval engine used by all portals)
+//
+// kind            → what is being approved
+// payload         → the data attached (syllabus doc id, diff object, etc.)
+// requestedBy     → who submitted it (any user type)
+// approverPortal  → which portal this is routed to for first decision
+// status          → overall status (pending/approved/rejected)
+// chain           → multi-step: each step records portal, status, who decided
+// ─────────────────────────────────────────────────────────────────────────────
+
+const approvalChainStepSchema = new mongoose.Schema({
+  portal:     { type: String },
+  status:     { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  decidedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' },
+  decidedAt:  { type: Date },
+  note:       { type: String },
+}, { _id: false })
+
+const approvalSchema = new mongoose.Schema({
+  kind: {
+    type: String,
+    required: true,
+    enum: [
+      'syllabus', 'timetable',
+      'profile_change_student', 'profile_change_teacher',
+      'media_post',
+      'club_creation',
+      'personnel_add', 'personnel_remove',
+      'major_change',
+    ],
+  },
+
+  payload: { type: mongoose.Schema.Types.Mixed },
+
+  requestedBy: {
+    userType: { type: String, enum: ['student','teacher','adminUser','system'] },
+    id:       { type: mongoose.Schema.Types.ObjectId },
+    name:     { type: String },
+  },
+
+  // Portal that owns the first decision seat
+  approverPortal: { type: String, required: true },
+
+  status: {
+    type: String,
+    enum: ['pending','approved','rejected'],
+    default: 'pending',
+  },
+
+  decidedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' },
+  decidedAt:  { type: Date },
+  note:       { type: String },
+
+  // Multi-step chain — appended as portals hand off
+  chain: [approvalChainStepSchema],
+}, { timestamps: true })
+
+approvalSchema.index({ approverPortal: 1, status: 1, createdAt: -1 })
+approvalSchema.index({ 'requestedBy.id': 1, createdAt: -1 })
+
+const Approval = mongoose.models.Approval || mongoose.model('Approval', approvalSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 33. CLEARANCE ITEM  (single outstanding obligation blocking a student's exit)
+//
+// source     → which portal created it
+// sourceId   → ref to the originating doc (DCCase, Loan, Payment, etc.)
+// status     → outstanding → cleared
+// Announcement hook: while outstanding a private daily Announcement is kept
+// alive for the student (announcementId stored here for easy lookup/deletion).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const clearanceItemSchema = new mongoose.Schema({
+  student:     { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  source:      { type: String, enum: ['dc_case','library_loan','accounts'], required: true },
+  sourceId:    { type: mongoose.Schema.Types.ObjectId },
+  description: { type: String, required: true },
+
+  status: {
+    type: String,
+    enum: ['outstanding','cleared'],
+    default: 'outstanding',
+  },
+
+  clearedAt:      { type: Date },
+  clearedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' },
+
+  // Ref to the live private Announcement for this item (null when cleared)
+  announcementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Announcement' },
+}, { timestamps: true })
+
+clearanceItemSchema.index({ student: 1, status: 1 })
+clearanceItemSchema.index({ source: 1, sourceId: 1 })
+
+const ClearanceItem = mongoose.models.ClearanceItem || mongoose.model('ClearanceItem', clearanceItemSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 34. CAMPUS HIGHLIGHTS  (Badge component — 8 fixed shield-key popups)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const campusHighlightSchema = new mongoose.Schema({
+  order:       { type: Number, required: true, unique: true, min: 0, max: 7 },  // key position 0-7
+  title:       { type: String, required: true, trim: true },
+  description: { type: String },
+  image:       { type: String, required: true },  // /media/badge/<file>
+}, { timestamps: true })
+
+const CampusHighlight = mongoose.models.CampusHighlight || mongoose.model('CampusHighlight', campusHighlightSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS  — import any model in any route/seed file
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -741,10 +1082,17 @@ const models = {
   GalleryItem, PagePost,
   Product, Order,
   Assessment, Attendance, Achievement, Clearance,
-  House, Club, Announcement, Message,
+  House, Club, Announcement, Message, Report,
   LibraryResource, Syllabus, Chapel,
   Infrastructure, MapLocation,
   SchoolProfile, Conference,
+  // Teacher Portal models
+  Subject, AchiClass, Timetable,
+  ClassAttendance, ClassAssessment, RosterDoc, LessonNote,
+  // Admin Portal models
+  AdminUser, AchiHouse, Approval, ClearanceItem,
+  // Public content models
+  CampusHighlight,
 }
 
 module.exports = models

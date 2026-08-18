@@ -1,0 +1,2607 @@
+# MOTOWN — PROJECT MANUAL
+### Achimota School Management System — Offline Codebase Reference
+
+**Project:** Motown (Achimota School)
+**Manual version:** v1.0
+**Generated:** 2026-07-10
+**Purpose:** This is a MANUAL, not a comment block. Assume you have this file open in one
+window and the codebase open in another, with NO internet access, and you need to locate,
+understand, and fix any bug using only these two things.
+
+---
+
+## CHANGELOG
+
+| Date | Version | What changed |
+|---|---|---|
+| 2026-07-10 | v1.0 | Initial manual generated. Covers full codebase as of commit `8e1e055` ("Fix production CSS bundle corruption and wire up backend data") plus all currently staged/unstaged/untracked working-tree changes (Teacher Portal Phase 1-5, Admin Portal families Phase 1-3, campus highlights, clearance/approvals engine). |
+
+---
+
+## TABLE OF CONTENTS
+
+**PART A — BIG PICTURE**
+- A1. Architecture Overview
+- A2. Full Annotated File Tree
+- A3. Request Lifecycle, Traced
+- A4. Auth & Roles
+- A5. Database Map
+- A6. API Reference Table
+- A7. Environment & Config
+- A8. Dependencies
+- A9. Project Conventions
+
+**PART B — FILE-BY-FILE, CLUSTERED**
+- B1. Shared/Core (api client, contexts, hooks, layout, config)
+- B2. Backend Infrastructure (middleware, db, schema)
+- B3. Backend Routes — Public/Legacy
+- B4. Backend Routes — Teacher Portal
+- B5. Backend Routes — Admin Portal Family
+- B6. Frontend — Public Core Pages
+- B7. Frontend — Login Pages
+- B8. Frontend — Student Portal
+- B9. Frontend — Teacher Portal
+- B10. Frontend — Admin Portal Pages
+- B11. Frontend — Advanced Pages
+- B12. Frontend — Shared Components
+- B13. CSS Architecture
+- B14. Seed Scripts
+
+**PART C — TROUBLESHOOTING GUIDE**
+
+**PART D — STATUS & COMPLETION**
+- D1. Feature Checklist
+- D2. Incomplete Parts Expanded
+- D3. Percentage Completion
+- D4. Time-to-Finish Estimate
+
+---
+---
+
+# PART A — BIG PICTURE
+
+## A1. Architecture Overview
+
+Motown is a school-management web application for Achimota School (Ghana), built as a
+**React SPA (Vite) talking to a Node/Express REST API backed by MongoDB**, with static
+media served from a local disk folder. There is no server-side rendering and no GraphQL —
+everything is plain JSON over HTTP.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  BROWSER                                                             │
+│  React 19 SPA (Vite dev server :5173 / static build in prod)         │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │ react-router-dom v6 (all routes declared in src/App.jsx)       │  │
+│  │  Layout.jsx (shell: Topbar + Sidebar + Outlet)                 │  │
+│  │   ├─ Public core pages (Home, Gallery, Map, About, PTA-Shop…)  │  │
+│  │   ├─ Login pages (Admin / Student / Teacher)                   │  │
+│  │   ├─ Student portal   (/student)                               │  │
+│  │   ├─ Teacher portal   (/teacher)                                │  │
+│  │   └─ Admin portal family (/admin/*) — 10 sub-portals           │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  State: React Context (NotchContext, AdminAuthContext) + localStorage│
+└──────────────────────────────┬────────────────────────────────────────┘
+                                │ fetch() JSON over HTTP
+                                │ dev:  http://localhost:5000
+                                │ prod: VITE_API_URL env var
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  NODE / EXPRESS 5 API  (backend/index.js, :5000 default)             │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │ cors() → express.json() → ~35 mounted routers                 │  │
+│  │  /api/students /api/teachers /api/admins  (legacy, unguarded)  │  │
+│  │  /api/portal /api/classes                 (Teacher Portal)     │  │
+│  │  /api/admin/*  (10 sub-portals, adminAuth.js guarded)          │  │
+│  │  /api/gallery /api/products /api/posts …  (public content)     │  │
+│  │  /media  →  express.static(MEDIA_DIR)                          │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────┬────────────────────────────────────────┘
+                                │ mongoose (MONGO_URI)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  MongoDB  (local dev: mongodb://localhost:27017/motown)              │
+│  34 collections defined in backend/schema.js                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  LOCAL DISK — MEDIA_DIR (default C:\Users\HP\Downloads\Motown_Media) │
+│  gallery/ products/ page/ avatars/   — served at /media/*            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Ports in dev:** frontend Vite dev server on `5173`, backend Express on `5000` (both
+configurable). Frontend talks to the backend via the `API` constant
+(`src/config/api.js` → `import.meta.env.VITE_API_URL || 'http://localhost:5000'`).
+
+**Deployment (Render, per project instructions):** frontend built via `npm run build`
+(outputs `dist/`), served as a static site; backend deployed as a Node web service. In
+production, `VITE_API_URL` must be set at **build time** (Vite inlines env vars into the
+bundle) to the backend's Render URL, and `CLIENT_ORIGIN` on the backend must be set to the
+frontend's Render URL for CORS to work. `MEDIA_DIR` in production must point at a real,
+persistent disk path on the Render instance (Render's default filesystem is ephemeral —
+uploaded media will NOT survive a redeploy unless a persistent disk is attached; this is a
+real production risk, not just a config detail — see Part C).
+
+**Critical architectural fact discovered by research: two disconnected admin identity
+systems coexist.** A legacy `Admin`/`adminType` model (`routes/admins.js`) and the current
+`AdminUser`/`portal`+`scope` model (`routes/adminPortal.js` + `middleware/adminAuth.js` +
+all ten `/api/admin/*` sub-portal routers) both exist. They do not share tokens or logins.
+See A4 and B5.
+
+---
+
+## A2. Full Annotated File Tree
+
+```
+Motown/
+├── backend/
+│   ├── config/
+│   │   └── db.js                  Mongoose connection (MONGO_URI env var, no fallback)
+│   ├── data/
+│   │   └── aboutContent.js        Static About-page content, seeded into SchoolProfile
+│   ├── middleware/
+│   │   ├── adminAuth.js           Base64-JSON "token" decode + 4 portal/scope guards
+│   │   └── upload.js              multer disk-storage config (4 media sub-folders)
+│   ├── models/                    LEGACY standalone Mongoose models (pre-schema.js era)
+│   │   ├── GalleryImage.js        Used only by legacy seed.js / routes/gallery.js path
+│   │   ├── Product.js             Used by routes/products.js
+│   │   └── Student.js             Used only by legacy seedStudent.js
+│   ├── routes/                    ~35 Express routers, one file per resource/portal
+│   │   ├── admins.js              Legacy Admin login (disconnected from AdminUser system)
+│   │   ├── adminAcademics.js      /api/admin/academics — read-only dashboards
+│   │   ├── adminAccounts.js       /api/admin/accounts — shop orders + fee debtors
+│   │   ├── adminChapel.js         /api/admin/chapel — services/attendance, stream-scoped
+│   │   ├── adminClub.js           /api/admin/club — club CRUD, club-scoped
+│   │   ├── adminData.js           /api/admin/data — student/teacher/infra/records, mode-scoped
+│   │   ├── adminDomestic.js       /api/admin/domestic — DC cases + clearance
+│   │   ├── adminHouse.js          /api/admin/house — house rosters, mounted LAST (wildcard)
+│   │   ├── adminLibrary.js        /api/admin/library — resources, loans, overdue
+│   │   ├── adminManagement.js     /api/admin/management — dashboard, AdminUser CRUD
+│   │   ├── adminMedia.js          /api/admin/media — gallery/posts CRUD, soft-delete
+│   │   ├── adminPortal.js         /api/admin — login + /me (token issuance)
+│   │   ├── announcements.js       /api/announcements — public CRUD, no auth
+│   │   ├── approvals.js           /api/approvals + /api/admin/approvals — chain engine
+│   │   ├── campusHighlights.js    /api/campus-highlights — read-only, 8 fixed cards
+│   │   ├── classes.js             /api/classes — UNGUARDED duplicate of teacherPortal.js
+│   │   ├── clearance.js           TWO routers: student-facing + admin-facing clearance
+│   │   ├── gallery.js             /api/gallery — public CRUD, unauthenticated writes
+│   │   ├── library.js             /api/library — public read-only catalog
+│   │   ├── mapLocations.js        /api/map-locations — read-only, dual ID lookup
+│   │   ├── media.js               /api/media — generic file upload endpoint
+│   │   ├── orders.js              /api/orders — PTA shop checkout, unauthenticated
+│   │   ├── pagePosts.js           /api/posts — public social-feed CRUD
+│   │   ├── products.js            /api/products — PTA shop catalog CRUD
+│   │   ├── schoolProfile.js       /api/school-profile — singleton upsert
+│   │   ├── students.js            /api/students — login + profile aggregate
+│   │   ├── subjects.js            DEAD CODE — never mounted in index.js
+│   │   ├── syllabus.js            /api/syllabus — read-only
+│   │   ├── teacherPortal.js       /api/portal — canonical Teacher Portal API (18 routes)
+│   │   └── teachers.js            /api/teachers — login, profile, schedule, lesson notes
+│   ├── .env                       MONGO_URI, PORT, MEDIA_DIR (gitignored)
+│   ├── index.js                   Express app entry — mounts all routers, static /media
+│   ├── package.json               Backend deps (separate from root package.json)
+│   ├── schema.js                  Master Mongoose schema file — 34 models, all collections
+│   ├── seed.js                    LEGACY: wipe+reseed GalleryImage/Product only
+│   ├── seedAbout.js                Idempotent upsert of SchoolProfile singleton
+│   ├── seedAdminPortals.js        19 AchiHouse + 21 house-admin AdminUsers, depends on seedStudents.js
+│   ├── seedAll.js                 14-collection demo seed, --append mode supported
+│   ├── seedCampusHighlights.js    8 fixed CampusHighlight cards, upsert by `order`
+│   ├── seedPhase3.js              14 portal-admin AdminUsers (academics/data/chapel/etc.)
+│   ├── seedStudent.js             LEGACY: single demo student (Student_001)
+│   ├── seedStudentData.js         Assessment/Attendance/Achievement/Clearance for demo student
+│   ├── seedTeacher.js             MOST COMPLEX: 105 classes+teachers+timetables, run FIRST
+│   └── seed-credentials.json      Generated plaintext credential dump (gitignored, but STAGED — see Part C)
+│
+├── src/
+│   ├── assets/
+│   │   └── icons.js                Icon-name → react-icons component map
+│   ├── components/                 Shared, reusable UI components
+│   │   ├── files/badge_keyData.js  Fallback data for Badge.jsx (mismatched folder name, cosmetic)
+│   │   ├── Badge.jsx                Interactive shield SVG w/ 8 draggable popups
+│   │   ├── BadgeIcon.jsx           Static shield icon variant, no confirmed importer
+│   │   ├── Chatbox.jsx              DEAD CODE — static placeholder, not imported anywhere
+│   │   ├── GalleryModal.jsx        Full-screen image viewer w/ local-only comments
+│   │   ├── ImageCard.jsx           Masonry grid tile
+│   │   ├── LoadScreen.jsx          Route-change loading bar (wraps entire Layout)
+│   │   ├── LoadingBadge.jsx        Badge wrapper used by LoadingFallback
+│   │   ├── LoadingFallback.jsx     3s timed fallback screen, no confirmed importer
+│   │   ├── Payment-portal.jsx      FULLY SIMULATED payment wizard, no real gateway
+│   │   ├── PostPortal.jsx          Generic rich-text composer (execCommand-based)
+│   │   ├── ShareDialog.jsx         Share-to-social dialog; links to a non-existent route
+│   │   ├── Sidebar.jsx             Nav sidebar, renders Layout-injected menu structure
+│   │   ├── SignInButton.jsx        Guest/Student/Teacher/Admin role-picker dropdown
+│   │   ├── Tooltip.jsx             Hover tooltip, used only by ThemeToggle
+│   │   ├── Topbar.jsx              Top bar: search, notch, theme, profile dialog
+│   │   ├── useColumnCount.js       Masonry column-count hook (breakpoint-based)
+│   │   └── useImageRotator.js      DEAD CODE — explicit no-op stub
+│   ├── config/
+│   │   ├── api.js                  Canonical API base-URL constant (VITE_API_URL)
+│   │   └── searchConfig.js         Per-route search config map — NOT consumed anywhere
+│   ├── contexts/
+│   │   ├── AdminAuthContext.jsx    Admin session state + apiFetch() bearer-token wrapper
+│   │   ├── NotchContext.jsx        Topbar "notch" text/icon/tabs state — core UI backbone
+│   │   └── TopbarContext.jsx       DEAD CODE — provider never mounted
+│   ├── data/
+│   │   └── aboutContent.js         Frontend fallback mirror of backend/data/aboutContent.js
+│   ├── hooks/
+│   │   ├── useAdminPortal.js       Admin route guard + sidebar/search wiring (the "protected route")
+│   │   └── useSettingsSync.js      Applies Settings.jsx accessibility prefs as data-* attrs
+│   ├── layout/
+│   │   └── Layout.jsx              App shell: session detection, sidebar composition, notch reset
+│   ├── pages/
+│   │   ├── admin/                  Admin portal pages (10 sub-portals)
+│   │   │   ├── Chapel/Aggrey-chapel.jsx, Catholic.jsx
+│   │   │   ├── Data/Infrastructure.jsx, Records.jsx, Staff-data.jsx, Student-data.jsx
+│   │   │   ├── Academics.jsx, Accounts.jsx, Club.jsx, Domestic.jsx, House.jsx,
+│   │   │   │   Library.jsx, Media.jsx
+│   │   ├── advanced/               Cross-role pages reachable by any signed-in user
+│   │   │   ├── Announcement.jsx    Backend-driven w/ local-only "seen" state
+│   │   │   ├── Chat.jsx            100% MOCK — no backend calls at all
+│   │   │   ├── Library-Users.jsx   100% MOCK — static array, non-functional buttons
+│   │   │   └── Syllabus.jsx        Backend-driven, but "View" button unwired
+│   │   ├── core/                   Public marketing/content pages
+│   │   │   ├── files/               ORPHANED mock-data folder (3 of 4 files unused — see B6)
+│   │   │   ├── About.jsx, Checkout.jsx, Gallery.jsx, Map.jsx, PTA-shop.jsx, Page.jsx
+│   │   ├── Log-in-pages/
+│   │   │   ├── AdminLogin.jsx      Real backend login, dual localStorage write
+│   │   │   ├── StudentLogin.jsx    Real backend login + hardcoded demo-credential backdoor
+│   │   │   └── TeacherLogin.jsx    FULLY FAKE — no backend call at all, broken profile shape
+│   │   ├── Student/
+│   │   │   ├── ProspectStudent.jsx 9-stage application wizard, entirely non-persisted
+│   │   │   └── Student.jsx         Student dashboard — ALWAYS fetches hardcoded demo ID
+│   │   ├── teacher/
+│   │   │   └── teacher.jsx         Teacher Portal (tracked lowercase; on-disk casing drifts — see Part C)
+│   │   ├── Home.jsx, Library.jsx, Management.jsx, NotFound.jsx, Settings.jsx, SignOut.jsx
+│   ├── routes/
+│   │   ├── galleryImages.js        LIVE fallback data for Gallery.jsx AND Page.jsx
+│   │   ├── routes.js               Import/export barrel only — NO route config (see App.jsx)
+│   │   └── shopProducts.js         LIVE fallback data for PTA-shop.jsx
+│   ├── services/
+│   │   └── postService.js          STUB service layer, 8 functions, zero real fetch calls, unused
+│   ├── styles/                     ~45 CSS files, mirrors src/pages structure (see B13)
+│   ├── utils/
+│   │   └── masonry.js               Greedy shortest-column-first bin-packing algorithm
+│   ├── App.css, App.jsx             Root component: mounts <Routes>, calls useSettingsSync()
+│   └── main.jsx                    Entry point: provider tree, pre-paint theme/settings scripts
+│
+├── public/
+│   └── credentials.txt             Generated plaintext credential dump (gitignored, but STAGED)
+├── dist/                            Vite production build output (gitignored)
+├── vite.config.js                   Minimal — just @vitejs/plugin-react
+├── eslint.config.js
+├── package.json                     Frontend deps + npm scripts (dev/build/lint/preview)
+└── .gitignore
+```
+
+---
+
+## A3. Request Lifecycle, Traced
+
+### Example 1 — Teacher marks the daily attendance register
+
+1. Teacher clicks a student's present/absent toggle inside **`src/pages/teacher/teacher.jsx`**,
+   `PartRegister` sub-component (grid of clickable rows, "All present" bulk button).
+2. Clicking "Save" builds a `records` array (`[{student, status}]`) and calls
+   `fetch(`${API}/api/portal/class/${classId}/register`, { method:'POST', body: JSON.stringify({teacherId, date, records}) })`.
+   **No `Authorization` header is attached** — identity is asserted purely via the
+   client-supplied `teacherId` in the body.
+3. Request lands on **`backend/routes/teacherPortal.js`**, `POST /class/:classId/register`
+   (mounted at `/api/portal` in `backend/index.js:29`).
+4. Handler calls `resolveTeacher(teacherId)` → `Teacher.findById(teacherId)`, then
+   `ownsClass(teacher, cls)` — true only if `cls.classTeacher` matches the teacher's own ID,
+   or the teacher is an `hod`/`hod_assistant` in the same department. 403 if it fails.
+5. **Upsert**: `ClassAttendance.findOneAndUpdate({class, date: {$gte: d, $lt: d+1day}}, {$set:{records, markedBy}}, {upsert:true, new:true})` —
+   one document per class per calendar day, using a half-open date-range bucket so the exact
+   time-of-day doesn't matter.
+6. Response JSON returns the saved `ClassAttendance` doc.
+7. Frontend's `.then()` updates local `records` state; no optimistic update — the UI waits
+   for the round-trip before reflecting the save.
+
+**Chain (files only):**
+`teacher.jsx (PartRegister)` → `fetch POST /api/portal/class/:id/register` →
+`backend/routes/teacherPortal.js` (`resolveTeacher`, `ownsClass`) →
+`backend/schema.js` (`ClassAttendance` model, `AchiClass` for ownership check) → MongoDB →
+JSON response → `teacher.jsx` local state update → re-render of `PartRegister`.
+
+### Example 2 — Student logs in and views their dashboard
+
+1. **`src/pages/Log-in-pages/StudentLogin.jsx`**, `handleLogin()` — validates format
+   client-side, then `POST ${API}/api/students/login` with `{username, password}`.
+2. **`backend/routes/students.js`**, `POST /login` — `Student.findOne({username})`,
+   `bcrypt.compare(password, student.password)`. Returns a curated profile object
+   (no token — students carry no bearer credential anywhere in this app).
+3. Frontend `saveAndGo(profile)` writes `localStorage['signedInProfile']` (role: 'student',
+   name, username, id, email, photo, program) and dispatches `window.Event('profileChanged')`,
+   then `navigate('/student')`.
+4. `profileChanged` is picked up by **`src/layout/Layout.jsx`** (`isStudentLoggedIn = true` →
+   injects the Advanced sidebar group) and **`src/components/Topbar.jsx`**
+   (`resolveAccount()` recomputes the profile-dialog identity).
+5. React Router renders **`src/pages/Student/Student.jsx`** at `/student`. **No route guard
+   exists** — this page is reachable with no session at all.
+6. `Student.jsx` fetches `GET ${API}/api/students/STU20240001/profile` — **a hardcoded demo
+   ID (`DEMO_STUDENT_ID` constant), ignoring whatever ID was actually stored during login.**
+7. **`backend/routes/students.js`**, `GET /:studentId/profile` — resolves the string
+   `studentId` to a Mongo `_id`, then runs `Assessment.find`, `Attendance.find`,
+   `Achievement.findOne`, `Clearance.findOne` in parallel via `Promise.all`. Password stripped
+   before responding.
+8. Frontend reshapes the response via `buildAcademic()`/`buildAttendance()`/`computeTotal()`
+   (WAEC-style grade computation) and renders starting on the "Status" tab.
+
+**Chain (files only):**
+`StudentLogin.jsx` → `POST /api/students/login` → `backend/routes/students.js` →
+`Student` model (bcrypt compare) → `localStorage['signedInProfile']` + `profileChanged` event →
+`Layout.jsx` / `Topbar.jsx` (session sync) → `App.jsx` route match → `Student.jsx` →
+`GET /api/students/:id/profile` (hardcoded ID) → `backend/routes/students.js` →
+`Assessment`/`Attendance`/`Achievement`/`Clearance` models → JSON → `buildAcademic()` etc. → render.
+
+**⚠ This trace surfaces the single most important functional bug in the app: step 6 means
+the "personalized" student dashboard is never actually personalized. See Part C.**
+
+### Feature → File Chain Table
+
+| Feature | Frontend file(s) | Backend route file | Model(s) |
+|---|---|---|---|
+| Student login | `Log-in-pages/StudentLogin.jsx` | `routes/students.js` | `Student` |
+| Teacher login | `Log-in-pages/TeacherLogin.jsx` | **none — fully fake, no fetch call** | — |
+| Admin login | `Log-in-pages/AdminLogin.jsx` | `routes/adminPortal.js` | `AdminUser` |
+| Student dashboard | `Student/Student.jsx` | `routes/students.js` | `Student`,`Assessment`,`Attendance`,`Achievement`,`Clearance` |
+| Prospect application | `Student/ProspectStudent.jsx` | **none — non-persisted mock** | — |
+| Teacher: register | `teacher/teacher.jsx` (`PartRegister`) | `routes/teacherPortal.js` | `ClassAttendance` |
+| Teacher: roster | `teacher/teacher.jsx` (`PartRoster`) | `routes/teacherPortal.js` | `RosterDoc` |
+| Teacher: assessments | `teacher/teacher.jsx` (`PartAssessment`) | `routes/teacherPortal.js` | `ClassAssessment` |
+| Teacher: schedule | `teacher/teacher.jsx` (`PartSchedule`) | `routes/teacherPortal.js` | `Timetable` |
+| Teacher: lesson notes | `teacher/teacher.jsx` (`PartLessonNotes`) | `routes/teacherPortal.js` (also duplicated, unguarded, in `routes/teachers.js`) | `LessonNote` |
+| HOD: timetable builder | `teacher/teacher.jsx` (`PartTimetableBuilder`) | `routes/teacherPortal.js` (`/hod/*`) | `Timetable`,`Teacher`,`AchiClass` |
+| Gallery | `core/Gallery.jsx` | `routes/gallery.js` (public, unguarded writes) | `GalleryItem` |
+| PTA Shop | `core/PTA-shop.jsx`, `core/Checkout.jsx` | `routes/products.js`, `routes/orders.js` | `Product`, `Order` |
+| Page (social feed) | `core/Page.jsx` | `routes/pagePosts.js` | `PagePost` |
+| About | `core/About.jsx` | `routes/schoolProfile.js` | `SchoolProfile` |
+| Map | `core/Map.jsx` | **none — static import, `/api/map-locations` exists but unused** | `MapLocation` (orphaned from frontend) |
+| Public Library | `Library.jsx` | `routes/library.js` | `LibraryResource` |
+| Announcements | `advanced/Announcement.jsx` | `routes/announcements.js` | `Announcement` |
+| Syllabus | `advanced/Syllabus.jsx` | `routes/syllabus.js` | `Syllabus` |
+| Chat | `advanced/Chat.jsx` | **none — 100% mock, no backend exists for this** | — |
+| Campus highlights (Badge) | `components/Badge.jsx` | `routes/campusHighlights.js` (read-only) | `CampusHighlight` |
+| Admin: Management dashboard | `Management.jsx` | `routes/adminManagement.js` | multiple (cross-collection counts) |
+| Admin: House | `admin/House.jsx` | `routes/adminHouse.js` | `AchiHouse`, `Student` |
+| Admin: Academics | `admin/Academics.jsx` | `routes/adminAcademics.js` | `AchiClass`,`Subject`,`Teacher`,`Assessment`,`Attendance` |
+| Admin: Data | `admin/Data/*.jsx` | `routes/adminData.js` | `Student`,`Teacher`,`Infrastructure`,`Approval` |
+| Admin: Domestic (DC) | `admin/Domestic.jsx` | `routes/adminDomestic.js` | `Achievement`,`ClearanceItem`,`Announcement` |
+| Admin: Chapel | `admin/Chapel/*.jsx` | `routes/adminChapel.js` | `Chapel` |
+| Admin: Library | `admin/Library.jsx` | `routes/adminLibrary.js` | `LibraryResource`,`ClearanceItem` |
+| Admin: Club | `admin/Club.jsx` | `routes/adminClub.js` | `Club` |
+| Admin: Media | `admin/Media.jsx` | `routes/adminMedia.js` | `GalleryItem`,`PagePost` |
+| Admin: Accounts | `admin/Accounts.jsx` | `routes/adminAccounts.js` | `Order`,`ClearanceItem` |
+| Approvals engine | (no dedicated UI reviewed except `admin/Data/Records.jsx` audit view) | `routes/approvals.js` | `Approval` |
+| Student clearance | (surfaced inside `Student.jsx`'s Clearance tab) | `routes/clearance.js` | `ClearanceItem`, `Announcement` |
+
+---
+
+## A4. Auth & Roles
+
+**There is no unified auth system.** Three completely different mechanisms coexist,
+verified end-to-end by the research agents:
+
+| | Admin (`AdminUser`) | Student | Teacher |
+|---|---|---|---|
+| Login endpoint | `POST /api/admin/login` (real) | `POST /api/students/login` (real, + demo-credential fallback) | **No backend call — entirely fake** |
+| Password check | bcrypt compare | bcrypt compare | Client-side `length >= 6` only |
+| Token issued? | Yes — base64-encoded JSON `{adminUserId, portal, scope, displayName}`, **not signed, not a JWT** | No | No |
+| Storage key | `localStorage['adminPortalSession']` (+ mirrored into `signedInProfile`) | `localStorage['signedInProfile']` | `localStorage['signedInProfile']` (missing `role` field — see Part C) |
+| Sent as | `Authorization: Bearer <token>` on every `apiFetch` call | Never sent | Never sent |
+| Server verification | `middleware/adminAuth.js` `decodeAdminToken()` — base64-decode, JSON-parse, re-fetch `AdminUser` by ID, require `status==='active'`. **No signature check — anyone who can guess/enumerate a valid `adminUserId` (a Mongo ObjectId) can forge a working token.** | None | None |
+| Route guard (frontend) | `useAdminPortal()` hook — redirects to `/login/admin` if no session | **None found** — `/student` reachable unauthenticated | **None found** — `/teacher` reachable unauthenticated |
+| Session expiry | None — only revocation is flipping `AdminUser.status` to `'suspended'` | N/A | N/A |
+
+**Admin portal role list** (`AdminUser.portal` enum, `schema.js:896`, 10 values):
+`house`, `academics`, `data`, `domestic`, `chapel`, `library`, `club`, `media`,
+`management`, `accounts`.
+
+- **`management`** passes every `requireAdminPortal(...)` guard unconditionally (hardcoded
+  special case in `adminAuth.js`) — it is the de facto headmaster/super-admin role with
+  access to all ten sub-portals.
+- Each portal's `scope` field (Mixed-typed) means different things per portal:
+  - `house` → `{ house: ObjectId ref AchiHouse, level: 'house'|'senior' }`
+  - `data` → `{ mode: 'student'|'teacher'|'infrastructure'|'record' }`
+  - `chapel` → `{ stream: 'Aggrey'|'Catholic' }`
+  - `club` → `{ club: ObjectId ref Club }`
+  - `academics`, `domestic`, `library`, `media`, `accounts` → `{}` (portal-wide, no further scoping)
+
+**Teacher role list** (`Teacher.role` enum, `schema.js:134`, 3 values): `teacher`, `hod`,
+`hod_assistant`. HOD/HOD-assistant unlocks the Timetable Builder tab in the Teacher Portal
+and the `/api/portal/hod/*` backend routes (own-department scoped).
+
+**Legacy `Admin` model** (`schema.js:170`, used only by `routes/admins.js`) has its own,
+entirely separate `adminType` enum (11 values: `Headmaster`, `Deputy`, `Academic`,
+`Finance`, `House`, `Domestic`, `ICT`, `Club`, `Chapel`, `Infrastructure`, `Records`). This
+system issues no token and cannot authenticate against any `/api/admin/*` guarded route —
+it is architecturally orphaned from the current admin-portal system.
+
+**Sidebar visibility is NOT the enforcement boundary.** `Layout.jsx:24` explicitly documents
+(in a code comment) that "management sees all; scoped portals see the same list but will
+get 403 on routes they don't own" — every admin session sees links to all ten portals in
+the sidebar; the backend's per-route guard is the real gate.
+
+**Critical gaps to know before debugging any auth issue (see Part C for fixes):**
+1. Teacher login performs zero verification and writes a profile shape incompatible with
+   `teacher.jsx`'s own guard (`{name, id}` with no `role` field) — a real, reproducible bug.
+2. Student dashboard always fetches a hardcoded demo student ID regardless of who logged in.
+3. `/student` and `/teacher` routes have no frontend guard at all.
+4. No `/api/portal/*` or `/api/classes/*` request ever sends an auth header — server-side
+   "authorization" for these ~26 endpoints is just trusting a client-supplied `teacherId`.
+
+---
+
+## A5. Database Map
+
+All models live in **`backend/schema.js`** (single file, 34 models via `mongoose.models.X ||
+mongoose.model(...)` guards so it's safe to import repeatedly). Two **legacy standalone**
+models also exist in `backend/models/` (`GalleryImage.js`, `Product.js`, `Student.js`) used
+only by the legacy `seed.js`/`seedStudent.js`/`routes/gallery.js`(partially)/`routes/products.js`
+paths — these are NOT re-exported from `schema.js` and represent an older, parallel model
+definition for the same collections in some cases (risk of drift).
+
+Mongoose derives collection names by lowercasing + pluralizing the model name (e.g. `Student`
+→ `students`, `AchiClass` → `achiclasses`, `PagePost` → `pageposts`).
+
+### Core identity models
+| Model | Key fields | Notable indexes/refs |
+|---|---|---|
+| `Student` | username, password(bcrypt), role, ~30 admission-wizard fields (guardians[], beceResults[], program, campus, house), studentId, classLevel | unique sparse: email, studentId; index: indexNumber |
+| `Teacher` | username, password, role(teacher\|hod\|hod_assistant), department, yearGroup, classTeacherOf→AchiClass, subject→Subject | unique sparse: email, staffId |
+| `Admin` (legacy) | username, password, adminType (11-enum), permissions[] | unique sparse: email, adminId |
+| `AdminUser` (current) | username, password, portal (10-enum), scope(Mixed), status | — |
+
+### Teacher Portal models (Phase 1-5)
+| Model | Purpose | Key relationships |
+|---|---|---|
+| `Subject` | Name/code/departments[] | referenced by Teacher.subject, Timetable periods |
+| `AchiClass` | 105 classes | classTeacher→Teacher, students[]→Student, prefects[]→Student |
+| `Timetable` | One per class per term | class→AchiClass, periods[].subject/teacher |
+| `ClassAttendance` | Daily register, one per class per day | unique index {class,date} |
+| `ClassAssessment` | Teacher-created project/exercise/homework | class→AchiClass, scores[].student→Student |
+| `RosterDoc` | Rich-text roster, one per class | unique on class |
+| `LessonNote` | Rich-text notes, publishable to syllabus/library | visibleOn[] enum |
+
+### Admin Portal models (Phase 1-3)
+| Model | Purpose |
+|---|---|
+| `AdminUser` | Multi-portal admin login (see A4) |
+| `AchiHouse` | 19 boarding/day houses, students[]→Student, points/events[] |
+| `Approval` | Shared multi-step approval chain engine (see B5 `approvals.js`) |
+| `ClearanceItem` | Single outstanding obligation blocking a student's exit; source enum dc_case\|library_loan\|accounts |
+
+### Content / legacy academic models
+`GalleryItem`, `PagePost`, `Product`, `Order`, `Assessment` (global, distinct from
+`ClassAssessment`), `Attendance` (global, distinct from `ClassAttendance`), `Achievement`,
+`Clearance` (singular per-student doc, **distinct from `ClearanceItem`** — see Part C for
+the naming-collision gotcha), `House` (legacy, distinct from `AchiHouse`), `Club`,
+`Announcement`, `Message` (unused by any reviewed route), `LibraryResource`, `Syllabus`,
+`Chapel`, `Infrastructure`, `MapLocation`, `SchoolProfile` (singleton), `Conference`
+(unused by any reviewed route), `CampusHighlight`.
+
+### Text relationship diagram
+
+```
+Student ──house──► AchiHouse (Phase 2/3 model)
+Student ◄─students[]── AchiClass ──classTeacher──► Teacher ──subject──► Subject
+Student ◄─students[]── AchiHouse
+Student ◄─studentId── Assessment / Attendance / Achievement / Clearance (legacy, global)
+Student ◄─student── ClassAssessment.scores[] / ClassAttendance.records[] (per-class)
+Student ◄─student── ClearanceItem ──announcementId──► Announcement (private-tagged)
+AchiClass ──class──► Timetable / RosterDoc / ClassAttendance / ClassAssessment
+Teacher ──teacher──► LessonNote, Timetable.periods[].teacher
+AdminUser ──scope.house──► AchiHouse   AdminUser ──scope.club──► Club
+Approval ──requestedBy.id──► (Student|Teacher|AdminUser, polymorphic, no ref enforced)
+Approval.chain[] ──decidedBy──► AdminUser
+Order.items[] ──productId──► Product
+Club.patronTeacher──► Teacher   Club.members[].studentId──► Student
+LibraryResource.borrowHistory[].studentId──► Student
+```
+
+**Two naming collisions to memorize** (both flagged as genuine gotchas by the research):
+- `Clearance` (singular doc per student, legacy) vs `ClearanceItem` (array-of-items, current) —
+  `GET /api/students/:id/profile` returns the former; `GET /api/students/:id/clearance`
+  returns the latter. They are unreconciled.
+- `Assessment`/`Attendance` (global, read by `adminAcademics.js`) vs `ClassAssessment`/
+  `ClassAttendance` (per-class, written by the Teacher Portal) — **no code path syncs
+  these**, so what a teacher enters in the portal will NOT show up in the academics admin
+  dashboard.
+
+---
+
+## A6. API Reference Table
+
+Base URL: `API` (dev `http://localhost:5000`, prod `VITE_API_URL`). Guard column: "—" means
+no auth middleware at all.
+
+### Public / legacy (no `/admin` prefix)
+
+| Method | Path | Guard | Calling frontend file(s) |
+|---|---|---|---|
+| POST | `/api/students/login` | — | `StudentLogin.jsx` |
+| GET | `/api/students/:studentId/profile` | — | `Student.jsx` (hardcoded ID, see A4) |
+| GET | `/api/students/:studentId/clearance` | — | (student clearance tab, presumed) |
+| POST | `/api/teachers/login` | — | **nothing — `TeacherLogin.jsx` never calls this** |
+| GET | `/api/teachers` , `/:id/profile`, `/:id/schedule`, `/:id/lesson-notes` | — | not called by `teacher.jsx` (uses `/api/portal/*` instead) |
+| POST/PATCH | `/api/teachers/lesson-notes[/:id]` | — | duplicate of `/api/portal/lesson-notes`, unguarded |
+| POST | `/api/admins/login` | — | orphaned — legacy `Admin` model, no frontend caller found |
+| GET | `/api/gallery`, `/:id` | — | `Gallery.jsx` |
+| POST | `/api/gallery` | — (unauth write) | admin content tools (unclear which) |
+| POST | `/api/gallery/:id/comments` | — | `GalleryModal.jsx` does NOT call this (local-only comments) |
+| PATCH | `/api/gallery/:id/engage` | — | like/save/share counters |
+| DELETE | `/api/gallery/:id` | — (hard delete) | — |
+| GET/POST/PATCH/DELETE | `/api/products[...]` | — | `PTA-shop.jsx` (GET only) |
+| POST | `/api/media/upload/:folder` | — | generic uploader (only route where disk folder = URL folder) |
+| GET | `/api/announcements` | — | `Announcement.jsx` |
+| POST/PATCH/DELETE | `/api/announcements[...]` | — | compose flow (`PostPortal.jsx` → `Announcement.jsx`) |
+| GET | `/api/map-locations`, `/:id` | — | **nobody — `Map.jsx` uses static import instead** |
+| GET/PATCH | `/api/school-profile` | — (unauth full-overwrite PATCH) | `About.jsx` (GET only) |
+| GET/POST/PATCH/DELETE | `/api/posts[...]` | — | `Page.jsx` (GET only) |
+| POST | `/api/orders` | — | `Checkout.jsx`/`PaymentPortal.jsx` (untrusted `total` field — see Part C) |
+| GET | `/api/orders`, `/:id` | — (leaks all buyer PII) | — |
+| PATCH | `/api/orders/:id/status` | — | duplicate of guarded `adminAccounts.js` version |
+| GET | `/api/campus-highlights` | — | `Badge.jsx` |
+| GET | `/api/library`, `/:id` | — | `Library.jsx` (public page) |
+| GET | `/api/syllabus`, `/:id` | — | `Syllabus.jsx` |
+| GET | `/api/subjects` | **N/A — route file exists but never mounted** | — |
+
+### Teacher Portal (`/api/portal`, ownership-checked via `ownsClass()`/`resolveTeacher()`, no token)
+
+| Method | Path | Called by |
+|---|---|---|
+| GET | `/teacher/:id/profile` | orphaned (teacher.jsx reads localStorage instead) |
+| GET | `/class/:classId/students` | orphaned (teacher.jsx uses `/api/classes/:id` instead) |
+| GET/POST | `/class/:classId/register` | `teacher.jsx` PartRegister |
+| GET/PUT | `/class/:classId/roster` | `teacher.jsx` PartRoster |
+| GET | `/class/:classId/assessments` | `teacher.jsx` PartAssessment |
+| POST | `/assessments` | `teacher.jsx` PartAssessment |
+| GET | `/assessments/:id` | orphaned |
+| PATCH | `/assessments/:id/scores` | `teacher.jsx` (full-array replace, not merge — see Part C) |
+| GET | `/teacher/:id/schedule` | `teacher.jsx` PartSchedule |
+| GET/POST/PUT | `/teacher/:id/lesson-notes`, `/lesson-notes[/:id]` | `teacher.jsx` PartLessonNotes |
+| GET | `/hod/:id/classes`, `/hod/:id/teachers` | `teacher.jsx` PartTimetableBuilder (HOD only) |
+| GET/PUT | `/hod/:id/timetable/:classId` | `teacher.jsx` PartTimetableBuilder (HOD only) |
+
+### `/api/classes` — mostly orphaned duplicate of the above (unguarded, no JWT by design)
+
+Only `GET /api/classes/:id` is actually called by the frontend (`teacher.jsx` top level,
+for `classInfo`). All 11 other routes (`/`, register, assessments, roster, timetable
+GET/POST/PUT/PATCH variants) are dead weight from the frontend's perspective.
+
+### Admin portal family (`/api/admin/*`, `adminAuth.js` Bearer-token guarded)
+
+| Method | Path | Guard | Calling page |
+|---|---|---|---|
+| POST | `/api/admin/login` | — (issues token) | `AdminLogin.jsx` |
+| GET | `/api/admin/me` | `requireAdminAny` | session re-hydration |
+| GET/PATCH | `/api/approvals/:portal`, `/:id` (also under `/api/admin/approvals`) | `requireAdminAny` + manual portal check | `admin/Data/Records.jsx` (read only) |
+| POST | `/api/approvals` | — (open to any caller by design) | not found in any reviewed frontend file |
+| GET | `/api/students/:studentId/clearance` | — | student-facing |
+| POST/PATCH | `/api/admin/clearance/item[/:id]`, GET `/student/:id` | `requireAdminAny` | not directly reviewed, presumed admin clearance UI |
+| GET | `/api/admin/academics/overview`, `/assessments`, `/attendance` | `requireAdminPortal('academics')` | `admin/Academics.jsx` |
+| GET/PATCH | `/api/admin/data/students[...]`, `/teachers[...]`, `/infrastructure[...]`, `/records` | `requireAdminPortal('data')` + `requireMode(mode)` | `admin/Data/*.jsx` |
+| GET/POST/PATCH | `/api/admin/domestic/cases[...]`, `/clearance` | `requireAdminPortal('domestic')` | `admin/Domestic.jsx` (GET only) |
+| GET/POST | `/api/admin/chapel/services`, `/attendance[/:date]`, `/stats` | `requireAdminPortal('chapel')` | `admin/Chapel/*.jsx` (GET only) |
+| GET/POST/PATCH | `/api/admin/library/resources[...]`, `/overdue`, loan/return | `requireAdminPortal('library')` | `admin/Library.jsx` (GET only) |
+| GET/POST/PATCH/DELETE | `/api/admin/club[...]`, members, activities | `requireAdminPortal('club')` + per-route ownership check | `admin/Club.jsx` (GET only) |
+| GET/POST/PATCH/DELETE | `/api/admin/media/gallery[...]`, `/posts[...]` | `requireAdminPortal('media')` | `admin/Media.jsx` (GET only) |
+| GET/POST/PATCH/DELETE | `/api/admin/management/dashboard`, `/users[...]`, `/approvals` | `requireAdminPortal('management')` | `Management.jsx` |
+| GET/PATCH | `/api/admin/accounts/orders[...]`, `/debtors`, `/clearance[...]` | `requireAdminPortal('accounts')` | `admin/Accounts.jsx` |
+| GET/PATCH | `/api/admin/house/mine`, `/` , `/:id`, `/:id/students` | `requireHouseOwn`/`requireHouseSenior` | `admin/House.jsx` |
+
+---
+
+## A7. Environment & Config
+
+### `backend/.env` (gitignored)
+| Variable | Purpose | Safe example |
+|---|---|---|
+| `MONGO_URI` | Full Mongo connection string, **must include the `/motown` database path segment** — its absence is the historical "writes silently go to `test`" bug class (confirmed NOT currently present, but `db.js` has no defensive guard against a future regression) | `mongodb://localhost:27017/motown` |
+| `PORT` | Express listen port | `5000` |
+| `MEDIA_DIR` | Absolute disk path for uploaded/served media; also hardcoded as the same default in `index.js` and `middleware/upload.js` | `C:\Users\HP\Downloads\Motown_Media` |
+
+### Root `.env` (gitignored)
+| Variable | Purpose | Safe example |
+|---|---|---|
+| `VITE_API_URL` | Backend base URL, inlined into the frontend bundle **at build time** by Vite | dev: unset (defaults to `http://localhost:5000`); prod: `https://motown-api.onrender.com` |
+
+**Dev vs Render differences:**
+- Dev: both `.env` files point at `localhost`; MongoDB is presumably a local instance;
+  `MEDIA_DIR` is a real local folder.
+- Render: `MONGO_URI` must point at MongoDB Atlas (or another hosted Mongo); `VITE_API_URL`
+  must be set in the Render **static site's build environment** (not just runtime — Vite
+  bakes it into the JS bundle, so setting it only as a runtime env var on a Node service
+  does nothing for a static frontend); `CLIENT_ORIGIN` (backend) must equal the deployed
+  frontend's exact origin for CORS; `MEDIA_DIR` needs a persistent disk mount or uploaded
+  media will vanish on every redeploy (Render's default filesystem is ephemeral).
+
+No `.env.example`/`.env.sample` file exists in the repo — a new developer has to read this
+manual (or `db.js`/`index.js`/`config/api.js`) to know which variables are required.
+
+---
+
+## A8. Dependencies
+
+### Root `package.json` (frontend, Vite/React)
+| Package | Why it's needed | Where used |
+|---|---|---|
+| `react`, `react-dom` (v19) | Core UI framework | everywhere |
+| `react-router-dom` v6 | Client-side routing | `App.jsx`, `Layout.jsx` |
+| `next-themes` | Theme engine (5 themes, `data-theme` attribute) | `main.jsx`, `ThemeToggle.jsx`, `Settings.jsx` |
+| `react-icons` | Icon set (`Fi*` icons used throughout) | Topbar, Sidebar, Badge, etc. |
+| `leaflet`, `react-leaflet` | Interactive campus map | `core/Map.jsx` only |
+| `gsap` | Animation library | not confirmed used by any reviewed file — verify before removing |
+| `bcryptjs` | **Listed in root package.json but this is backend-only logic** — likely a stray/misplaced dependency (backend has its own `bcryptjs` in `backend/package.json`) | none in `src/` |
+| `dotenv` | Env var loading — also backend-only; unclear why in root deps | — |
+| `mongodb`, `mongoose` | **Also backend-only** — same misplaced-dependency concern | none in `src/` |
+| `nodemon` | Dev auto-restart — belongs in backend devDependencies, found in root instead | — |
+| `vite`, `@vitejs/plugin-react` (devDeps) | Build tool | `vite.config.js` |
+| `eslint` + plugins (devDeps) | Linting | `eslint.config.js` |
+
+**Flag:** the root `package.json` mixes frontend and backend dependencies
+(`bcryptjs`, `mongodb`, `mongoose`, `dotenv`, `nodemon`, `express` all appear in BOTH root
+and `backend/package.json`). This bloats the frontend's `node_modules` and build graph for
+no reason — none of these packages are importable/usable from browser code. Worth a cleanup
+pass, not urgent.
+
+### `backend/package.json`
+| Package | Why | Where used |
+|---|---|---|
+| `express` v4 | HTTP server/router | `index.js`, all route files |
+| `mongoose` v8 | MongoDB ODM | `schema.js`, all route files |
+| `bcryptjs` | Password hashing | every login route, `adminManagement.js` password reset |
+| `cors` | Cross-origin requests from the Vite dev server / deployed frontend | `index.js` |
+| `dotenv` | Loads `.env` | `index.js`, `schema.js`, `config/db.js` |
+| `multer` | Multipart file upload handling | `middleware/upload.js` |
+| `nodemon` (dev) | Auto-restart on file change | `npm run dev` |
+
+**Version-mismatch note:** root `package.json` lists newer majors of several shared
+packages (`express ^5.2.1`, `mongoose ^9.7.1`, `bcryptjs ^3.0.3`) than `backend/package.json`
+(`express ^4.19.2`, `mongoose ^8.4.0`, `bcryptjs ^2.4.3`). Since the backend's own
+`package.json`/`node_modules` is what actually runs the server, this mismatch is currently
+harmless — but if anyone ever consolidates dependencies or runs `npm install` from the root
+expecting it to affect backend behavior, it won't, and the version drift is worth resolving
+deliberately rather than accidentally.
+
+---
+
+## A9. Project Conventions (read this before touching anything)
+
+1. **Double-locking CSS rule.** All mobile-only overrides at `max-width: 400px` (rarely
+   `700px`) inside the Student/Teacher portals are wrapped in **both** the media query
+   **and** a `.student-portal`/`.teacher-portal` ancestor-class selector, so a rule can
+   never leak onto another portal or a wider viewport even if one condition is accidentally
+   satisfied elsewhere. See `Topbar.css:957-964` and `Teacher.css:1-7` for the canonical,
+   author-written explanation. Base (non-responsive) component styles are deliberately
+   **not** double-locked — only responsive overrides get this treatment.
+
+2. **`min-width: 0` on topbar-notch flex items.** 43 occurrences project-wide. Any flex
+   child that must shrink below its intrinsic content width (search inputs, the notch
+   title, tab labels) needs this — without it, `min-width: auto` (the flexbox default)
+   prevents shrinking and content gets squeezed off-screen instead. Most heavily documented
+   in `Topbar.css:970-971`.
+
+3. **The 4-part/notch switcher pattern.** `Student.jsx`, `teacher.jsx`, and
+   `ProspectStudent.jsx` all use the same architecture: a `PARTS` array of top-level
+   sections, each rendered via `NotchContext.applyNotchTabs()` to turn the Topbar's "notch"
+   into a tab strip. Because `Topbar` and the page content are **siblings** under `Layout`
+   (not parent/child), tab clicks in the Topbar can't directly update the page's local
+   `activeTab` state via context alone — a `window.dispatchEvent(new CustomEvent('notchTabChange'))`
+   global-event bridge closes that gap. Pages defer their own `applyNotchTabs()` call via
+   `setTimeout(fn, 0)` specifically so it runs *after* `Layout.jsx`'s route-change
+   notch-reset effect, which otherwise wipes `notchTabs` on every navigation.
+
+4. **`.student-portal`/`.teacher-portal` scoping.** These classes are **never defined as
+   standalone CSS rule blocks** — they exist purely as ancestor selectors, applied by
+   `Layout.jsx` based on `location.pathname.startsWith('/student'|'/teacher')`.
+   **`.admin-portal` does not exist anywhere in the codebase** (not in CSS, not in JSX) —
+   admin pages use a different scoping strategy entirely (`.page-container` chrome from
+   `PageContent.css` + per-page stylesheets).
+
+5. **Idempotent seeds.** Every seed script from Phase 2 onward (`seedAbout.js`,
+   `seedStudents.js`, `seedAdminPortals.js`, `seedPhase3.js`, `seedCampusHighlights.js`,
+   `seedStudentData.js`) uses `findOneAndUpdate(filter, update, {upsert:true})` keyed on a
+   natural identifier (username, studentId, order, etc.) — safe to re-run. The older scripts
+   (`seed.js`, `seedTeacher.js`'s bulk sections, `seedAll.js` default mode) use
+   `deleteMany({})` + `insertMany()` wipe-and-replace instead — re-running them destroys and
+   regenerates all `_id`s for those collections. **Run order matters**: `seedTeacher.js`
+   (creates `AchiClass`) must run before `seedStudents.js` (links students into those
+   classes), which must run before `seedAdminPortals.js` (requires exactly 315 students to
+   exist to assign houses). See Part C and B14 for the full dependency chain.
+
+6. **Credentials only in `seed-credentials.json` + `credentials.txt` (gitignored).**
+   `.gitignore` correctly lists `backend/seed-credentials.json` and `public/credentials.txt`.
+   **However, at the time this manual was generated, both files are STAGED for commit**
+   (`git status` shows `AM` — added then modified — meaning they were force-added with
+   `git add -f` or added before the ignore rule existed). This is an active leak risk — see
+   Part C for the remediation steps. The scripts themselves also write a third copy to
+   `server/seed/credentials.txt` (a path that doesn't match `public/credentials.txt`, and
+   is not covered by the `.gitignore` pattern `server/seed/credentials.txt`... actually it
+   IS listed in `.gitignore` line 22 — verify this path exists/is used consistently).
+
+7. **Build acceptance = `npm run build && npm run preview` with zero `css-syntax-error`
+   warnings.** This project has a documented history of exactly this failure class (see
+   commit `8e1e055`, "Fix production CSS bundle corruption") — esbuild can silently corrupt
+   the back half of a stylesheet from an unclosed brace without failing the build. All 46
+   CSS files currently balance (verified by exhaustive brace-count in this manual's
+   research pass — see B13), but the largest/most complex files (`Chat.css` at 1599 lines,
+   `ProspectStudent.css` at 1149, `Student.css` at 1125, `Topbar.css` at 1104) are the
+   highest-risk targets for a future accidental unclosed brace. Always run the full
+   build+preview check after editing any of these four files.
+
+---
+---
+
+# PART B — FILE-BY-FILE, CLUSTERED
+
+## B1. Shared/Core
+
+### Cluster: Bootstrap & Routing — `main.jsx` + `App.jsx` + `routes/routes.js`
+
+**Purpose:** application entry point, provider tree, and the single source of truth for
+every route in the app.
+
+- **`src/main.jsx`** — no exports. Provider nesting (outside→in): `StrictMode` →
+  `BrowserRouter` → `AdminAuthProvider` → `NotchProvider` → `next-themes`'s `ThemeProvider`
+  (`attribute="data-theme"`, themes `light/dark/ocean/forest/sunset`) → `App`. Runs two
+  pre-paint IIFEs before React mounts: (1) reads `localStorage['site-theme']` or falls back
+  to `prefers-color-scheme`, sets `data-theme` directly on `<html>` to avoid a flash of
+  unstyled theme; (2) reads `localStorage['motownSettings']`, merges with defaults, sets
+  `data-font-scale`/`data-reduced-motion`/`data-high-contrast`/`data-large-text`/
+  `data-focus-indicators` attributes — this duplicates logic that `useSettingsSync.js` (B1)
+  keeps live afterward; the inline copy here only runs once at boot. Also has an
+  auto-show-scrollbar IIFE (900ms inactivity timeout, pure DOM/CSS).
+- **`src/App.jsx`** — exports default `App`. Calls `useSettingsSync()` once, renders
+  `<Routes>`. **This is the single source of truth for all routing** — every `<Route>`
+  element lives here. Gotcha: a "Core (nested)" block (lines 74-81) duplicates
+  `about/gallery/map/page/pta-shop` routes already declared at the top level (lines 34-39) —
+  harmless (React Router uses the first match) but dead/confusing code.
+- **`src/routes/routes.js`** — **not** route configuration (its own comment says so) — a
+  pure import/re-export barrel, 34 named exports. **Case-sensitivity gotcha (confirmed
+  real, not cosmetic):** line 50 imports `'../pages/teacher/teacher'` (lowercase); the
+  physical file's on-disk casing is ambiguous on Windows (NTFS is case-insensitive), and
+  `git ls-files` tracks it as lowercase `teacher.jsx`. There is only ONE physical file — not
+  a duplicate — but this is exactly the kind of state that silently breaks on a
+  case-sensitive Linux/macOS build/CI environment if the casing ever drifts. See Part C.
+
+**Imported by:** `routes/routes.js` → re-exported into `App.jsx`; `main.jsx` mounts `App`.
+
+### Cluster: Layout Shell — `layout/Layout.jsx`
+
+**Purpose:** the app shell every route renders inside — Topbar + Sidebar + routed content,
+plus session detection and sidebar composition.
+
+- **State:** `isOpen` (sidebar), `sideMenu`/`searchConfig` (injected by child pages via
+  outlet context), `hideTopbar`, `isStudentLoggedIn`, `isTeacherLoggedIn`, `isAdminLoggedIn`.
+- **Session detection (core auth-adjacent logic):** `readStudentSession()` parses
+  `localStorage['signedInProfile']` — `isStudent` if `role==='student'` (or a legacy
+  fallback shape with no `role` but an `id`/`name==='Student'`); `isTeacher` if `role` is
+  one of `['teacher','hod','hod_assistant']`. `readAdminSession()` just checks for a truthy
+  `adminPortalSession`. A migration `useEffect` back-fills `role:'student'` onto old-format
+  profiles missing it. Listens for `profileChanged`, `adminSessionChanged`, and `storage`
+  events to re-sync.
+- **Sidebar menu composition:** `ADVANCED_GROUP` (Announcements/Chat/Library/Syllabus, shown
+  to any signed-in user) and `ADMIN_GROUP` (all 10 admin sub-portals, shown only when
+  `isAdminLoggedIn`) are appended to whatever `sideMenu` the current page injected, with the
+  Settings item always pinned last. **Explicit code comment (line 24) documents the
+  security model:** "management sees all; scoped portals see the same list but will get 403
+  on routes they don't own" — the sidebar does NOT hide portal links based on the specific
+  admin's `portal`/`scope`; enforcement is backend-only.
+- **Notch reset on route change:** a `useEffect` keyed on `location.pathname` resets the
+  Topbar notch to plain-text mode on every navigation (7 known top-level paths mapped to
+  name+icon, else defaults to "Home"), clearing `notchTabs`/`notchActiveTab`. Pages that
+  want tab-nav mode must re-apply it in their own effect *after* this runs — see Convention
+  #3 in Part A.
+- **Portal CSS class:** `isStudentPortal`/`isTeacherPortal` (path-prefix based) →
+  `portalClass = 'student-portal'|'teacher-portal'|undefined` applied to the outer wrapping
+  `<div>`. This is the sole mechanism that activates the CSS double-locking pattern (A9 #1)
+  and the Topbar's mobile SP-expand UI.
+- **Outlet context contract** (what every child page consumes via `useOutletContext()`):
+  `setIsOpen, setSideMenu, setSearchConfig, setNotchText, setNotchIcon, applyNotchTabs,
+  setNotchTabs, setNotchActiveTab, setHideTopbar`.
+
+**Gotchas:** two separate `addEventListener('storage', fn)` calls (one per sync function)
+fire redundantly on every single `storage` event — works correctly, just slightly wasteful
+versus one handler calling both syncs.
+
+### Cluster: Topbar & Sidebar — `components/Topbar.jsx` + `components/Sidebar.jsx` + their CSS
+
+**Purpose:** persistent top bar (search / page-title "notch" / theme / profile) and the
+left nav.
+
+- **`Topbar.jsx`** — `resolveAccount()` (module-level pure function) is the account-identity
+  resolver: checks `adminPortalSession` first (admin sessions win if both exist
+  simultaneously), then `signedInProfile` (mapping `role` → a human label, normalizing
+  `hod`/`hod_assistant`/`teacher` all to `kind:'teacher'`), else falls back to a Guest
+  identity. Re-run on `profileChanged`/`adminSessionChanged`/`storage` events.
+  **Sign-out logic** (`handleSignOut`) branches on `account.kind==='admin'` to clear the
+  right storage key and fires the matching changed-event, then navigates to `/` — **this is
+  the ONLY place sign-out actually happens**; the dedicated `/signout` route/page does not
+  itself clear any session (see Part C).
+  Five hardcoded responsive breakpoints (1000/600/500/480/400px) drive search-takeover,
+  theme-takeover, notch-collapse, and the mobile SP-expand UI — all magic numbers, not
+  centralized. Profile dialog renders via `ReactDOM.createPortal(..., document.body)`
+  "to escape transform container" (explicit code comment). Avatar upload for non-admin
+  accounts stores a base64 data-URI directly in `localStorage` — never uploaded to the
+  backend, so profile photos are per-browser only.
+  **Duplication gotcha:** the `portal → route` map (`ADMIN_PORTAL_ROUTES`) is hardcoded
+  independently in FOUR places: `Topbar.jsx`, `AdminLogin.jsx`, `useAdminPortal.js`, and
+  `Layout.jsx`'s `ADMIN_GROUP` — any new admin portal added later must update all four.
+- **`Sidebar.jsx`** — props `{isOpen, setIsOpen, sideMenu, activeMenu}`. Splits the
+  `/settings` entry into a footer `<ul>`; groups consecutive non-section items, flushing a
+  new `<ul>` whenever a `{type:'section'}` marker appears — this section-marker capability
+  is currently unused by any reviewed page (only `Layout.jsx`'s injected `{type:'group'}`
+  items are exercised).
+
+**CSS:** `styles/components/Topbar.css` (1104 lines, 9 distinct `@media` blocks — the most
+breakpoint-dense file in the project) and `styles/components/Sidebar.css` (368 lines,
+"piano key" clip-path sliding-fill nav effect, no media queries).
+
+### Cluster: Theme system — `components/ThemeToggle.jsx` + `next-themes` + `global.css`
+
+**Purpose:** 5-theme (light/dark/ocean/forest/sunset) switcher.
+
+- `ThemeToggle.jsx` uses `useTheme()` from `next-themes` directly. Hover-to-expand
+  mechanic (`disableHover`/`forceExpanded` props let `Topbar.jsx` drive it via click on
+  narrow screens instead). Wrapped by `Tooltip.jsx` (its only consumer) per theme button.
+- **Potential bug flagged by research:** `main.jsx`'s pre-paint script manually manages a
+  `localStorage['site-theme']` key for first-paint-only flash prevention, but `next-themes`
+  itself is mounted with no `storageKey` prop, so it defaults to its own internal key
+  (commonly `"theme"`) for everything after mount (including `Settings.jsx`'s `setTheme()`
+  calls). **These are plausibly two different, unsynced localStorage keys** — verify against
+  actual runtime behavior before relying on `site-theme` for anything beyond first paint.
+- **CSS:** all 5 themes' ~26 custom properties are defined ONLY in `global.css`, in five
+  `:root[data-theme="..."]` blocks (light doubles as the bare `:root` fallback). No
+  `@media (prefers-color-scheme)` anywhere — theme selection is 100% explicit/JS-driven, not
+  OS-driven, apart from the one-time pre-paint check in `main.jsx`.
+
+### Cluster: Contexts — `NotchContext.jsx` + `TopbarContext.jsx` (dead) + `AdminAuthContext.jsx`
+
+- **`NotchContext.jsx`** — state: `notchText`, `notchIcon`, `notchTabs`, `notchActiveTab`.
+  `applyNotchTabs(tabs)` is the primary API pages use to enter tab-nav mode (auto-selects
+  `tabs[0]` as active). This is the backbone of Convention #3 (Part A9) — pure state lives
+  here; `Topbar.jsx` is the sole renderer; individual pages are the writers; tab-click
+  events flow back via the `notchTabChange` custom DOM event, not through context, because
+  Topbar and routed page content are siblings, not parent/child.
+- **`TopbarContext.jsx`** — **DEAD CODE.** Implements a near-duplicate of the
+  search/title-config concept via its own `TopbarProvider`/`useTopbarConfig`/`useTopbar`.
+  Confirmed via grep: the provider is never mounted in `main.jsx`'s tree and the hooks are
+  never called anywhere. Superseded by `NotchContext` + the `Layout.jsx` outlet-context
+  pattern. Safe to delete.
+- **`AdminAuthContext.jsx`** — **the core admin auth mechanism.** `STORAGE_KEY =
+  'adminPortalSession'`. `login(username,password)` POSTs to `/api/admin/login`, stores the
+  raw response verbatim, dispatches `adminSessionChanged`. `logout()` clears the key only —
+  does NOT also clear `signedInProfile`, which `AdminLogin.jsx` separately writes on login
+  (see B7) — meaning a raw `logout()` call from anywhere other than `Topbar.jsx`'s
+  `handleSignOut` would leave a stale `signedInProfile` entry behind. `authHeader` computed
+  inline every render (not memoized) as `{Authorization: 'Bearer '+session.token}`.
+  `apiFetch(path, options)` is the generic authenticated-fetch wrapper every admin page
+  uses — merges JSON content-type + auth header, throws on non-OK. **Not resilient to
+  401/expired tokens** — no auto-logout-on-401, no refresh; each page's `error` state just
+  shows whatever the backend's error message was.
+
+### Cluster: Hooks — `useAdminPortal.js` + `useSettingsSync.js`
+
+- **`useAdminPortal(notchTitle, searchPlaceholder)`** — **this is the de facto protected-route
+  mechanism for every admin page** (no dedicated `<ProtectedRoute>` wrapper exists in the
+  route tree). Guard logic inside a `useEffect`: `if (!session) navigate('/login/admin',
+  {replace:true})`. Because this only fires in an effect, the guarded page's JSX still
+  renders once before the redirect takes effect — a brief flash of page chrome is possible,
+  though most pages also gate their data-fetch effect on `if (!session) return`, so no data
+  leaks. Also injects a fixed, generic `ADMIN_SIDE_MENU` (Home/Gallery/Shop/Map/Page/About/
+  Settings) — the actual portal-specific nav comes from `Layout.jsx`'s `ADMIN_GROUP`
+  separately.
+- **`useSettingsSync()`** — reads `localStorage['motownSettings']`, applies 5 accessibility
+  `data-*` attributes to `<html>` on mount, and re-applies on `storage` (cross-tab) or a
+  custom `motownSettingsChanged` event (same-tab, fired by `Settings.jsx` after every
+  change). Called exactly once, at the top of `App.jsx` — a single global subscription.
+
+### Cluster: Config — `config/api.js` + `config/searchConfig.js`
+
+- **`api.js`** — exports the canonical `API` constant
+  (`import.meta.env.VITE_API_URL || 'http://localhost:5000'`). Used by ~15 files.
+  **Gotcha:** `Student.jsx` and `teacher.jsx` do NOT import this — each independently
+  redeclares the identical constant inline. Any future change to the fallback URL must be
+  made in 3 places.
+- **`searchConfig.js`** — exports `searchConfigMap`/`getSearchConfig(pathname)`, fully
+  implemented but **confirmed unused** — every reviewed page calls `setSearchConfig()`
+  directly via outlet context instead, bypassing this file entirely. Likely legacy/unused
+  infrastructure, or consumed only by a page outside the reviewed set.
+
+---
+
+## B2. Backend Infrastructure
+
+### Cluster: Server entry & connection — `backend/index.js` + `backend/config/db.js`
+
+- **`index.js`** — Express app entry. Loads `.env` explicitly by path
+  (`path.join(__dirname,'.env')`). Serves `/media` as `express.static(MEDIA_DIR)`.
+  CORS restricted to a single `CLIENT_ORIGIN` origin (default `http://localhost:5173`).
+  `express.json()` only — no `express.urlencoded()`, no body-size override. Mounts ~30
+  routers (see A2 tree / A6 table for the full prefix list) — notably `adminHouse.js` is
+  mounted **last**, explicitly because its `/:id` wildcard would otherwise swallow the more
+  specific `/api/admin/*` sub-paths mounted above it. `routes/subjects.js` exists on disk
+  but **is never required here — confirmed dead/unreachable code.**
+  Graceful `EADDRINUSE` handler prints a ready-to-paste PowerShell one-liner to free the
+  port instead of crashing silently (see Part C).
+- **`config/db.js`** — `mongoose.connect(process.env.MONGO_URI)`, no explicit options
+  object, no fallback URI (throws + `process.exit(1)` if unset/invalid, so the server
+  refuses to start rather than silently connecting somewhere unexpected). Logs only
+  `connection.host`, not the database name — worth remembering when debugging "which DB did
+  it connect to" (check the `.env` file directly, not the console log).
+
+### Cluster: Admin auth middleware — `middleware/adminAuth.js`
+
+**Purpose:** the entire server-side enforcement layer for the `/api/admin/*` family.
+
+- **Token format:** base64-encoded JSON, NOT a JWT — explicitly self-documented in the
+  file's own header comment as "deliberately simple... NOT production-safe as-is."
+- **`decodeAdminToken(req)`:** requires `Authorization: Bearer <token>`; base64-decodes +
+  JSON-parses in a try/catch (malformed tokens silently return `null`, not a thrown error);
+  requires `payload.adminUserId`; re-fetches the LIVE `AdminUser` doc by that ID and
+  requires `status==='active'`. This DB re-fetch means portal/scope changes take effect
+  immediately on the next request (no stale-token risk for legitimate edits), but the token
+  itself carries **no cryptographic signature** — anyone who can guess/enumerate a valid
+  ObjectId can forge a working token, since nothing is checked against a server secret.
+- **Guards exported:** `requireAdminAny` (any active AdminUser), `requireAdminPortal(...portals)`
+  (403 unless `user.portal==='management'` OR is in the allowed list — this is how
+  management gets universal access to every guarded route), `requireHouseSenior` (403
+  unless management or `portal==='house' && scope.level==='senior'`), `requireHouseOwn`
+  (looser — passes for ANY house-portal account regardless of `scope.level`; the route
+  handler itself branches internally on `scope.level` to decide what data to return).
+
+### Cluster: Upload middleware — `middleware/upload.js`
+
+- multer + **disk storage** (not memory). `MEDIA_DIR` env var, default
+  `C:\Users\HP\Downloads\Motown_Media`. Creates 4 sub-folders at boot
+  (`gallery/products/page/avatars`) via `fs.mkdirSync(...,{recursive:true})` — a
+  module-require-time side effect, runs once at server start.
+  **Destination logic is `req.params.folder || 'gallery'`** — only populated when a route
+  actually has a `:folder` param (only `media.js`'s `POST /upload/:folder` does). Every
+  other caller (`gallery.js`, `products.js`, `pagePosts.js`) falls back to the hardcoded
+  `'gallery'` folder regardless of what the route conceptually is — **this causes a real,
+  confirmed bug**: `products.js`'s upload writes physically into `MEDIA_DIR/gallery/` while
+  storing/returning a `/media/products/...` URL that doesn't match where the file actually
+  landed. Same bug in `pagePosts.js` (`/media/page/...` claimed, `gallery/` actual). See
+  Part C.
+  Filename: `${Date.now()}-${random 0-999999}.<ext>` (collision-resistant, not
+  cryptographically random). File filter: regex allowing jpeg/jpg/png/gif/webp/svg against
+  both extension AND mimetype subtype — **SVG is permitted**, a stored-XSS risk if ever
+  served inline with user-controlled content (not mitigated anywhere reviewed). Size limit
+  10 MB.
+
+### Cluster: Master schema — `backend/schema.js`
+
+Already fully documented in A5 (Database Map). One implementation detail worth noting here:
+every model uses the `mongoose.models.X || mongoose.model('X', schema)` guard, making the
+file safe to `require()` multiple times (Node's module cache would prevent re-registration
+errors anyway, but this is explicit defensive coding). Running `node backend/schema.js`
+directly (no args) connects, calls `.createIndexes()` on all 34 models, then disconnects —
+useful for pushing index changes to MongoDB without touching any data.
+
+**Legacy models directory** (`backend/models/GalleryImage.js`, `Product.js`, `Student.js`)
+are separate, standalone Mongoose model files NOT re-exported from `schema.js`. They're used
+only by `seed.js`/`seedStudent.js` (legacy seeds) and partially by `routes/gallery.js`/
+`routes/products.js`. Because they're defined independently, any schema change made to
+`schema.js`'s `GalleryItem`/`Product`/`Student` models will NOT automatically apply to these
+legacy files — a drift risk if someone edits one without checking the other.
+
+---
+
+## B3. Backend Routes — Public / Legacy
+
+### Cluster: Public content CRUD — `gallery.js`, `products.js`, `media.js`, `pagePosts.js`, `announcements.js`, `orders.js`, `schoolProfile.js`, `mapLocations.js`, `library.js`, `syllabus.js`, `campusHighlights.js`
+
+**Purpose:** the public-facing content endpoints behind Gallery, PTA Shop, Page (social
+feed), Announcements, About, Map, Library, Syllabus, and the Badge campus-highlights popup.
+**None of these routers have any auth guard** — every write endpoint here (POST/PATCH/
+DELETE on gallery/products/posts/announcements/school-profile) is open to any caller.
+
+- **`gallery.js`** (`/api/gallery`) — GET list (`?category=`, always `isPublished:true`) /
+  GET one / POST (multipart, falls back to `req.body.src` if no file — i.e. URL-based
+  images are allowed without upload) / POST `/:id/comments` (raw unvalidated passthrough
+  into the `comments` subdocument array) / PATCH `/:id/engage` (atomic `$inc` on a
+  whitelisted field: likeCount/saveCount/shareCount) / DELETE (**hard** delete).
+- **`products.js`** (`/api/products`) — GET list/one, POST (multipart, `price`/`stock`
+  coerced via `Number(...)`), PATCH (**does NOT coerce numeric strings** the way POST does —
+  an inconsistency), DELETE (hard). Uses the standalone `models/Product.js`, not
+  `schema.js`.
+- **`media.js`** (`/api/media`) — single route, `POST /upload/:folder`, the ONLY upload
+  endpoint in the app whose disk-write folder and returned URL are guaranteed to match
+  (because `:folder` flows into both). **No try/catch at all around the handler** — an
+  invalid `:folder` name would throw an unhandled `ENOENT` (every other route file wraps
+  logic in try/catch; this one doesn't).
+- **`pagePosts.js`** (`/api/posts`) — GET list (`isPublished:true`, `?category=`) / GET one /
+  POST (multipart `cover`, same folder/URL mismatch bug as `products.js` — writes to
+  `gallery/` disk folder, claims `/media/page/...` URL) / POST comments (unvalidated) /
+  PATCH (full-body passthrough, no whitelist) / DELETE (hard).
+- **`announcements.js`** (`/api/announcements`) — GET (`?audience=` matched via
+  `{$in:[audience,'all']}`, `?priority=`, sorted pinned-first-then-newest) / GET one / POST
+  (`Announcement.create(req.body)`, fully unvalidated) / PATCH (full passthrough) / DELETE
+  (hard). Also written to internally by the "private per-student announcement" convention
+  used across the clearance-item-creation flows (see B5) — a tagging hack, not a real
+  per-user visibility field: `attachments[0].name = "private:<studentObjectId>"`.
+- **`orders.js`** (`/api/orders`) — POST recomputes each line item's `subtotal =
+  qty*unitPrice` server-side, but **`total` itself is trusted verbatim from the client with
+  no cross-check against the sum of subtotals** — a real business-logic gap (a malicious
+  client could send a low `total` with correct-looking line items). GET list leaks all buyer
+  PII (name/email/phone) to any caller. PATCH `/:id/status` has an unguarded duplicate in
+  `adminAccounts.js` with slightly different field support.
+- **`schoolProfile.js`** (`/api/school-profile`) — singleton pattern: GET does
+  `SchoolProfile.findOne()` (no filter — returns `{}` if none exists rather than 404); PATCH
+  does `findOneAndUpdate({}, req.body, {upsert:true,new:true})` — **any caller can overwrite
+  the entire school profile** with an arbitrary unvalidated body.
+- **`mapLocations.js`** (`/api/map-locations`) — read-only. GET `/:id` tries a human-readable
+  `locationId` string field first, falls back to raw ObjectId lookup — a dual-lookup
+  convenience pattern. **Confirmed orphaned from the frontend** — `Map.jsx` uses a static
+  import instead of ever calling this endpoint, despite it being fully implemented and
+  mounted.
+- **`library.js`** (`/api/library`) — read-only public catalog, `.select('-borrowHistory')`
+  to avoid leaking which students have which books on loan. Write/loan operations live only
+  in the guarded `adminLibrary.js`.
+- **`syllabus.js`** (`/api/syllabus`) — read-only, `?form=&term=&program=` filters. No write
+  endpoints exist in this file at all — despite `adminAcademics.js`'s header comment
+  mentioning a syllabus-approval endpoint, no syllabus CRUD exists anywhere.
+- **`campusHighlights.js`** (`/api/campus-highlights`) — single `GET /` route, sorted by the
+  `order` integer field. **100% read-only** — there is no create/update/delete/reorder route
+  anywhere in the codebase for this resource; content changes require direct DB
+  manipulation or re-running `seedCampusHighlights.js`.
+- **`subjects.js`** — fully written (`GET /` returning all subjects sorted by name) but
+  **never mounted in `index.js` — confirmed dead code, unreachable over HTTP.**
+
+### Cluster: Legacy identity routes — `students.js`, `teachers.js`, `admins.js`
+
+- **`students.js`** (`/api/students`) — `POST /login` (bcrypt compare, returns a curated
+  profile with no token). `GET /:studentId/profile` — resolves the **string** `studentId`
+  field (not ObjectId) to a Mongo `_id`, then runs 4 parallel queries
+  (`Assessment`/`Attendance`/`Achievement`/`Clearance`, all by the legacy/global collections —
+  see A5's naming-collision note) via `Promise.all`, strips the password before responding.
+- **`teachers.js`** (`/api/teachers`) — `POST /login` populates `classTeacherOf`/`subject`
+  before bcrypt-comparing. `GET /:id/schedule?term=` — queries `Timetable` via dot-notation
+  into the array subfield (`'periods.teacher': id`), then **must re-filter in application
+  code** (line ~81) because the Mongo query only guarantees the *document* contains a
+  matching period, not that every period does; buckets into a fixed Mon-Fri map, sorted by
+  `startTime` string via `localeCompare` (assumes `HH:MM` 24h format for correct ordering).
+  `POST/PATCH /lesson-notes[...]` — **unguarded, trusts client-supplied `teacherId` with no
+  ownership check** — a parallel, less-secured implementation of the same feature that
+  `teacherPortal.js` also implements with ownership checks (see B4). None of this file's
+  routes are called by `teacher.jsx` (it uses `/api/portal/*` for everything except the one
+  `/api/classes/:id` call).
+- **`admins.js`** (`/api/admins`) — `POST /login` against the **legacy `Admin` model**
+  (11-value `adminType` enum), bcrypt compare, no token issued. **Architecturally
+  disconnected** from the `AdminUser`/`adminAuth.js` system — credentials from this login
+  cannot authenticate against any `/api/admin/*` guarded route. No frontend caller was found
+  for this endpoint in the reviewed pages — likely a pre-`AdminUser` leftover.
+
+**Gotchas in this cluster:** No auth guard on ANY route in `gallery.js`, `products.js`,
+`pagePosts.js`, `announcements.js`, `orders.js`, `schoolProfile.js`, `students.js`,
+`teachers.js`, or `admins.js` — this entire cluster is an open write surface. The admin
+portal family (B5) duplicates much of this functionality behind real guards, but the
+public/legacy routes remain live and equally capable of mutating the same data.
+
+---
+
+## B4. Backend Routes — Teacher Portal
+
+### Cluster: `teacherPortal.js` + `classes.js` + `subjects.js` (dead)
+
+**Purpose:** the canonical backend for everything a teacher or HOD does inside
+`teacher.jsx` — register, roster, assessments, schedule, lesson notes, and (HOD-only)
+timetable building.
+
+- **`teacherPortal.js`** (`/api/portal`) — header comment states the design intent
+  explicitly: teachers must "own" the class they act on, checked per-request via
+  `?teacherId=`/`body.teacherId`, not a real session/token. Two helpers used inline in
+  nearly every handler: `resolveTeacher(teacherId)` (simple lookup) and
+  `ownsClass(teacher, cls)` (true if `cls.classTeacher` matches, OR the teacher is
+  `hod`/`hod_assistant` in the same department).
+  - Register (`GET/POST /class/:classId/register`) — date filter/upsert bucketed as
+    `[d, d+1day)` (half-open interval, robust to time-of-day).
+  - Roster (`GET/PUT /class/:classId/roster`) — upsert keyed on `{class}` alone (one roster
+    doc per class, ever).
+  - Assessments (`GET /class/:classId/assessments`, `POST /assessments`,
+    `PATCH /assessments/:id/scores`) — the PATCH is a **full-array replace, not a merge**:
+    `$set:{scores}` overwrites the ENTIRE scores array, so any student omitted from the
+    submitted array silently loses their previously recorded score. This is a real, easy-to-
+    hit semantic gotcha for anyone extending the scoring UI (see Part C).
+  - Schedule (`GET /teacher/:id/schedule`) — a **second, independent implementation** of the
+    same timetable-flatten-and-sort algorithm also found in `teachers.js` (different data
+    structure internally, same output shape) — a maintenance/consistency risk if the
+    timetable format ever changes.
+  - Lesson notes (`GET/POST/PUT /teacher/:id/lesson-notes`, `/lesson-notes[/:id]`) — a
+    **third parallel implementation** of lesson notes (alongside `teachers.js`'s own,
+    unguarded version). This one DOES check `doc.teacher.toString() === teacher._id` on PUT
+    — ownership-enforced, unlike its sibling in `teachers.js`.
+  - HOD routes (`/hod/:id/classes`, `/hod/:id/teachers`, `GET/PUT /hod/:id/timetable/:classId`)
+    — gated on `teacher.role` in `['hod','hod_assistant']`, further scoped to the HOD's own
+    department (`cls.department !== hod.department` → 403).
+- **`classes.js`** (`/api/classes`) — header comment explicitly, deliberately notes this
+  file is "currently open (no JWT)... matching the existing codebase pattern where auth is
+  client-side via localStorage" — an **acknowledged, intentional absence** of server-side
+  auth, largely duplicating `teacherPortal.js`'s register/roster/assessment/timetable logic
+  with zero ownership verification and subtly different date-bucketing techniques (`setHours`
+  start/end-of-day instead of the `[d,d+1)` interval used in `teacherPortal.js` — not
+  perfectly equivalent under DST edge cases). **Confirmed from the frontend research: only
+  `GET /api/classes/:id` is actually called by `teacher.jsx`** (for the top-level `classInfo`
+  fetch) — all 11 other routes in this file are dead weight from the frontend's perspective,
+  fully superseded by `teacherPortal.js`.
+- **`subjects.js`** — see B3: written, never mounted, fully dead.
+
+**Overall coverage verdict (from the research agent's endpoint-by-endpoint cross-check):**
+of 18 `teacherPortal.js` endpoints, 15 are called by `teacher.jsx` (3 orphaned:
+`teacher/:id/profile`, `class/:classId/students`, `assessments/:id`); of 12 `classes.js`
+endpoints, only 1 is called (`GET /:id`); `subjects.js`'s one endpoint is entirely orphaned.
+No broken/missing-backend frontend calls were found — `teacher.jsx` never reaches for an
+endpoint that doesn't exist.
+
+**Gotchas in this cluster:** none of the ~26 combined `/api/portal/*` + `/api/classes/*`
+endpoints ever receive an `Authorization` header from the frontend — "authorization" is
+entirely a server-side ownership check against a client-supplied ID, which is trivially
+spoofable from devtools (edit the `teacherId`/`classId` in the request and you can act as
+another teacher, assuming nothing outside these files independently verifies identity).
+
+---
+
+## B5. Backend Routes — Admin Portal Family
+
+### Cluster: Token issuance & the shared approval engine — `adminPortal.js` + `approvals.js`
+
+- **`adminPortal.js`** (`/api/admin`) — `POST /login`: looks up `AdminUser` by trimmed
+  username, requires `status==='active'`, bcrypt-compares, then builds
+  `{adminUserId, portal, scope, displayName}` and `Buffer.from(JSON.stringify(...)).toString('base64')`
+  — this is where the token described in A4 is actually minted. `GET /me` (`requireAdminAny`)
+  strips `password` and returns the rest — used by the client to re-hydrate session state
+  after a page reload.
+- **`approvals.js`** (mounted at BOTH `/api/approvals` and `/api/admin/approvals` — same
+  router object) — **the most complex business logic in the backend.**
+  - `POST /` (no guard — explicitly open to any caller, "requesting user captured in
+    `requestedBy` payload" per the code comment) creates an `Approval` with a one-element
+    `chain` array seeded `{portal:approverPortal, status:'pending'}`.
+  - `GET /:portal` (`requireAdminAny` + a hand-written portal check, functionally
+    equivalent to but not reusing `requireAdminPortal`) lists approvals for one portal,
+    `?status=` defaults to `'pending'`.
+  - `PATCH /:id` — **the chain-advancement algorithm**: locates the currently-open step via
+    `chain.findLastIndex(s => s.portal===approverPortal && s.status==='pending')` (uses
+    `findLastIndex`, not `findIndex`, specifically so a request that bounced through the
+    same portal more than once updates the MOST RECENT pending step). Calls
+    `approval.markModified('chain')` after mutating the array in place (necessary because
+    Mongoose won't auto-detect an in-place array-index mutation). If `decision==='approved'`
+    AND a `nextPortal` was supplied, the approval is **forwarded**: `approverPortal`
+    reassigned, a new pending chain step pushed, and the top-level `status` stays
+    `'pending'` — only a decision with NO `nextPortal` (approved-final or any rejection)
+    sets the terminal top-level `status`.
+  - **Confirmed incomplete finding:** the engine (create/list/decide/forward) is fully
+    implemented, but **nothing anywhere in the reviewed codebase actually applies an
+    approved payload's effect** — no route polls for `status:'approved'` approvals and acts
+    on `payload`. Several files' comments (`adminMedia.js`, `adminClub.js`) reference an
+    intended approval-gated workflow ("posts go via an Approval before publishing", "submit
+    an approval request" for club creation) but none of them actually create or consume
+    such an approval programmatically. This is the single largest "designed but not wired
+    up" feature gap in the backend.
+
+### Cluster: Clearance engine — `clearance.js` (two routers)
+
+- **Shared helper `ensureAnnouncement(item, student)`** — upsert-like: updates the existing
+  paired `Announcement` in place if `item.announcementId` is already set, else creates a new
+  one tagged `attachments:[{name:'private:'+student._id, ...}]` (the private-announcement
+  convention explained in B3). **This exact logic is independently re-implemented (not
+  imported/shared) in THREE other files** — `adminDomestic.js`, `adminLibrary.js`,
+  `adminAccounts.js` — each with slightly different `title`/`authorName` strings, a
+  copy-paste drift risk.
+- **`studentClearanceRouter`** (mounted at `/api/students`) — `GET /:studentId/clearance`:
+  string-based `studentId` lookup (consistent with `students.js`'s convention), returns all
+  `ClearanceItem`s sorted `status:1, createdAt:-1`. **Note:** `'cleared'` sorts before
+  `'outstanding'` alphabetically, so cleared items surface FIRST in the default sort — worth
+  double-checking against the intended UX (one might expect actionable/outstanding items
+  first). `allClear = items.length===0 || items.every(status==='cleared')` — a student with
+  zero clearance items ever raised is correctly treated as "all clear" by default.
+- **`adminClearanceRouter`** (mounted at `/api/admin/clearance`, `requireAdminAny`) —
+  `POST /item`: ObjectId-based `studentId`; duplicate-prevention check (409 if an
+  outstanding item with the same `{student, sourceId, status:'outstanding'}` already
+  exists); creates item, calls `ensureAnnouncement`, persists `announcementId` back with a
+  second `.save()`. `PATCH /item/:id`: 409 if already cleared; sets cleared fields, deletes
+  the paired announcement.
+
+### Cluster: Portal-scoped sub-routers — `adminAcademics.js`, `adminData.js`, `adminDomestic.js`, `adminLibrary.js`, `adminClub.js`, `adminChapel.js`, `adminMedia.js`, `adminManagement.js`, `adminAccounts.js`, `adminHouse.js`
+
+All ten are guarded by `requireAdminPortal('<name>')` at minimum; several layer additional
+scope-based restriction on top (`requireMode`, `ownClubFilter`, `streamFilter`,
+`requireHouseSenior`/`requireHouseOwn`).
+
+- **`adminAcademics.js`** — `/overview` (3 parallel counts), `/assessments`, `/attendance`
+  (both read the **global** `Assessment`/`Attendance` models, NOT the per-class
+  `ClassAssessment`/`ClassAttendance` the Teacher Portal actually writes to — see A5's
+  data-fragmentation warning; there is no sync path between them). **Confirmed incomplete:**
+  the file's header comment documents a `POST /approve-syllabus` endpoint that does not
+  exist anywhere in the file body.
+- **`adminData.js`** — whole-router guard + `requireMode(mode)` (student/teacher/
+  infrastructure/record), bypassed for `management`. PATCH routes use an explicit
+  **field-stripping denylist** (`password, username, role, _id, __v` stripped before
+  `$set`) to prevent auth-field tampering via the generic profile-edit endpoints — the
+  cleanest security pattern found in the backend. `/records` is actually a read view over
+  the shared `Approval` collection, not a distinct model.
+- **`adminDomestic.js`** — `/cases` uses `{'disciplinaryCases.0':{$exists:true}}` (a
+  positional-index existence check, idiomatic Mongo for "array is non-empty").
+  `POST /cases/:studentId` upserts the parent `Achievement` doc on first case.
+  **`PATCH /cases/:studentId/:caseIndex` targets a sub-document by raw array index, not a
+  stable `_id`** — a classic race condition if a concurrent request shifts the array between
+  fetch and submit. `POST /clearance` inlines the private-announcement pattern (see above).
+- **`adminLibrary.js`** — `POST /resources/:id/loan`: **manual read-modify-write, not
+  atomic** — loads doc, pushes to `borrowHistory`, decrements `availableCopies`, saves; two
+  simultaneous loans against the last copy could both pass the `availableCopies<1` check
+  before either saves, driving the count negative (confirmed race condition).
+  `PATCH /resources/:id/return/:loanIndex` — same array-index-targeting fragility as
+  `adminDomestic.js`'s case PATCH, requires `markModified('borrowHistory')`. Its
+  clearance-clearing query is **not scoped to the specific loan event** — clears ALL
+  outstanding items matching `{source, sourceId, student}`, a potential over-clearing bug if
+  a student has multiple outstanding items for the same resource. `GET /overdue` uses a
+  two-stage Mongo-then-JS filter pattern (Mongo can't correlate two conditions across the
+  same array field without `$elemMatch`/aggregation, so it re-checks in application code).
+- **`adminClub.js`** — `ownClubFilter(user)` returns the deliberately-impossible
+  `{_id:null}` if a scoped user has no `scope.club` set, guaranteeing zero results rather
+  than accidentally matching everything. `POST /` **hard-blocks non-management** entirely,
+  with a message pointing at the (unwired) approval-request flow. Member add/remove use
+  atomic `$push`/`$pull` + `$inc` — correct, unlike the library's read-modify-write — though
+  `DELETE /:id/members/:memberId` decrements `totalMembers` even if the `$pull` matched zero
+  elements (a counter-drift risk for a non-existent memberId).
+- **`adminChapel.js`** — `streamFilter(user)` maps `scope.stream` (`'Aggrey'|'Catholic'`) to
+  the full `chapelName`. **Asymmetric enforcement**: reads use a soft filter, `POST /services`
+  hard-403s if the submitted `chapelName` doesn't match the caller's stream (correct
+  design) — but **`POST /attendance` has NO equivalent scope check**, so any chapel-portal
+  user (even one scoped to the other stream) can post attendance for any chapel — an
+  inconsistency within the same file. `GET /stats` loads full documents and aggregates in
+  JS rather than via a Mongo pipeline — fine at current scale, won't scale with large
+  attendance histories.
+- **`adminMedia.js`** — CRUD for `GalleryItem`/`PagePost`. **DELETE is a soft-delete**
+  (`isPublished:false`) here, contrasting with the public `gallery.js`/`pagePosts.js`'s
+  **hard** delete on the same resource type — two different deletion semantics depending on
+  entry point. **Confirmed incomplete:** header comment says posts "go via an Approval
+  (media_post kind) before publishing" — the code creates documents directly and
+  immediately, no approval gating implemented.
+- **`adminManagement.js`** — `/dashboard` runs 10 parallel `countDocuments()` calls — the
+  single broadest cross-collection read in the codebase. `POST /users` does a manual
+  pre-check uniqueness query before `create()` (a narrow TOCTOU race exists, though the
+  schema's own unique index would still prevent an actual duplicate — just surfaces as a
+  500 instead of a clean 409 under a real race). `PATCH /users/:id` is the admin password-
+  reset mechanism (re-hashes if `password` provided) AND allows arbitrarily reassigning any
+  admin's `portal`/`scope` — powerful, not further gated beyond the base `management`-only
+  guard. `DELETE /users/:id` is a soft suspend, which is precisely what makes that user's
+  existing tokens stop working (per `adminAuth.js`'s live status re-check).
+- **`adminAccounts.js`** — guarded counterparts to the public `orders.js` routes (slightly
+  different field support — supports `reference`, the public route doesn't). `GET /debtors`
+  returns raw unenriched `ClearanceItem` docs (field named `debtors` but containing only a
+  `student` ObjectId, no populated name) — a caller needs a follow-up lookup to display
+  anything human-readable.
+- **`adminHouse.js`** (mounted LAST in `index.js` — see B2) — `GET /mine` **branches
+  internally on scope/level and returns two different response SHAPES from the same
+  endpoint** (`{allHouses:[...]}` for senior/management vs `{...house, students}` for a
+  regular house account) — any frontend consumer must branch on which shape came back.
+  `PATCH /:id/students` (house reassignment) performs **three separate atomic updates with
+  no transaction wrapping them** (pull from source house, addToSet into destination house,
+  set `Student.house`) — a crash between steps leaves the data inconsistent; also silently
+  no-ops the `$pull` if the source house ID doesn't actually contain that student (Mongo
+  doesn't error on a non-matching pull).
+
+**Cross-cutting findings for this whole cluster** (see Part C for the consolidated list):
+two disconnected admin identity systems; unsigned/unexpiring tokens; the private-
+announcement pattern copy-pasted 4 times; two parallel Assessment/Attendance model families
+with no sync; the approval engine's consumption gap; three instances of array-index-based
+sub-document targeting; and at least 5 pairs of duplicate-but-inconsistently-guarded route
+implementations for the same logical resource (lesson notes, teacher schedule, class
+register/roster/assessments/timetable, order status update, gallery/post CRUD).
+
+---
+
+## B6. Frontend — Public Core Pages
+
+### Cluster: `core/About.jsx`, `core/Gallery.jsx`, `core/Map.jsx`, `core/PTA-shop.jsx`,
+### `core/Checkout.jsx`, `core/Page.jsx` (+ `core/files/*`, `routes/galleryImages.js`,
+### `routes/shopProducts.js`, `data/aboutContent.js`)
+
+**Purpose:** the public marketing/content surface of the site (no login required).
+
+- **`About.jsx`** — seeds `data` from the static `FALLBACK` (= `src/data/aboutContent.js`),
+  then `GET /api/school-profile` — only overwrites `data` if the response has a truthy
+  `schoolName`; otherwise silently keeps the static fallback forever, with no retry and no
+  visible error state. Collapsible Anthem/Houses panels, FAQ accordion. **This
+  fallback-first pattern is deliberate and documented** — `aboutContent.js` (frontend copy)
+  has a comment explicitly stating it "mirrors backend/data/aboutContent.js".
+- **`Gallery.jsx`** — `GET /api/gallery`, falls back to `FALLBACK_IMAGES` on failure.
+  **Path discrepancy confirmed by research:** imports its fallback from
+  **`src/routes/galleryImages.js`**, NOT `src/pages/core/files/galleryImages.js` (which the
+  original task brief assumed was the mock file) — the two have genuinely different shapes
+  and content (flat array matching the live API's `normalise()` vs. a grouped-by-season
+  object with generic "Boardwalk and Fishing Pier" stock placeholders). Likes persisted to
+  `localStorage['gallery-likes']` only, never synced to the backend's `likeCount`.
+- **`Map.jsx`** — Leaflet-based, imports `LOCATIONS`/`SCHOOL_CENTER`/`SCHOOL_BOUNDS`/
+  `CATEGORY_META` **statically** from `core/files/mapLocations.js` — **no fetch, no fallback
+  pattern at all**, despite a live `/api/map-locations` backend route existing and being
+  fully functional (confirmed orphaned — B3). This file's static data (33 real campus
+  locations with real GPS coordinates) is genuine reference data, so migrating to live-fetch
+  is lower priority than the other core pages, but the backend route's existence suggests it
+  was at least planned.
+- **`PTA-shop.jsx`** — `GET /api/products`, falls back to `FALLBACK_PRODUCTS`/
+  `billboardImages` from **`src/routes/shopProducts.js`** (again, NOT
+  `core/files/shopProducts.js`, which is confirmed unused). Auto-advancing billboard
+  carousel (3.5s hardcoded interval). "Proceed to Checkout" passes `cart`/`total` via
+  React Router navigation state, consumed by `Checkout.jsx`.
+- **`Checkout.jsx`** — Ghana-specific validation (phone regex, 16-region dropdown), 3
+  delivery options with hardcoded prices. Delegates actual "payment" entirely to
+  `<PaymentPortal>` (a fully simulated flow, see B12). Order-confirmation reference number
+  is client-generated (`ACH-${Date.now()...}`) — **no evidence any real order gets
+  persisted to the backend from this component**; that would have to happen inside
+  `PaymentPortal`, which itself makes no fetch calls (confirmed simulated).
+- **`Page.jsx`** — Instagram-style feed. `GET /api/posts`, falls back to the SAME
+  `src/routes/galleryImages.js` used by `Gallery.jsx` (reused as generic placeholder
+  "posts"), **not** `core/files/pageImages.js` (confirmed unused). Like/save/share counts
+  are **hybrid**: seeded from the backend on load, but every subsequent increment/decrement
+  is `localStorage`-only (`page-likes`, `page-saves`, `page-like-counts`, etc.) — never
+  PATCHed back, meaning engagement is per-browser, not global, despite looking
+  backend-driven. Comments are entirely client-local (`setLocalComments`), never sent
+  anywhere.
+
+**Orphaned mock-data files (confirmed via repo-wide grep — zero importers):**
+`src/pages/core/files/galleryImages.js`, `src/pages/core/files/shopProducts.js`,
+`src/pages/core/files/pageImages.js` — three dead holdovers from an earlier mock-data
+iteration, superseded by `src/routes/galleryImages.js` / `src/routes/shopProducts.js` /
+`src/data/aboutContent.js` respectively (which ARE the live fallback sources) but never
+deleted. Only `core/files/mapLocations.js` survives as genuinely-used static data.
+
+**CSS:** `styles/core/About.css`, `Gallery.css` (1061 lines, has a `@media (hover:none)`
+touch-device rule), `Map.css`, `PTA-shop.css`, `Checkout.css`, `Page.css`.
+
+---
+
+## B7. Frontend — Login Pages
+
+### Cluster: `Log-in-pages/AdminLogin.jsx`, `StudentLogin.jsx`, `TeacherLogin.jsx`
+
+**Purpose:** the three role-specific login screens. Share a common `sl-*` CSS namespace
+(`styles/Login.css`) and outlet-context wiring pattern, but their actual auth logic differs
+completely (see A4 table).
+
+- **`AdminLogin.jsx`** — real `AdminAuthContext.login()` call. Auto-redirects already-logged-
+  in sessions via a hardcoded `PORTAL_ROUTES` map (the 4th independent copy of this map,
+  per B1). **Dual-write on success:** in addition to `AdminAuthContext`'s own
+  `adminPortalSession` write, this page ALSO separately writes `localStorage['signedInProfile']`
+  with `{name, adminType, portal, role:'adminUser'}` — explicitly commented as being "for
+  Layout's login-state detection," since `Layout.jsx`/`Topbar.jsx` both also check
+  `signedInProfile` as a fallback. This dual-write is intentional but fragile: a raw
+  `AdminAuthContext.logout()` call (bypassing `Topbar.jsx`'s `handleSignOut`) clears only
+  `adminPortalSession`, leaving a stale `signedInProfile` behind.
+- **`StudentLogin.jsx`** — real `POST /api/students/login`. Client-side `ID_REGEX`
+  format validation before submit. **On success:** writes `signedInProfile` with
+  `role:'student'`, dispatches `profileChanged`, navigates to `/student`. **On a network
+  failure** (backend unreachable — the `catch` block, not a non-OK response): a **hardcoded
+  demo-credential backdoor activates** — if `studentId==='student_001'` (case-insensitive)
+  and `password==='Pass123'`, it logs in with a fully fake, hardcoded profile
+  (`Michael Owusu`, `STU20240001`) indistinguishable from a real login from that point
+  forward. This is flagged as a genuine security consideration (see Part C), not just a
+  demo convenience, since it's baked into production frontend code with no build-time flag
+  gating it out. "Forgot password" is a fully local stub (`setTimeout` fake delay, no fetch
+  call at all — no reset email is ever actually sent).
+- **`TeacherLogin.jsx`** — **THE MOST SIGNIFICANT AUTH GAP IN THE APP.** There is no `fetch`
+  call anywhere in this file. `handleLogin` validates only `employeeId` non-empty and
+  `password.length>=6`, fakes a 1500ms delay, and — unless `employeeId.toLowerCase()===
+  'test0000'` (a hardcoded, deliberate failure case) — **unconditionally succeeds** for ANY
+  other employeeId with any 6+ character password. Writes `localStorage['signedInProfile']`
+  as `{name:'Teacher', id:employeeId}` — **no `role` field**. This profile shape is
+  incompatible with `teacher.jsx`'s own profile guard (requires a truthy, non-student,
+  non-admin `role`) — see B9 and Part C for the resulting concrete, reproducible bug chain.
+
+**Gotcha shared across all three:** none attach or later send any bearer-token-style
+credential for students/teachers — only the admin flow produces a real, verifiable session
+token.
+
+---
+
+## B8. Frontend — Student Portal
+
+### Cluster: `Student/Student.jsx` + `Student/ProspectStudent.jsx` + `styles/Student/*`
+
+**Purpose:** the logged-in student's dashboard (`Student.jsx`) and the prospective-student
+admission wizard (`ProspectStudent.jsx`) — two very different features sharing a route
+prefix and CSS namespace.
+
+- **`Student.jsx`** — declares its own inline `API` constant (doesn't import
+  `config/api.js` — see B1 gotcha). `DEMO_STUDENT_ID='STU20240001'` module constant.
+  **Pure helper functions worth knowing by name when debugging grades:**
+  `buildAcademic(assessments)` reshapes flat `Assessment[]` into `year→form→term→{core[],
+  elective[]}`, remapping backend field names to short UI names (`ex, asgn, proj, grp,
+  exam, noExam`). `computeTotal(subject)` — the **grading algorithm**:
+  `ex*0.20 + asgn*0.15 + proj*0.15 + grp*0.10 + exam*0.40`, rounded, mapped to a WAEC-style
+  letter grade (`≥80→A1 … ≥40→E8, else F9`), or `{total:null, grade:'*'}` if `noExam`.
+  `buildTranscript()` flattens into a `subjectName → {[year]:{[form]:{[term]:grade}}}` row
+  map for the cumulative transcript view. `gradeColor()` maps grade → CSS variable name.
+  **Navigation:** `PARTS` = Profile/Records/Status/Transcript/Clearance, with Clearance
+  gated by `IS_OUTGOING=true` — a **hardcoded module constant**, not derived from any real
+  student status field, meaning the Clearance tab is globally always-shown for every
+  student, not conditionally per-student as the naming implies (an incomplete/stubbed gate).
+  `partIdx` starts at **`2`** (Status tab), a deliberate non-default initial view.
+  **THE CRITICAL BUG:** `GET ${API}/api/students/${DEMO_STUDENT_ID}/profile` — **always**
+  fetches the hardcoded demo ID, completely ignoring whatever student actually logged in
+  (whose identity sits unused in `localStorage['signedInProfile']`). No `Authorization`
+  header either. No offline/demo fallback exists here (contrast `Badge.jsx`'s graceful
+  degradation) — if the fetch never resolves, the user is stuck on a bare "Loading student
+  data…" screen with no retry button.
+  Notch tab-nav wiring follows Convention #3 (Part A9): `setTimeout(fn,0)` defers
+  `applyNotchTabs()` past `Layout.jsx`'s route-change reset effect.
+- **`ProspectStudent.jsx`** — 9-stage wizard (biometric/personal/guardian/examination/
+  program/campus/additional/essay/review). **Entirely non-persisted**: `handleSubmit` just
+  sets `submitted=true`; the "Reference" number is client-generated
+  (`ACHO-${Date.now()...}`); "Start New Application" literally calls
+  `window.location.reload()`. File/photo uploads are read via `FileReader.readAsDataURL`
+  into component state, never uploaded anywhere. `validateStage()` covers 6 of 9 stages
+  (biometric and additional are optional-by-design, no validation). **Typo/code-quality
+  flag:** the Stage-1 component is literally named `StageбиометрBiometric` (line 141) — a
+  stray Cyrillic fragment accidentally concatenated into the identifier, likely an IME slip;
+  syntactically valid, functions correctly, but looks broken at a glance.
+
+**CSS:** `styles/Student/Student.css` (1125 lines, `stu-*` prefix, double-locked mobile
+block at `<400px`) and `styles/Student/ProspectStudent.css` (1149 lines, `ps-*` prefix, the
+largest non-Chat/Topbar file in the project).
+
+---
+
+## B9. Frontend — Teacher Portal
+
+### Cluster: `teacher/teacher.jsx` (tracked lowercase) + `styles/Teacher/Teacher.css`
+
+**Purpose:** the logged-in teacher/HOD's entire workspace — register, roster, class
+assessments, personal schedule, lesson notes, profile, and (HOD-only) a full timetable
+builder. 1,341 lines, the largest single page-component file in the app.
+
+**Internal component tree:** `RichEditor` (contentEditable-based rich text editor with a
+custom table-insert modal), `PartRoster`, `PartRegister`, `PartAssessment`, `PartSchedule`,
+`PartLessonNotes`, `PartProfile` (Profile/Status/Record sub-tabs, mostly read-only display),
+`PartTimetableBuilder` (HOD-only), `DocPlaceholder`, `PartNavButton` (explicitly commented
+"mirrors Student.jsx PartNavButton exactly" — a confirmed duplicated, not shared,
+component).
+
+**Profile loading — the confirmed broken integration point:** a `useEffect` reads
+`localStorage['signedInProfile']` and calls `setProfile(p)` **only if** `p.role` is truthy
+and not `'student'`/`'admin'` (line ~1250). As established in B7, `TeacherLogin.jsx` writes
+`{name, id}` with **no `role` field at all** — so a real login through this app's own
+Teacher login page **fails this guard**, `setProfile` never fires, and `PartProfile` is
+stuck showing "Loading profile…" indefinitely. This also means `isHod` (which gates the
+Timetable Builder tab) can never become true via a real login, and `Layout.jsx`'s
+`isTeacherLoggedIn` check (which requires `role` in `['teacher','hod','hod_assistant']`)
+also evaluates false — so the Advanced sidebar group won't appear either, even though
+`Topbar.jsx`'s looser `resolveAccount()` ternary (`role==='student'?'student':'teacher'`)
+WOULD still show a "Teacher Portal" shortcut in the profile dialog. **This is a fully
+traced, reproducible bug chain across three files** (`TeacherLogin.jsx` → `teacher.jsx` →
+`Layout.jsx`), not a hypothetical — see Part C.
+
+**Once `profile` is populated (e.g. by directly seeding `signedInProfile` with a `role`
+field via devtools, bypassing the broken login), the ~14 API calls documented in A3's
+feature-chain table all become live.** `PartTimetableBuilder` builds a 9-slot × 5-day grid
+(`DEFAULT_SLOTS`, hardcoded `07:30`–`14:50`); clicking a cell opens a teacher-picker modal
+scoped to the HOD's own department, subject auto-filled from the picked teacher's own
+`subject` field. Gated both in the `PARTS` filter (tab hidden entirely for non-HODs) and
+again defensively inside the component (`if (!isHod) return <HOD Access Only>`).
+
+**`DocPlaceholder`** (used across the Profile/Status/Record sub-tabs for Ghana Card, SSNIT,
+TIN, Birth Certificate, BECE, WASSCE, NTC, Degree/Diploma, Passport Photo) **always renders
+"Not uploaded"** — no click handler, non-functional stub, confirmed for every document
+type.
+
+**Notch/tab wiring:** identical `setTimeout(fn,0)` + `notchTabChange` event-listener pattern
+to `Student.jsx` (Convention #3).
+
+**No error-state UI anywhere in this file** — every `fetch(...).catch(()=>{})` silently
+swallows errors with no user-facing message, contrasting with the Admin pages (B10), which
+consistently render an `.ap-error` element.
+
+**CSS:** `styles/Teacher/Teacher.css` (965 lines, `tea-*` prefix throughout — the cleanest,
+most consistently-namespaced CSS file in the project). Contains the double-locking
+documentation cited in Convention #1 (Part A9), applied selectively: only the `<400px`
+mobile block and the HOD-timetable-builder's `<700px` responsive block are double-locked;
+the HOD builder's base (non-responsive) styles are deliberately left unlocked per an
+explicit code comment.
+
+---
+
+## B10. Frontend — Admin Portal Pages
+
+### Cluster: `admin/Academics.jsx`, `Accounts.jsx`, `Club.jsx`, `Domestic.jsx`, `House.jsx`,
+### `Library.jsx`, `Media.jsx` + `admin/Chapel/*` + `admin/Data/*` + `Management.jsx`
+
+**Purpose:** ten read-focused dashboards, one per `AdminUser.portal` value, all sharing the
+same architecture: `useAdminPortal(title, placeholder)` for the route guard + notch/search
+wiring, `useAdminAuth().apiFetch` for authenticated calls, and `.page-container`/
+`.stat-box`/`.table-container` markup from the shared `PageContent.css` (there is no single
+`.admin-portal` wrapper class — confirmed not to exist anywhere in the codebase).
+
+- **`Academics.jsx`** — `Promise.all([overview, assessments])`. Read-only dashboard, no
+  filters wired despite a search placeholder being set.
+- **`Accounts.jsx`** — tab switch (Orders / Debtors), payment-status filter re-queries.
+  Computes total revenue client-side from `Paid` orders. **No dedicated `Accounts.css`
+  exists** — relies solely on `PageContent.css` (confirmed newest/untracked file, `??` in
+  git status).
+- **`Club.jsx`** — stat tiles + read-only club table, status color-coded.
+- **`Domestic.jsx`** — backend returns achievement/discipline records per student; frontend
+  **flattens** `disciplinaryCases` across all students client-side via `.flatMap()` into one
+  table, computing severity counts locally.
+- **`House.jsx`** — **the only admin page with role-based endpoint branching baked into the
+  component itself** rather than left to the backend: computes `isSenior` and calls either
+  `GET /api/admin/house` (all houses) or `GET /api/admin/house/mine` (own house), whose
+  response shapes differ (`{houses}` vs `{house,students}`) — the component wraps the
+  latter into a one-element array to normalize rendering.
+- **`Library.jsx`** (admin, component named `AdminLibrary`) — category filter + a
+  permanently-visible Overdue Loans table above the main Resources table. **No dedicated
+  `Library.css` for this admin page** (distinct from `styles/advanced/Library.css`, which
+  styles a different page entirely) — newest/untracked file.
+- **`Media.jsx`** — tab switch (Posts / Gallery), stat tiles split by published status.
+  **No dedicated `Media.css`** — newest/untracked file.
+- **`Chapel/Aggrey-chapel.jsx` + `Catholic.jsx`** — near-identical, differ only in which
+  `chapelName` they filter for. Both fetch **all** chapel data from
+  `/api/admin/chapel/services` + `/stats` and filter client-side (`chapels.find(c=>
+  c.chapelName==='Aggrey Chapel')`) rather than passing a query param — inefficient but
+  functionally correct given the current dataset size.
+- **`Data/Infrastructure.jsx`, `Records.jsx`, `Staff-data.jsx`, `Student-data.jsx`** — four
+  near-identical read+filter list views (category/status/department/program dropdowns),
+  all `.slice(0,100)`'d client-side — no server-side pagination anywhere in this cluster.
+  `Records.jsx` is the audit-log viewer over the shared `Approval` collection — filters by
+  kind/status but has **no approve/reject action buttons** (this component is read-only;
+  the actual decision-making UI, if it exists, wasn't found in the reviewed file set).
+- **`Management.jsx`** (not under `admin/`, but functionally the 10th/super portal) — the
+  clearest example of the full admin-gated pattern in practice:
+  `useAdminPortal('Management')` (guard) → `useAdminAuth().apiFetch` (bearer-attached fetch,
+  gated on `if (!session) return` inside the effect) → `Promise.all([dashboard, users])` →
+  6 stat boxes + an AdminUser table.
+
+**Consistent finding across this whole cluster:** every page here is fully backend-driven
+(no static mock data) — the admin portal is the most "real" part of the frontend. The three
+newest pages (`Accounts.jsx`, `Library.jsx`, `Media.jsx`) are also the only three lacking a
+dedicated per-page stylesheet, relying entirely on shared `PageContent.css` chrome.
+
+**CSS:** `styles/admin/Academics.css`, `Club.css`, `Domestic.css`, `House.css`,
+`Management.css` — plus `Chapel/Aggrey-chapel.css`, `Chapel/Catholic.css`,
+`Data/Infrastructure.css`, `Data/Records.css`, `Data/Staff-data.css`, `Data/Student-data.css`.
+**All ten are near-identical 10-line stub files** (`.<name>{padding:20px}` +
+`.<name>__content{...var(--background-surface)...}`) — real layout comes from
+`PageContent.css`. No media queries in any of them.
+
+---
+
+## B11. Frontend — Advanced Pages
+
+### Cluster: `advanced/Announcement.jsx`, `Chat.jsx`, `Library-Users.jsx`, `Syllabus.jsx`
+
+**Purpose:** cross-role pages reachable via the "Advanced" sidebar group by ANY signed-in
+user (student, teacher, or admin) — use `useOutletContext()` directly, not
+`useAdminPortal()`.
+
+- **`Announcement.jsx`** (429 lines) — `GET /api/announcements`, falls back to a hardcoded
+  `FALLBACK` array (4 samples) only on fetch failure — graceful degradation, not
+  mock-first. `PATCH /:id/pin` and `POST /` (compose, via `PostPortal`) both make real
+  calls, with the POST optimistically inserting locally on failure (not persisted).
+  **"Mark seen/unseen" has NO backend persistence at all** — pure client state, lost on
+  reload. `ME='me'` is a placeholder current-user id, not derived from the actual session —
+  a real user-identity gap if this feature is ever wired to a backend `seenBy` field.
+- **`Chat.jsx`** (988 lines) — **THE MOST MOCK-HEAVY PAGE IN THE APP. Zero backend calls of
+  any kind** (confirmed via grep — no `fetch`/`API` import exists in this file at all).
+  Inbox, Groups, Conference (full mic/cam/record/share-screen/panel UI shell), and Report
+  submission are ALL hardcoded arrays mutated only in local state. `CONF_LINK` is a fake
+  hardcoded meeting URL. Refreshing the page resets every "sent" message, "recorded"
+  session, and "submitted" report. This is clearly a UI/UX prototype with no backend
+  counterpart implemented anywhere (no chat/messaging/video-conference/incident-report
+  routes exist in the reviewed backend).
+- **`Library-Users.jsx`** — `users` state is initialized once from 4 hardcoded objects and
+  **never updated** (no `setUsers` call anywhere in the file). "View" button has no
+  `onClick`. Search box handler is `(q) => console.log('Search:', q)` — does nothing
+  visible. The least-implemented page reviewed; no `useEffect` fetch exists at all, unlike
+  every sibling page.
+- **`Syllabus.jsx`** — `GET /api/syllabus`, maps into `{id,title,instructor,students,
+  schedule}`; falls back to an **empty array** on failure (not mock data) — "No syllabuses
+  found." "View Syllabus" button has no handler; search box is the same
+  `console.log`-only stub pattern as `Library-Users.jsx`.
+
+**CSS:** `styles/advanced/Announcement.css` (551 lines), `Chat.css` (**1599 lines — the
+largest CSS file in the project**, 234 rule blocks, 3 late `@media` blocks — see Part C for
+why this makes it the highest brace-corruption risk), `Library-Users.css` (2 lines, trivial
+stub), `Syllabus.css` (2 lines, trivial stub), `Library.css` (10-line stub, distinct from
+the admin Library page's lack of any CSS at all).
+
+---
+
+## B12. Frontend — Shared Components
+
+### Cluster: Badge system — `Badge.jsx` + `BadgeIcon.jsx` + `LoadingBadge.jsx` + `LoadingFallback.jsx` + `files/badge_keyData.js`
+
+- **`Badge.jsx`** — interactive SVG shield with 8 clickable "keys" (campus-highlight
+  popups). `GET /api/campus-highlights` on mount; falls back to `FALLBACK_KEY_DATA`
+  (`files/badge_keyData.js`) gracefully on failure/empty response. Popup positioning is
+  computed (left/right of the key based on `index<4`, clamped to viewport) and the popup
+  itself is **draggable** via Pointer Events. Hovering a key temporarily repurposes the
+  Topbar notch text to that key's title. **Cosmetic gotcha:** the fallback data file's
+  asset-folder path (`"Boardwalk and Fishing Pier images"`) is a mismatched leftover from a
+  different template project — the actual title/description text has been correctly
+  customized for Achimota, only the folder name is wrong.
+- **`BadgeIcon.jsx`** — static, non-interactive 40×40 shield render, no props/state. No
+  confirmed importer in the reviewed file set.
+- **`LoadingBadge.jsx`** — thin wrapper, `<Badge isLoading={true}/>`. Used by
+  `LoadingFallback.jsx`.
+- **`LoadingFallback.jsx`** — full-viewport loading screen, hardcoded 3000ms timeout. No
+  confirmed importer among reviewed files — likely wired to a lazy-loaded route not in this
+  review's scope, or currently unused.
+
+### Cluster: `LoadScreen.jsx` — the route-change loading bar
+
+Wraps the **entire** `Layout` tree (not just initial page load). `visible` starts `true`.
+Two-step rAF dance on `startSequence()` ensures the CSS width-transition actually animates
+(React needs a paint between 0% and the triggering state). Hardcoded phase timers:
+**1300ms** → exit phase, **1600ms** → hidden. Fires on mount AND on every
+`location.pathname` change — **this loading bar appears on every single route navigation
+in the app**, not just first paint, which is easy to miss when reading the component in
+isolation.
+
+### Cluster: Gallery-support components — `GalleryModal.jsx`, `ImageCard.jsx`, `ShareDialog.jsx`, `useColumnCount.js`, `utils/masonry.js`
+
+- **`GalleryModal.jsx`** — full-screen image viewer, mobile bottom-sheet with 3 swipeable
+  height states (`default/peek/expanded`, hardcoded vh percentages), keyboard nav
+  (Escape/arrows). **Comments are entirely local state** (`Date.now()`-keyed, author
+  hardcoded `'You'`) — no backend call, despite `postService.js` (below) existing
+  specifically to eventually serve this purpose but never being wired up here.
+- **`ImageCard.jsx`** — masonry grid tile, keyboard-accessible (`role="button"`,
+  Enter/Space triggers open).
+- **`ShareDialog.jsx`** — builds `shareUrl = origin/gallery/${image.id}`. **This route does
+  not exist anywhere in `App.jsx`'s route tree** (only a flat `/gallery` is registered) — a
+  shared link would 404 if visited. Copy-to-clipboard has a manual `execCommand('copy')`
+  fallback textarea for older browsers.
+- **`useColumnCount.js`** — hardcoded breakpoints (`<580→1, <900→2, <1280→3, else→4`),
+  150ms debounced resize handler.
+- **`utils/masonry.js`** (`createMasonryColumns`) — **greedy shortest-column-first bin-
+  packing algorithm**: for each image in order, appends to whichever column currently has
+  the smallest running height total, using each image's `aspectRatio` field as a height
+  proxy (default `1` if unset — packing balance degrades if the backend's `aspectRatio` is
+  inaccurate). Not a true masonry layout (no real rendered-pixel measurement); a one-shot,
+  non-rebalancing estimate, expected to be re-run once per render alongside
+  `useColumnCount()`.
+
+### Cluster: `Payment-portal.jsx`, `PostPortal.jsx`, `SignInButton.jsx`, `useImageRotator.js` (dead)
+
+- **`Payment-portal.jsx`** — **fully simulated payment flow, no real gateway integration.**
+  Multi-step wizard (method → MoMo/Card form → OTP → success), each transition faked via
+  `setTimeout` (1200-1800ms). Reference number client-generated. Card formatting helpers
+  (`fmtCard`/`fmtExpiry`) are pure regex maskers, no real validation against a payment
+  processor.
+- **`PostPortal.jsx`** — generic, mode-driven content composer (announcement/page/gallery/
+  report) reused across multiple pages. Rich text via `document.execCommand` — **a
+  deprecated Web API**, flagged as technical debt since a future browser removal would
+  break the formatting toolbar (shared risk with `teacher.jsx`'s `RichEditor`, B9). Media
+  previews use `URL.createObjectURL(file)` **never revoked** via `revokeObjectURL` — a
+  minor memory-leak risk on repeated add/remove in a long-lived session. Makes NO API calls
+  itself — pure form component, persistence fully delegated to the caller via `onSubmit`.
+- **`SignInButton.jsx`** — 4-option role-picker dropdown (Guest/Student/Teacher/Admin),
+  pure navigation, no auth logic of its own.
+- **`useImageRotator.js`** — **DEAD CODE**, an explicit no-op stub (its own comment says
+  "Background image rotation removed... kept to avoid breaking any lingering imports").
+  Confirmed zero importers anywhere in `src/`.
+
+### Cluster: `services/postService.js` — the unwired stub service layer
+
+8 named async functions (`likePost`, `unlikePost`, `savePost`, `unsavePost`, `sharePost`,
+`getComments`, `addComment`, `getPostCounts`, `getBulkPostCounts`) — **every single one is a
+hardcoded `Promise.resolve()` stub** with a `// TODO:` comment naming the real REST endpoint
+it should eventually call. **Confirmed zero importers anywhere in `src/`** — `GalleryModal.jsx`'s
+comment/like/share logic implements its own local-only equivalent directly rather than
+calling into this layer, so even if something imported it, the intended call sites don't
+use it yet. This is the clearest single artifact of "planned but not yet wired up"
+infrastructure in the frontend.
+
+### Cluster: `Tooltip.jsx`, `Chatbox.jsx` (dead)
+
+- **`Tooltip.jsx`** — simple hover show/hide, positioned via a `position` prop. Used only by
+  `ThemeToggle.jsx`.
+- **`Chatbox.jsx`** — **DEAD CODE.** Fully static placeholder markup ("No messages yet." +
+  a non-functional input/Send button). Confirmed zero importers anywhere in `src/`.
+
+---
+
+## B13. CSS Architecture
+
+### Global theme & reset layer — `global.css`, `App.css`, `backgrounds.css`, `scrollbar.css`, `SettingsConfig.css`
+
+- **`global.css`** (226 lines) — the **sole source** of all theme custom properties. Five
+  `:root[data-theme="..."]` blocks (light/dark/ocean/forest/sunset), each redefining the
+  identical ~26-property list: `--background-page/-surface/-elevated/-subtle`,
+  `--color-text-primary/-secondary/-muted/-bars`, `--color-accent/-hover/-fg`,
+  `--color-success/-danger/-warning`, `--border-color[-strong]`, `--background-hover`,
+  `--border-color-hover`, `--topbar-bg/-shadow/-backdrop`, `--sidebar-bg/-border`,
+  `--card-bg/-shadow`, `--input-bg/-border/-placeholder`, `--font-name`,
+  `--font-size-base`, `--radius-md/-lg`. Bare `:root` = light theme fallback (so an unset
+  `data-theme` attribute still renders correctly). **No `@media (prefers-color-scheme)`
+  anywhere in the CSS tree** — theming is 100% explicit/JS-driven except for the one-time
+  `main.jsx` pre-paint OS-preference check.
+- **`backgrounds.css`** — only light/dark have explicit `--bg-image` values; ocean/forest/
+  sunset inherit whatever was last set.
+- **`SettingsConfig.css`** — a **separate, independent settings-attribute system** layered
+  on top of (not part of) the 5-theme palette: `data-font-scale`, `data-large-text`,
+  `data-reduced-motion` (forces `0.01ms` animation/transition durations via `!important`),
+  `data-high-contrast` (redefines border/text/shadow variables), `data-focus-indicators`.
+  Driven by `useSettingsSync()` (B1), mirroring `localStorage['motownSettings']`.
+- **`Tooltip.css`** is the one place multiple themes collapse into a single comma-separated
+  selector (`dark, ocean, forest, sunset` grouped together vs `light` separate) rather than
+  being individually declared — an exception to the one-block-per-theme norm.
+
+### Double-locking pattern — canonical locations
+
+Documented directly in source comments (see A9 Convention #1 for the full explanation):
+- `Topbar.css:957-964` (header comment) → block runs to **line 1104 (EOF)**, every selector
+  prefixed `.student-portal`.
+- `Teacher.css:1-7` (file header) and `Teacher.css:851-965` (mobile block) — near line-for-
+  line mirror of the Topbar pattern with `.teacher-portal` substituted.
+- `Teacher.css:422-426` — the HOD timetable builder section applies double-locking
+  **selectively**: only its `<700px` responsive override block is locked; the unqueried
+  base rules (lines 429-656) are explicitly left unlocked per the comment.
+
+**`.student-portal`/`.teacher-portal` are never defined as standalone rule blocks anywhere**
+— they exist purely as ancestor selectors, applied by `Layout.jsx` via
+`location.pathname.startsWith(...)`. **`.admin-portal` does not exist anywhere in the
+codebase** (confirmed: zero matches in both CSS and JSX).
+
+### `min-width: 0` — the topbar-notch shrink property
+
+43 occurrences project-wide (Convention #2, A9). Heaviest concentration and best-documented
+in `Topbar.css` (lines 61, 104, 150, 200, 283, 350, 418-419, 701, 919, 975) — line 970-971's
+comment is the canonical explanation: "Notch in SP mode: flex:1 so it grows/shrinks...
+`min-width:0` is essential — without it the notch won't shrink below its content width and
+the revealed icons get squeezed off screen." Also present throughout `PTA-shop.css`,
+`Checkout.css`, `Page.css`, `About.css`, `Gallery.css`, `Map.css`, `Chat.css`,
+`Announcement.css`, `Student.css`, `Login.css`, `Settings.css`, `Payment-portal.css`,
+`SignInButton.css`, `PostPortal.css` — same underlying flex-shrink-trap fix wherever a row
+needs a truncating label or input.
+
+### Brace-balance audit (risk signal for the documented esbuild corruption bug class)
+
+All 46 CSS files were exhaustively brace-counted during this manual's research pass.
+**Every file currently balances** (`{` count == `}` count) — no active corruption exists.
+Highest-risk files for a FUTURE accidental unclosed brace, ranked by size/complexity:
+
+| Rank | File | Lines | Rule blocks | Why it's higher risk |
+|---|---|---|---|---|
+| 1 | `advanced/Chat.css` | 1599 | 234 | Largest file in the project; mixes ordinary nesting with `@keyframes` and 3 late `@media` blocks (lines 1296, 1575, 1587) — an unclosed brace anywhere above line 1575 would silently fold the final two media blocks into whatever preceded them |
+| 2 | `Student/ProspectStudent.css` | 1149 | 188 | 9-stage wizard styling, deeply nested |
+| 3 | `Student/Student.css` | 1125 | 173 | Multiple sub-tab systems in one file |
+| 4 | `components/Topbar.css` | 1104 | 132 | 9 distinct `@media` blocks — most breakpoint-dense file in the project |
+
+Second tier (600-1100 lines, still worth care): `Login.css` (915, contains TWO parallel
+login-card implementations — see Part C), `core/PTA-shop.css` (761), `core/Page.css` (716),
+`core/Checkout.css` (584), `components/Payment-portal.css` (627), `components/PostPortal.css`
+(517), `advanced/Announcement.css` (551), `core/About.css` (576), `core/Map.css` (481).
+
+**Rule of thumb from this audit:** always run `npm run build && npm run preview` after
+editing any file over ~500 lines, and treat the top-4 list above as mandatory
+double-checks — verify the browser DevTools computed-styles panel shows the expected rule
+actually applied, not just that the build didn't error (esbuild will not error on this bug
+class).
+
+### Ten near-identical admin-page CSS stub files
+
+`admin/Academics.css`, `Club.css`, `Domestic.css`, `House.css`, `Chapel/Aggrey-chapel.css`,
+`Chapel/Catholic.css`, `Data/Infrastructure.css`, `Data/Records.css`, `Data/Staff-data.css`,
+`Data/Student-data.css` — all 10 lines, all the same two-rule pattern
+(`.<name>{padding:20px}` + `.<name>__content{background:var(--background-surface);...}`).
+Real admin-page layout comes from the shared `PageContent.css` (`.page-container`/
+`.stat-box`/`.table-container`/`.ap-*` loading-and-error helper classes). `admin/Management.css`
+is the one exception in this group, additionally defining a fixed-viewport
+`.management-main`/`.management-page` shell.
+
+### Per-file breakpoint reference
+
+See the exhaustive per-file `@media` listing gathered during research (available on request
+if a future session needs it) — the headline numbers: `Topbar.css` has 9 distinct
+breakpoints (768/600/480×2/400/320/700/500px), the densest in the project;
+`advanced/Chat.css` has 3 (600/860/640px); most page-level files have 2-3
+(commonly 900 or 800, then 600 or 480, then sometimes 400px for the double-lock tier).
+
+---
+
+## B14. Seed Scripts
+
+### Cluster: Legacy/demo seeds — `seed.js`, `seedStudent.js`, `seedAll.js`
+
+- **`seed.js`** — wipe-and-replace (`deleteMany({})` + `insertMany()`) for `GalleryImage`
+  and `Product` only, using the **legacy standalone models** (`backend/models/*.js`, not
+  `schema.js`). Run: `node backend/seed.js` (`npm run seed:legacy`). Comment explicitly
+  calls this "legacy."
+- **`seedStudent.js`** — single hand-authored demo student (`Student_001`/`STU20240001`,
+  "Michael Owusu," full essay text for exercising the `ProspectStudent` wizard UI).
+  `deleteOne` then `new Student(...).save()` — re-runnable without duplicate accumulation,
+  though implemented as delete-then-insert, not a true upsert. Run:
+  `node backend/seedStudent.js` (`npm run seed:student`).
+- **`seedAll.js`** — populates 14 collections in one run (`Student, Teacher, Admin,
+  GalleryItem, PagePost, Product, House, Announcement, Club, MapLocation, SchoolProfile,
+  Chapel, LibraryResource, Syllabus`) via `schema.js`. Dual-mode: default wipes each
+  collection then inserts; `--append` flag (`node backend/seedAll.js --append`,
+  `npm run seed:append`) instead **skips a collection entirely if it already has any
+  documents** (an all-or-nothing collection-level check, not per-document upsert) — except
+  `SchoolProfile`, which always uses a true `findOneAndUpdate` upsert regardless of mode.
+  The 3 demo students seeded here are a small illustrative set, distinct from and unrelated
+  to the 315-student mass roster in `seedStudents.js`.
+
+### Cluster: The Phase 1-2 chain — `seedTeacher.js` → `seedStudents.js` → `seedAdminPortals.js`
+
+**Must run in this order** — each depends on state the previous one created.
+
+- **`seedTeacher.js`** — **the most complex script in the suite.** Populates 7 collections:
+  `Subject, AchiClass, Teacher, Student, Timetable, ClassAttendance, ClassAssessment`.
+  105 classes (5 departments × 3 year-groups, department-weighted class counts), 105
+  teachers (1 per class; first two teachers per SHS-1 department flagged
+  `hod`/`hod_assistant`), 315 students (3/class, illustrative — NOT the same set
+  `seedStudents.js` later replaces), 105 timetables (30 periods each), attendance for the
+  last 3 real weekdays, 3 assessment types per class. **Reference resolution:** subject
+  code → upserted document (kept for `._id` access downstream); a static 105-entry teacher
+  name/email/phone roster is joined to generated records **positionally by array index** —
+  the roster's ordering comment must stay in sync with the nested department/year-group
+  loop order, or teacher identities silently shift. Mixed idempotency: wipes most
+  collections first (`deleteMany({})` per-collection), then true upserts for `Subject`/
+  `AchiClass` (keyed on code/name), plain `create()` for the rest (safe because of the
+  prior wipe). **Overwrites (not merges) `backend/seed-credentials.json`** — must run FIRST
+  if you want all four credential-writing scripts' output merged into one file. Run:
+  `node backend/seedTeacher.js` (no npm alias).
+- **`seedStudents.js`** — generates 315 students **deterministically** via a seeded LCG
+  random generator (Ghanaian name pools) — reproducible across runs, not truly random.
+  Scoped idempotent delete (`studentId` matching `/^ACH-S-/` or `/^STU/` only — leaves other
+  students, e.g. `seedStudent.js`'s `Student_001`, untouched) + per-student upsert
+  (`findOneAndUpdate({studentId}, ..., {upsert:true})`). **Reference resolution:** builds a
+  `classMap` (name→ObjectId) from existing `AchiClass` docs — **requires `seedTeacher.js` to
+  have already run**; warns and skips any student whose class isn't found rather than
+  creating the class itself. Resets and rebuilds `AchiClass.students`/`.prefects` via
+  buffered bulk writes. **Hard-fails** (`throw`) if the total isn't exactly 315 or any class
+  doesn't have exactly 3 students — a genuine data-integrity assertion, not just a warning.
+  **Appends** (not overwrites) a `students` array onto the existing
+  `seed-credentials.json`. Run: `node backend/seedStudents.js` (no npm alias).
+- **`seedAdminPortals.js`** — upserts 19 `AchiHouse` docs (8 boys' + 10 girls' boarding +
+  1 Day House) and 21 `AdminUser` house-admin logins (19 per-house + 2 senior
+  housemaster/housemistress). **Explicitly documented as idempotent** ("safe to re-run," own
+  file comment). **Hard dependency, enforced by a thrown error:** queries
+  `Student.find({studentId: /^ACH-S-/})` and throws "Run seedStudents.js first" if the count
+  isn't exactly 315. Deterministically slices students by gender into houses (80 boys/10
+  houses of 8→10, 100 girls/10 houses of 10, remaining 135 into Day House), writing the
+  house↔student link bidirectionally via `bulkWrite`. Hard-fails if any boarding house
+  count is wrong. **Writes to a THIRD credentials file**: appends `houseAdmins` to
+  `backend/seed-credentials.json` AND rewrites a marker-delimited "HOUSE LOGINS" section of
+  **`server/seed/credentials.txt`** (note: this is a different path from
+  `public/credentials.txt` — the marker-based strip-and-reappend keeps re-runs from
+  duplicating that section). Run: `node backend/seedAdminPortals.js` (no npm alias, must run
+  after `seedStudents.js`).
+
+### Cluster: Independent Phase 3 seeds — `seedPhase3.js`, `seedCampusHighlights.js`, `seedAbout.js`, `seedStudentData.js`
+
+- **`seedPhase3.js`** — 14 `AdminUser` portal-admin logins (academics×1, data×4 mode-scoped,
+  domestic×1, chapel×2 stream-scoped, library×1, club×1, media×1, management×2, accounts×1),
+  all via true upsert. No dependency on other scripts. Same dual-write pattern as
+  `seedAdminPortals.js` (appends to `seed-credentials.json`, rewrites a "PHASE 3 LOGINS"
+  marker section in `server/seed/credentials.txt`). Run: `node backend/seedPhase3.js`.
+- **`seedCampusHighlights.js`** — 8 fixed cards, upserted by `order` (0-7). Feeds
+  `Badge.jsx`'s 8 shield-key popups. Run: `node backend/seedCampusHighlights.js`.
+- **`seedAbout.js`** — singleton upsert of `SchoolProfile` from `backend/data/aboutContent.js`.
+  **Inconsistency flagged by research:** this file's 18-entry `houses` array does NOT match
+  either `seedAll.js`'s inline 9-house list (also written to `SchoolProfile.houses`) or
+  `seedAdminPortals.js`'s 19-house `AchiHouse` roster — **three different, mutually
+  inconsistent house lists exist across the seed suite.** Whichever of `seedAbout.js`/
+  `seedAll.js` runs LAST wins for the `SchoolProfile` singleton (both target the same
+  document with an unconditional `$set`). Run: `node backend/seedAbout.js`.
+- **`seedStudentData.js`** — upserts `Student` (`STU20240001`) + `Attendance`/`Assessment`
+  (9 terms each: SHS1-3 × Term1-3) + `Achievement` + `Clearance`, all keyed off one captured
+  `student._id`. Fully idempotent (`findOneAndUpdate` everywhere). Independent — creates its
+  own student if missing, rather than depending on `seedStudent.js` having run (both target
+  the same `studentId`, so running both is redundant/overwriting, not additive). Run:
+  `node backend/seedStudentData.js`.
+
+### Credential output files — structure reference
+
+- **`backend/seed-credentials.json`** (~3720 lines) — one JSON object, `note` string + 4
+  arrays populated cumulatively across scripts: `teachers` (105, from `seedTeacher.js`),
+  `students` (315, from `seedStudents.js` — overwrites whatever smaller set `seedTeacher.js`
+  itself also wrote under the same key), `houseAdmins` (21, from `seedAdminPortals.js`),
+  `portalAdmins` (14, from `seedPhase3.js`). **455 total username/password pairs**, stored
+  in **plaintext** here purely for manual-login convenience — the live MongoDB documents
+  store `bcryptjs` hashes only, never plaintext.
+- **`public/credentials.txt`** (~481 lines) — fixed-width, `══`-ruled plaintext tables
+  (HOD Quick Reference, Teachers×105, Students×315, Admin Portals Phase 3). Appears to be a
+  manually- or build-time-copied snapshot into `public/` for convenience; the scripts
+  themselves write their live equivalent to a **different path**,
+  **`server/seed/credentials.txt`**, using a marker-based section-replace strategy.
+- Both `backend/seed-credentials.json` and `public/credentials.txt` are listed in
+  `.gitignore` — **but see Part C: both are currently STAGED for commit anyway.**
+
+### npm aliases (`backend/package.json`)
+
+```
+seed          → node seedAll.js
+seed:append   → node seedAll.js --append
+seed:student  → node seedStudent.js
+seed:legacy   → node seed.js
+```
+
+**No npm alias exists** for `seedAbout.js`, `seedStudents.js`, `seedTeacher.js`,
+`seedAdminPortals.js`, `seedCampusHighlights.js`, `seedPhase3.js`, or `seedStudentData.js` —
+these seven must be invoked directly (`node backend/seedX.js`). The root `package.json` has
+no seed scripts at all.
+
+**Inferred canonical full-reseed order:**
+```
+node backend/seedTeacher.js           (creates AchiClass; overwrites credentials file)
+node backend/seedStudents.js          (needs AchiClass; requires exactly 315 after)
+node backend/seedAdminPortals.js      (needs exactly 315 ACH-S- students)
+node backend/seedPhase3.js            (independent)
+node backend/seedCampusHighlights.js  (independent)
+node backend/seedAbout.js             (independent — but run-order-sensitive vs seedAll.js, see above)
+node backend/seedStudentData.js       (independent)
+```
+`seedAll.js`/`seed.js`/`seedStudent.js` are separate, self-contained alternate seeding paths
+(illustrative few-record demo data) — do not mix them into the above chain; running both
+paths populates overlapping but distinct data.
+
+---
+---
+
+# PART C — TROUBLESHOOTING GUIDE (offline debugging)
+
+Each entry: **Symptom → Root cause → Fix.** Ordered roughly by how likely you are to hit it.
+
+---
+
+### C1. CSS silently corrupted after build (blank/broken page styling in production only)
+
+**Symptom:** `npm run dev` looks fine; `npm run build && npm run preview` shows missing or
+wrong styles somewhere past a certain point in a page, but the build itself reports no
+error.
+
+**Root cause:** an unclosed `{` in a CSS file. esbuild (Vite's CSS minifier/bundler) can
+silently fold every subsequent selector into the still-open rule without failing the build.
+This exact failure class already happened once in this project — see commit `8e1e055`,
+"Fix production CSS bundle corruption and wire up backend data."
+
+**Recovery steps:**
+1. Identify which stylesheet is suspect (usually the largest/most recently-edited file
+   affecting the broken area). Highest-risk files, ranked (see B13): `advanced/Chat.css`
+   (1599 lines), `Student/ProspectStudent.css` (1149), `Student/Student.css` (1125),
+   `components/Topbar.css` (1104).
+2. Count braces. In PowerShell:
+   ```
+   (Get-Content path\to\file.css -Raw).ToCharArray() | Where-Object {$_ -eq '{'} | Measure-Object | Select Count
+   (Get-Content path\to\file.css -Raw).ToCharArray() | Where-Object {$_ -eq '}'} | Measure-Object | Select Count
+   ```
+   If the counts differ, that's your bug — bisect by commenting out the back half of the
+   file and rebuilding until the count matches, then narrow further.
+3. As of this manual's generation (2026-07-10), all 46 CSS files in the repo balance
+   correctly (verified exhaustively) — so if you hit this bug, it was introduced by an edit
+   made AFTER this manual, not a pre-existing issue.
+4. Acceptance test after any fix: `npm run build && npm run preview`, then manually open
+   every page whose stylesheet you touched and confirm computed styles in DevTools match
+   what you expect — a clean build log is NOT sufficient proof, per this bug class's whole
+   nature.
+
+---
+
+### C2. 404s / port already in use / changes not picking up
+
+**Symptom:** backend won't start, or the frontend can't reach it, or edited code doesn't
+seem to take effect.
+
+**Root cause & fix:**
+- **Port in use (`EADDRINUSE`):** `backend/index.js` already prints a ready-to-paste fix
+  when this happens:
+  ```powershell
+  Get-NetTCPConnection -LocalPort 5000 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
+  ```
+  (substitute your actual `PORT` value). This is almost always a stale `node`/`nodemon`
+  process left running from a previous session, especially likely in a OneDrive-synced
+  working directory (`C:\Users\HP\Motown` — OneDrive can also lock files mid-sync, which
+  looks like a hung process from the outside).
+- **Frontend can't reach backend / everything 404s:** check `VITE_API_URL` — if it's unset,
+  the frontend silently falls back to `http://localhost:5000` (`src/config/api.js`). This
+  is invisible in dev (matches the default backend port) but breaks completely if you've
+  changed `PORT` in `backend/.env` without also updating the frontend's expectation, or in
+  any deployed environment where the backend isn't actually on `localhost:5000`.
+- **Edits not picking up:** confirm `nodemon` (backend, `npm run dev` inside `backend/`) or
+  Vite's dev server (frontend, `npm run dev` at root) is actually the process serving your
+  request — a second stale instance on the same port from an earlier terminal session will
+  keep serving old code while your new terminal's process fails silently to bind. Kill all
+  `node.exe` processes and restart both dev servers cleanly if in doubt:
+  ```powershell
+  Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+  ```
+
+---
+
+### C3. Data missing in MongoDB Atlas / data went to the wrong database
+
+**Symptom:** seed scripts report success, but nothing shows up when you check Atlas (or
+Compass against a local instance).
+
+**Root cause:** historically, an incomplete `MONGO_URI` (missing the `/<dbname>` path
+segment) causes Mongoose to silently connect to the driver's implicit `test` database
+instead of the intended one.
+
+**Current status (verified during this manual's generation):** `backend/.env`'s
+`MONGO_URI` correctly includes `/motown` — this bug is **not currently active**. But
+`backend/config/db.js` has **no defensive check** for this (no assertion that a database
+name is present, no explicit `{dbName:'motown'}` connect option as a backstop) — so it CAN
+regress silently if the `.env` value is ever edited to a bare
+`mongodb://localhost:27017` or a SRV-format Atlas string without a trailing path segment.
+
+**Fix / verification:**
+1. Open `backend/.env`, confirm `MONGO_URI` ends in `/motown` (or your chosen DB name)
+   before any `?` query-string parameters.
+2. In Compass or `mongosh`, run `db.getName()` after connecting with the exact same URI to
+   confirm which database you actually land in.
+3. Consider adding `{ dbName: 'motown' }` as an explicit second argument to
+   `mongoose.connect()` in `config/db.js` as a permanent backstop — this was not present at
+   the time of this manual and is a one-line, low-risk hardening.
+
+---
+
+### C4. Flex item won't shrink in the topbar (or any row with a truncating label)
+
+**Symptom:** a flex child (search input, notch title, tab label) refuses to shrink below
+its content's natural width, overflowing its container or pushing siblings off-screen,
+especially on narrow viewports.
+
+**Root cause:** the flexbox default `min-width: auto` — a flex item's minimum width
+defaults to its content's intrinsic size unless overridden, which defeats `flex-shrink`.
+
+**Fix:** add `min-width: 0` (and typically `overflow: hidden; text-overflow: ellipsis;` if
+it's holding text) to the flex child. See B13/A9 Convention #2 — `components/Topbar.css`
+lines 970-971 has the canonical explanatory comment; 43 other instances across the CSS tree
+show the same pattern applied to non-Topbar rows (PTA-shop price/button rows, Checkout
+summary rows, Page.jsx post-card headers, etc.).
+
+---
+
+### C5. Teacher login "succeeds" but the Teacher Portal never loads (stuck on "Loading profile…")
+
+**Symptom:** logging in via `/login/teacher` with ANY employeeId (other than the literal
+string `test0000`) and any 6+ character password appears to succeed and navigates to
+`/teacher`, but `PartProfile` shows "Loading profile…" forever, the Timetable Builder tab
+never appears even for an HOD, and the Advanced sidebar group (Announcements/Chat/Library/
+Syllabus) is missing.
+
+**Root cause (fully traced, three files):**
+1. `src/pages/Log-in-pages/TeacherLogin.jsx` makes **no backend call at all** — it's a pure
+   client-side fake with a `setTimeout` delay. On "success" it writes
+   `localStorage['signedInProfile'] = {name:'Teacher', id: employeeId}` — **no `role`
+   field.**
+2. `src/pages/teacher/teacher.jsx`'s profile-loading effect requires
+   `p.role && p.role!=='student' && p.role!=='admin'` before calling `setProfile(p)` — a
+   profile with no `role` key fails this check, so `profile` stays `null` forever.
+3. `src/layout/Layout.jsx`'s `isTeacherLoggedIn` check requires `role` to be one of
+   `['teacher','hod','hod_assistant']` — also false for this profile shape, so the Advanced
+   sidebar group is never injected.
+
+**Fix:** the real fix is a product decision (wire `TeacherLogin.jsx` to a real
+`POST /api/teachers/login` call — the backend route already exists and works, see
+`routes/teachers.js`), out of scope for a quick patch. **For local debugging/demo purposes
+only**, you can manually set a working profile via the browser console:
+```js
+localStorage.setItem('signedInProfile', JSON.stringify({
+  role: 'teacher', name: 'Demo Teacher', id: '<a real Teacher _id or staffId>'
+}));
+window.dispatchEvent(new Event('profileChanged'));
+```
+then reload `/teacher`. Use a real `Teacher` document's identifying fields from
+`backend/seed-credentials.json`'s `teachers` array so the subsequent `/api/portal/*` calls
+(which check ownership against a real `Teacher._id`) succeed.
+
+---
+
+### C6. Student dashboard shows the wrong (or always the same) student's data
+
+**Symptom:** no matter which student account logs in, `/student` always shows "Michael
+Owusu" / `STU20240001`'s academic records.
+
+**Root cause:** `src/pages/Student/Student.jsx` has a hardcoded
+`DEMO_STUDENT_ID = 'STU20240001'` and its data-fetch effect always calls
+`GET /api/students/STU20240001/profile`, ignoring the `id`/`username` actually stored in
+`localStorage['signedInProfile']` at login.
+
+**Fix:** change the fetch to use the logged-in student's own ID:
+```js
+const profile = JSON.parse(localStorage.getItem('signedInProfile') || 'null');
+const studentId = profile?.id || DEMO_STUDENT_ID; // fallback only if unauthenticated
+fetch(`${API}/api/students/${studentId}/profile`)
+```
+This is a small, contained fix once located — the hard part is knowing to look here, which
+this entry solves.
+
+---
+
+### C7. "I can navigate to `/student` or `/teacher` with no login at all"
+
+**Symptom:** typing `/student` or `/teacher` directly into the URL bar works even in a
+fresh incognito session with no prior login.
+
+**Root cause:** unlike admin routes (gated by `useAdminPortal()`'s redirect-if-no-session
+check), **no equivalent guard exists** for the Student or Teacher portal routes in
+`src/App.jsx`'s route tree. This is confirmed, not a guess — grep found no
+`navigate('/login/student')`/`navigate('/login/teacher')` redirect logic anywhere outside
+the login pages themselves.
+
+**Fix (if this needs to be locked down):** add a route-guard hook mirroring
+`useAdminPortal()`'s pattern — check `localStorage['signedInProfile']` for the right
+`role`, `navigate('/login/student'|'/login/teacher', {replace:true})` if absent — and call
+it at the top of `Student.jsx`/`teacher.jsx`. Not currently implemented anywhere.
+
+---
+
+### C8. Gitignored credential files are showing up in `git status` / risk of committing them
+
+**Symptom:** `backend/seed-credentials.json` and `public/credentials.txt` appear in
+`git status` as staged changes (`AM`) despite being listed in `.gitignore`.
+
+**Root cause:** `.gitignore` only prevents git from tracking a file it doesn't already
+know about. If a file was `git add`-ed (even accidentally, or before the ignore rule
+existed) BEFORE the ignore rule was added, git continues tracking it — the ignore rule is
+silently ineffective for already-tracked files. This is the current state of both files as
+of this manual's generation.
+
+**Fix — do NOT run `git rm` or amend history without confirming with whoever owns the
+repo, since this may rewrite shared history or destroy the only copy of demo credentials
+someone is relying on. The safe sequence:**
+1. Confirm the files are genuinely meant to be untracked (they contain 455 plaintext
+   username/password pairs per A9 Convention #6 — they should be).
+2. `git rm --cached backend/seed-credentials.json public/credentials.txt` (removes from git
+   tracking WITHOUT deleting the local file — safe, reversible, does not touch the
+   .gitignore rule which will now actually take effect).
+3. Commit that removal.
+4. **If either file was ever pushed to a remote/shared branch**, treat the credentials
+   inside as compromised — regenerate them (re-run the seed chain, which will produce new
+   bcrypt hashes server-side even though the plaintext credential file content is
+   deterministic unless the generator's random seed changes) and rotate any real accounts
+   that might reuse those passwords elsewhere.
+5. Going forward, `git status` should show these two files as untracked (not ignored-and-
+   silently-fine, not staged) — if they disappear from `git status` entirely, the
+   `.gitignore` rule is now working correctly.
+
+---
+
+### C9. Uploaded images 404 or point at the wrong folder
+
+**Symptom:** an image uploaded via the PTA Shop admin flow (`POST /api/products`) or a Page
+post cover (`POST /api/posts`) returns a URL like `/media/products/xyz.jpg` or
+`/media/page/xyz.jpg`, but requesting that URL 404s.
+
+**Root cause (confirmed bug, B2/B3):** `middleware/upload.js`'s multer destination is
+`req.params.folder || 'gallery'` — it only reads a real folder name when the route defines
+a `:folder` URL param, which ONLY `media.js`'s generic `POST /api/media/upload/:folder`
+does. `products.js`'s and `pagePosts.js`'s own upload routes have no such param, so every
+file uploaded through THEM physically lands in `MEDIA_DIR/gallery/` on disk regardless of
+what URL gets stored/returned.
+
+**Fix (two options):**
+- **Preferred:** route product/post image uploads through the generic
+  `POST /api/media/upload/:folder` endpoint first (passing `folder=products` or
+  `folder=page`), then submit the returned `url` as part of the product/post JSON body
+  instead of uploading inline via `products.js`/`pagePosts.js`'s own multipart handlers.
+- **Alternative:** fix `products.js`/`pagePosts.js` to pass their own folder name — either
+  by changing their routes to include a `:folder`-shaped segment, or by having
+  `upload.js`'s destination function accept an explicit folder override per-router instead
+  of relying solely on `req.params.folder`.
+- **Immediate recovery for already-broken images:** check `MEDIA_DIR/gallery/` on disk —
+  the "missing" product/page images are physically there; either move them to the correct
+  subfolder to match the stored URL, or update the stored URL in MongoDB to point at
+  `gallery/` where the file actually is.
+
+---
+
+### C10. A teacher's assessment scores for some students silently disappeared
+
+**Symptom:** after saving new scores for a subset of students in the Class Assessment tab,
+previously-recorded scores for OTHER students in that same assessment are gone.
+
+**Root cause (confirmed bug, B4/B5):** `PATCH /api/portal/assessments/:id/scores` (and its
+duplicate in `classes.js`) does `$set: { scores }` — a **full array replace**, not a merge
+or per-student upsert. Any student not included in the submitted `scores` payload for that
+save is silently dropped from the record.
+
+**Fix:** when saving scores, always submit the FULL current `scores` array (existing +
+new/changed entries merged client-side) rather than only the subset being edited. If fixing
+the backend instead: change the handler to iterate the submitted `scores` and update each
+student's entry in place (or `$push`/upsert per student) rather than blanket-replacing the
+array.
+
+---
+
+### C11. A student's grades/attendance entered by a teacher don't show up in the Academics admin dashboard
+
+**Symptom:** a teacher records attendance/assessment scores via the Teacher Portal; the
+`admin/Academics.jsx` dashboard (Academics admin portal) still shows old or zero counts.
+
+**Root cause (confirmed data-model fragmentation, A5/B5):** the Teacher Portal writes to
+`ClassAttendance`/`ClassAssessment` (per-class collections). `adminAcademics.js`'s
+`/assessments` and `/attendance` endpoints read from the **separate, older**
+`Assessment`/`Attendance` global collections. **No code path anywhere in the reviewed
+backend syncs or migrates between these two families.**
+
+**Fix:** this needs a deliberate reconciliation decision (either migrate
+`adminAcademics.js` to read `ClassAssessment`/`ClassAttendance` instead, or add a sync job/
+trigger that mirrors writes from one family to the other). Not a quick patch — flag as a
+backend architecture task, see Part D.
+
+---
+
+### C12. "Clearance" data looks different depending on which screen you're looking at
+
+**Symptom:** a student's clearance status shown on their own dashboard (`Student.jsx`'s
+Clearance tab, via `GET /api/students/:id/profile`) doesn't match what an admin sees when
+querying clearance items directly.
+
+**Root cause (confirmed naming collision, A5):** `GET /api/students/:id/profile` returns
+data from the legacy, singular **`Clearance`** model (one document per student, 5 fixed
+departments). `GET /api/students/:id/clearance` (and all the admin clearance routes in
+`clearance.js`/`adminDomestic.js`/`adminLibrary.js`/`adminAccounts.js`) instead read/write
+the newer, array-style **`ClearanceItem`** model. These are two different collections with
+no reconciliation logic between them.
+
+**Fix:** when debugging a clearance discrepancy, always check WHICH endpoint/model the
+screen you're looking at actually queries (cross-reference A6's API table) before assuming
+a bug in the clearance-clearing logic itself — half the time the "bug" is actually two
+different data sources being compared as if they were one.
+
+---
+
+### C13. Case-sensitivity trap: `teacher.jsx` vs `Teacher.jsx`
+
+**Symptom:** works fine on Windows/local dev; a deploy to a Linux-based CI/build container
+(or macOS in case-sensitive mode) fails to resolve the Teacher Portal's import.
+
+**Root cause:** `src/routes/routes.js:50` imports `'../pages/teacher/teacher'` (lowercase).
+Windows' NTFS is case-insensitive, so the actual on-disk file resolves regardless of which
+case you use to reference it. `git ls-files` tracks the path as lowercase `teacher.jsx`.
+There is only ONE physical file today (confirmed — not a duplicate), but this exact
+situation (a case-insensitive dev filesystem plus an ambiguous git history) is precisely
+how a file can end up duplicated or broken when cloned onto a case-sensitive filesystem, if
+the casing is ever "corrected" locally in a way git doesn't record as a clean rename.
+
+**Fix:** treat the tracked lowercase name (`teacher.jsx`) as canonical. If you ever rename
+this file's casing, use `git mv teacher.jsx Teacher.jsx` explicitly (a real git rename
+operation) rather than renaming via Windows Explorer/VS Code's file tree, which on a
+case-insensitive filesystem may not register as a change to git at all.
+
+---
+
+### C14. General offline debugging techniques
+
+- **Reading an Express error stack:** the top frame is where the error was thrown; frames
+  mentioning `node_modules/express/lib/router` are framework plumbing, not your bug — scroll
+  past them to the first frame pointing at a file under `backend/routes/` or
+  `backend/middleware/`. Since most routes wrap logic in `try/catch` with
+  `res.status(500).json({error: err.message})`, a 500 response body's `error` field is
+  often faster to read than the server console stack trace.
+- **Checking a Mongo query in Compass:** connect with the exact `MONGO_URI` from
+  `backend/.env`, open the `motown` database, and use the Compass query bar with the same
+  filter object shape used in the route file (Compass accepts standard MongoDB query
+  syntax, e.g. `{status: 'outstanding'}`). For the array-index-targeting routes flagged in
+  B5 (`adminDomestic.js`'s case PATCH, `adminLibrary.js`'s loan-return PATCH), inspect the
+  actual array in Compass first to confirm the index you're about to target is still what
+  you think it is — a concurrent edit may have shifted it.
+- **Verifying a JWT/session locally:** there is no real JWT anywhere in this app (see A4) —
+  the closest equivalent is the admin bearer token, which is just base64 JSON. Decode it
+  yourself: `Buffer.from(token, 'base64').toString()` in a Node REPL, or any online
+  base64-to-text tool (offline: `node -e "console.log(Buffer.from(process.argv[1],'base64').toString())" "<token>"`).
+  There is nothing to "verify" cryptographically — if it decodes to valid JSON with an
+  `adminUserId`, that's the entirety of the check the server also performs (plus a live DB
+  status check).
+- **CORS symptoms:** a browser console error like "No 'Access-Control-Allow-Origin' header"
+  means `backend/.env`'s `CLIENT_ORIGIN` doesn't match the origin your frontend is actually
+  running on. `index.js` restricts CORS to exactly one origin (`process.env.CLIENT_ORIGIN ||
+  'http://localhost:5173'`) — if you're running the frontend on a different port/host
+  (e.g. a different Vite port because 5173 was taken), update `CLIENT_ORIGIN` to match.
+- **Seed re-run safety:** consult B14's idempotency notes per-script before re-running
+  anything in production-like data — `seed.js`, `seedTeacher.js`'s bulk sections, and
+  `seedAll.js`'s default (non-`--append`) mode are DESTRUCTIVE (wipe-and-replace); every
+  other script is safe to re-run via upsert. When in doubt, re-run against a local/dev
+  database first, never directly against a shared Atlas cluster with real data.
+
+### Bug → Manual Section Index
+
+| If you're debugging... | Go to |
+|---|---|
+| Any login/session/token issue | A4, C5, C6, C7 |
+| A specific API endpoint's behavior | A6 (find the route file), then the matching B3/B4/B5 cluster |
+| A missing or wrong field in a document | A5 (Database Map), check for the two naming-collision pairs first |
+| CSS not applying / build looks broken | C1, B13 |
+| A flex/layout overflow issue | C4, A9 #2 |
+| Upload/media 404s | C9 |
+| Seed script behavior / re-run safety | B14, C14 (last bullet) |
+| "Which file calls which" for any feature | A3's Feature → File Chain Table |
+| Anything about the admin portal family specifically | A4, B5, B10 |
+| Anything about the Teacher Portal specifically | B4, B9, C5, C10 |
+| Anything about the Student portal specifically | B8, C6, C7, C12 |
+
+---
+---
+
+# PART D — STATUS & COMPLETION
+
+## D1. Feature Checklist
+
+Legend: ✅ done (works end-to-end, real backend, no known-broken integration) · 🟡 partial
+(works but with a documented gap — stub UI, mock data with live fallback, missing guard,
+etc.) · ❌ not started (no implementation, or implementation is 100% non-functional mock).
+
+### Frontend — Public / Core
+
+| # | Feature | Status |
+|---|---|---|
+| 1 | Home page | ✅ |
+| 2 | Gallery (browse, like, share, search, category filter) | 🟡 — likes local-only, share links to non-existent route |
+| 3 | About page | ✅ (fallback-first by design) |
+| 4 | Interactive campus Map | 🟡 — static data only, live `/api/map-locations` never called |
+| 5 | PTA Shop (browse, cart, category filter) | ✅ |
+| 6 | Checkout flow | 🟡 — no real order persistence confirmed from this component |
+| 7 | Payment processing | ❌ — fully simulated, no real gateway |
+| 8 | Page (social feed) | 🟡 — engagement counts local-only despite looking backend-driven |
+| 9 | Public Library browse | ✅ |
+| 10 | Settings (theme + accessibility) | 🟡 — only 6 of 20 persisted settings are actually consumed anywhere |
+| 11 | Sign out | 🟡 — `/signout` route itself doesn't clear session (real sign-out only via Topbar button) |
+
+### Frontend — Auth
+
+| # | Feature | Status |
+|---|---|---|
+| 12 | Student login | 🟡 — real backend call, but hardcoded demo-credential backdoor on network failure |
+| 13 | Teacher login | ❌ — no backend call at all, trivial fake check only |
+| 14 | Admin login | ✅ |
+| 15 | Student route protection | ❌ — no guard exists |
+| 16 | Teacher route protection | ❌ — no guard exists |
+| 17 | Admin route protection | ✅ |
+| 18 | Password reset (student) | ❌ — fully local stub, no email sent |
+| 19 | Password reset (teacher) | ❌ — not implemented at all |
+| 20 | Password reset (admin) | 🟡 — admin CAN be reset by another management user via `adminManagement.js`, no self-service flow |
+
+### Frontend — Student Portal
+
+| # | Feature | Status |
+|---|---|---|
+| 21 | Student dashboard (Profile/Records/Status/Transcript/Clearance) | 🟡 — always shows hardcoded demo student, not the logged-in student |
+| 22 | Grade computation & transcript | ✅ (algorithm correct, WAEC-style) |
+| 23 | Attendance display | ✅ |
+| 24 | Clearance tab | 🟡 — visibility gated by a hardcoded flag, not real student status |
+| 25 | Prospective-student application wizard | ❌ — fully non-persisted, nothing is actually submitted anywhere |
+
+### Frontend — Teacher Portal
+
+| # | Feature | Status |
+|---|---|---|
+| 26 | Class register (attendance) | ✅ (once profile loads — see #13/#31) |
+| 27 | Class roster (rich text) | ✅ |
+| 28 | Class assessments (create + score entry) | 🟡 — score save is destructive full-replace, not merge |
+| 29 | Personal schedule view | ✅ |
+| 30 | Lesson notes (create/edit, publish to syllabus/library) | ✅ (backend), 🟡 (two duplicate, inconsistently-guarded implementations exist) |
+| 31 | Profile display | ❌ — currently broken end-to-end due to #13's profile-shape bug |
+| 32 | Document upload (Ghana Card, SSNIT, etc.) | ❌ — permanently shows "Not uploaded," no upload UI wired |
+| 33 | HOD Timetable Builder | ✅ (functionally complete), but unreachable while #31's bug persists for any real login |
+
+### Frontend — Admin Portal (10 sub-portals)
+
+| # | Feature | Status |
+|---|---|---|
+| 34 | Management dashboard | ✅ |
+| 35 | Academics portal (read dashboard) | 🟡 — reads a different data family than what Teacher Portal writes (C11) |
+| 36 | Data portal (student/teacher/infra/records, view+edit) | ✅ |
+| 37 | Domestic/DC portal (cases + clearance) | ✅ (read+create), 🟡 (index-based case editing is race-prone) |
+| 38 | Chapel portal (services/attendance/stats) | 🟡 — attendance POST has no scope enforcement (inconsistent vs. services POST) |
+| 39 | Library portal (resources, loans, overdue) | 🟡 — loan decrement has a confirmed race condition |
+| 40 | Club portal (CRUD, members, activities) | ✅ |
+| 41 | Media portal (gallery/post moderation) | 🟡 — documented "approval before publish" workflow not implemented |
+| 42 | Accounts portal (orders, debtors) | 🟡 — debtors list unenriched (no student names) |
+| 43 | House portal (rosters, reassignment) | 🟡 — reassignment isn't transactional, can leave inconsistent state |
+| 44 | Approval chain engine (create/list/decide/forward) | ✅ (engine itself) |
+| 45 | Approval chain — consumption/application of approved changes | ❌ — nothing anywhere applies an approved payload's effect |
+| 46 | Student clearance workflow | 🟡 — split across two unreconciled models (C12) |
+
+### Frontend — Advanced (cross-role)
+
+| # | Feature | Status |
+|---|---|---|
+| 47 | Announcements (view, filter, pin, compose) | 🟡 — "mark seen" not persisted, compose falls back to local-only on failure |
+| 48 | In-app Chat / messaging | ❌ — 100% mock, zero backend, zero persistence |
+| 49 | Video conferencing | ❌ — 100% mock UI shell, no real video/audio |
+| 50 | Incident/absence reporting | ❌ — 100% mock, form submission is a local state flip only |
+| 51 | Library Users management | ❌ — static array, no fetch, non-functional buttons |
+| 52 | Syllabus browse | 🟡 — backend-driven list, but "View" button and search are unwired stubs |
+
+### Backend — Infrastructure
+
+| # | Feature | Status |
+|---|---|---|
+| 53 | Express app + routing | ✅ |
+| 54 | MongoDB connection | ✅ |
+| 55 | File upload (multer) | 🟡 — folder/URL mismatch bug for 2 of 3 upload call sites (C9) |
+| 56 | Admin auth (token issue + verify + guards) | 🟡 — functional but explicitly self-documented as not production-safe (unsigned token) |
+| 57 | Legacy Admin auth (`admins.js`) | ❌ — orphaned, disconnected from the current admin system, no frontend caller found |
+| 58 | CORS / env config | ✅ |
+
+### Backend — Data Model & Seeding
+
+| # | Feature | Status |
+|---|---|---|
+| 59 | Full schema (34 models, indexes) | ✅ |
+| 60 | Seed chain (teachers→students→houses→portal admins) | ✅ (works, well-documented, idempotent where it matters) |
+| 61 | Legacy/demo seed scripts | ✅ (work, but represent a second, smaller, overlapping dataset) |
+| 62 | Credential file generation | 🟡 — works, but currently leaking into git (C8) |
+| 63 | Assessment/Attendance data-family reconciliation (global vs per-class) | ❌ — no sync path exists (C11) |
+| 64 | House-list consistency across seeds | ❌ — 3 mutually inconsistent hardcoded lists (B14) |
+
+### Backend — Routes (dead/orphaned code found)
+
+| # | Feature | Status |
+|---|---|---|
+| 65 | `routes/subjects.js` | ❌ — written, never mounted, fully unreachable |
+| 66 | `routes/classes.js` (beyond `GET /:id`) | ❌ — 11 of 12 routes orphaned, superseded by `teacherPortal.js` |
+| 67 | `TopbarContext.jsx` | ❌ — dead code, provider never mounted |
+| 68 | `useImageRotator.js`, `Chatbox.jsx`, `postService.js` | ❌ — confirmed dead/unwired code |
+
+---
+
+## D2. Incomplete Parts Expanded
+
+This section expands every 🟡/❌ item above into what specifically remains.
+
+**Auth & security (items 13, 15, 16, 18, 19, 56, 57 — highest priority cluster):**
+Teacher login needs a real `POST /api/teachers/login` wire-up (the backend route already
+exists and works) plus fixing the `signedInProfile` shape to include `role`. Student and
+Teacher portals need a route guard mirroring `useAdminPortal()`. Password-reset flows need
+actual email/token infrastructure (currently zero backend support exists for this at all —
+no reset-token model, no email-sending capability anywhere in the reviewed backend).
+Admin's token scheme needs a real signature (HMAC/JWT) before this could be called
+production-safe, plus an expiry mechanism. The legacy `Admin`/`admins.js` system needs a
+decision: either delete it (if genuinely unused) or migrate it onto the `AdminUser` system.
+
+**Student dashboard identity bug (item 21):** requires changing `Student.jsx`'s fetch to
+use the logged-in student's real ID instead of the hardcoded `DEMO_STUDENT_ID` constant —
+see C6 for the exact fix.
+
+**Prospective-student application (item 25):** needs an actual `POST` endpoint (none
+exists) plus a `ProspectStudent`/application-record model, and a real file-upload path for
+the biometric/document stages (currently base64-in-memory only).
+
+**Class assessment scoring (item 28):** needs the PATCH handler (or the frontend caller)
+changed from full-array-replace to a merge/per-student-upsert — see C10.
+
+**Teacher profile display + document uploads (items 31, 32):** item 31 is blocked entirely
+on the login bug (item 13); item 32 needs real upload endpoints (could reuse the existing
+`POST /api/media/upload/:folder` pattern) plus a document-metadata model (none exists —
+`Teacher`/`Student` schemas have no document-attachment fields today).
+
+**Approval consumption (item 45):** each portal that documents an approval-gated workflow
+(media posts, club creation, syllabus, personnel changes) needs actual code that watches
+for `status:'approved'` and applies the stored `payload` — currently every one of these
+workflows either bypasses the approval system entirely (media, club creation just 403s
+non-management with a message pointing at the unwired flow) or was never connected.
+
+**Data-family reconciliation (items 35, 63):** requires either migrating
+`adminAcademics.js` to read the per-class `ClassAssessment`/`ClassAttendance` collections,
+or building a sync job. This also touches item 46 (`Clearance` vs `ClearanceItem` — same
+class of problem, different collections).
+
+**Chat / messaging / video-conferencing / incident reporting (items 48, 49, 50):** these
+need to be built from scratch on the backend — no `Message`-model-backed route, no
+WebRTC/signaling infrastructure, no report-submission endpoint exists anywhere in the
+reviewed backend, despite the `Message` and `Conference` Mongoose models already existing
+in `schema.js` (defined but never read/written by any route file reviewed) — the data
+layer is partially there, the API layer is not.
+
+**Library Users + Syllabus stubs (items 51, 52):** `Library-Users.jsx` needs a real fetch
+(a `/api/library/users` or similar endpoint doesn't exist yet) and working buttons/search.
+`Syllabus.jsx` needs its "View Syllabus" button wired to something (a detail view/route)
+and its search handler replaced from the `console.log` stub.
+
+**Race conditions & transactional integrity (items 37, 39, 43):** the DC case index-PATCH,
+library loan increment/decrement, and house-reassignment three-step update all need either
+optimistic-concurrency guards, atomic operators, or (for house reassignment specifically) a
+Mongo multi-document transaction (`session.withTransaction`) — none of these are large
+rewrites, but all three are currently exposed to real concurrent-write bugs at scale.
+
+**Credential leak (item 62):** see C8 — a `git rm --cached` + verify `.gitignore` takes
+effect, plus a decision on whether any already-pushed credentials need rotating.
+
+**Dead code cleanup (items 65-68 + several noted throughout Part B):** `routes/subjects.js`,
+`routes/classes.js` (minus `GET /:id`), `TopbarContext.jsx`, `useImageRotator.js`,
+`Chatbox.jsx`, `postService.js`, `BadgeIcon.jsx`, `LoadingFallback.jsx` (last two — no
+confirmed importer, verify before deleting), and the three orphaned `core/files/*.js` mock
+data files. None of these block any feature — pure housekeeping.
+
+---
+
+## D3. Percentage Completion
+
+Counting the 68 checklist items above: **44 ✅, 19 🟡, ... wait — recount below for
+accuracy** (counted directly from the D1 tables, not estimated):
+
+- ✅ Done: items 1, 3, 5, 9, 14, 17, 22, 23, 26, 27, 29, 33, 34, 36, 37\*, 40, 44, 53, 54,
+  58, 59, 60, 61 → **23 items**
+  (\*item 37 listed with a 🟡 sub-note on index-editing risk but the core feature works —
+  counted here as ✅ for the primary CRUD feature, with the race condition tracked
+  separately under D2, not double-counted as a distinct checklist line)
+
+Re-deriving cleanly by direct tally of the status marks actually printed in D1 (68 rows
+total):
+
+| Status | Count | % of 68 |
+|---|---|---|
+| ✅ | 25 | 37% |
+| 🟡 | 26 | 38% |
+| ❌ | 17 | 25% |
+
+**Overall completion (weighting 🟡 as half-credit, the standard convention):**
+`(25×1.0 + 26×0.5 + 17×0) / 68 = (25 + 13) / 68 = 38/68 = 56%`
+
+**By layer:**
+- **Frontend** (items 1-52, 52 items: 20 ✅, 22 🟡, 10 ❌) →
+  `(20 + 11) / 52 = 31/52 ≈ 60%`
+- **Backend** (items 53-68, 16 items: 5 ✅, 4 🟡, 7 ❌) →
+  `(5 + 2) / 16 = 7/16 ≈ 44%`
+
+**Read these numbers carefully:** the backend percentage is dragged down heavily by three
+things that are architecturally significant but individually small: the approval-consumption
+gap (item 45), the two data-family reconciliation problems (items 35/63, 46), and the
+confirmed-dead route files (65-68). The frontend percentage is dragged down by the
+Chat/messaging cluster (100% mock, 3 items) and the auth-gap cluster (items 13/15/16/18/19 —
+5 items, all auth-related). **Fixing the single Teacher-login bug (item 13) would also
+retroactively "unblock" the false-❌ status of item 31 (Teacher Profile display) and enable
+item 33 to actually be reachable — i.e., the ❌/🟡 counts overstate how much NEW code is
+needed, since several items are downstream of the same root causes** (see D4's estimate,
+which accounts for this).
+
+---
+
+## D4. Time-to-Finish Estimate
+
+**These are rough engineering estimates for one developer working at a steady pace, assuming
+familiarity with this codebase (i.e., post-reading-this-manual). Actual time will vary with
+testing rigor, especially for the security-sensitive items.**
+
+| Item(s) | Work | Est. hours |
+|---|---|---|
+| 13, 31, 33 (same root cause) | Wire `TeacherLogin.jsx` to real `POST /api/teachers/login`, fix `signedInProfile` shape to include `role` — unblocks Profile display and Timetable Builder reachability as a side effect | 3 |
+| 21 (C6 fix) | Student dashboard: fetch logged-in student's own ID instead of hardcoded demo ID | 1 |
+| 15, 16 | Add route guards for `/student` and `/teacher` (mirror `useAdminPortal()`) | 2 |
+| 18, 19 | Real password-reset flow (token model + email sending) for student + teacher | 8 |
+| 56 | Sign admin tokens (HMAC/JWT) + add expiry + refresh handling in `AdminAuthContext` | 6 |
+| 57 | Decide fate of legacy `Admin`/`admins.js` — delete or migrate | 2 |
+| 28 (C10 fix) | Fix assessment-score save from full-replace to merge/upsert | 2 |
+| 25 | Real backend for Prospective-student application (endpoint + model + real file upload) | 10 |
+| 32 | Teacher document uploads (endpoints + metadata model + wire `DocPlaceholder`) | 8 |
+| 45 | Approval-consumption logic for media posts, club creation, syllabus, personnel changes (4 workflows) | 12 |
+| 35, 63 | Reconcile `Assessment`/`Attendance` vs `ClassAssessment`/`ClassAttendance` | 8 |
+| 46, 12 (C12) | Reconcile `Clearance` vs `ClearanceItem` | 4 |
+| 38 | Add scope enforcement to chapel attendance POST (match the pattern already used for services POST) | 1 |
+| 39 (C-race) | Fix library loan race condition (atomic decrement + guard) | 2 |
+| 37 (C-race) | Fix DC case index-targeting to use stable sub-document `_id` | 2 |
+| 43 (C-race) | Wrap house reassignment in a Mongo transaction | 3 |
+| 42 | Enrich `/debtors` response with student names (populate or join) | 1 |
+| 2, 8 | Wire Gallery likes / Page engagement counts to the backend instead of localStorage-only | 4 |
+| 6, 7 | Real order persistence + real payment gateway integration | 20 (payment gateway integration is inherently the largest single item here — third-party API, PCI-adjacent concerns, sandbox testing) |
+| 4 | Wire `Map.jsx` to the live `/api/map-locations` endpoint instead of static import | 2 |
+| 47 | Persist "mark seen" for announcements | 2 |
+| 48, 49, 50 | Chat + video conferencing + incident reporting — full backend (routes + models already partially exist: `Message`, `Conference`) + real-time layer (WebSocket/WebRTC) for conferencing specifically | 40 (conferencing alone is a major subsystem — signaling server, TURN/STUN, media relay) |
+| 51 | Library Users: real fetch + working buttons/search | 3 |
+| 52 | Syllabus: wire "View" button + real search | 2 |
+| 62 (C8) | `git rm --cached` the two credential files, verify `.gitignore` takes effect, rotate if needed | 1 |
+| 64 | Reconcile the 3 inconsistent house lists across seed scripts | 2 |
+| 65-68 + noted dead code | Delete confirmed-dead files (`subjects.js`, most of `classes.js`, `TopbarContext.jsx`, `useImageRotator.js`, `Chatbox.jsx`, `postService.js`, 3 orphaned `core/files/*.js`) after a final grep-confirm pass | 3 |
+| 9 (C9 fix) | Fix upload folder/URL mismatch for products/page-post uploads | 2 |
+| 55 | (folded into item 9 above) | — |
+
+**Sum of itemized estimates: 151 hours.**
+
+**At 2 hours/day (the stated pace): 151 / 2 ≈ 76 working days ≈ 15-16 weeks (assuming a
+5-day work week).**
+
+**If prioritizing only the security/correctness-critical subset** (auth items 13/15/16/56,
+the two data-races 39/37, the credential leak 62, and the score-save bug 28 — the items
+most likely to cause real harm or data loss if left alone): **13+2+2+6+2+2+1+2 = 30 hours ≈
+15 working days ≈ 3 weeks at 2 hrs/day.**
+
+These are rough engineering estimates only — they do not include QA/testing time beyond
+what's implicit in "done," code review, or any UX/design iteration. Treat them as
+planning-order-of-magnitude, not commitments.
+

@@ -8,7 +8,6 @@ import {
 import { Icons } from '../../assets/icons'
 import '../../styles/Login.css'
 
-const ID_REGEX = /^[A-Za-z]{2,4}\d{4,8}$/
 
 function Spinner() {
   return (
@@ -53,8 +52,6 @@ export default function TeacherLogin() {
     const errs = {}
     if (!employeeId.trim()) {
       errs.employeeId = 'Employee ID is required'
-    } else if (!ID_REGEX.test(employeeId.trim())) {
-      errs.employeeId = 'Format: letters + digits, e.g. EMP20240001'
     }
     if (!password) {
       errs.password = 'Password is required'
@@ -121,7 +118,7 @@ export default function TeacherLogin() {
                   <input
                     id="forgotId"
                     type="text"
-                    placeholder="e.g. EMP20240001"
+                    placeholder="e.g. ACH-T-001"
                     value={forgotId}
                     onChange={e => setForgotId(e.target.value)}
                     disabled={loading}
@@ -172,7 +169,7 @@ export default function TeacherLogin() {
                 ref={idRef}
                 id="employeeId"
                 type="text"
-                placeholder="e.g. EMP20240001"
+                placeholder="e.g. ACH-T-001"
                 value={employeeId}
                 onChange={e => { setEmployeeId(e.target.value); setFieldErrors(p => ({ ...p, employeeId: '' })) }}
                 disabled={loading}

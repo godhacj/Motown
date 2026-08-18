@@ -1,17 +1,33 @@
 import React, { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import '../../styles/advanced/Syllabus.css'
-import '../../styles/PageContent.css' 
+import '../../styles/PageContent.css'
 import { Icons } from '../../assets/icons'
+import API from '../../config/api'
 
 const Syllabus = () => {
   const {setIsOpen, setSideMenu, setSearchConfig, setNotchText} = useOutletContext();
-  const [courses] = useState([
-    { id: 1, title: 'Mathematics 101', instructor: 'Mr. Smith', students: 45, schedule: 'MWF 9:00 AM' },
-    { id: 2, title: 'English Literature', instructor: 'Ms. Johnson', students: 38, schedule: 'TTh 10:30 AM' },
-    { id: 3, title: 'Physics', instructor: 'Dr. Brown', students: 42, schedule: 'MWF 2:00 PM' },
-    { id: 4, title: 'Chemistry', instructor: 'Dr. Wilson', students: 35, schedule: 'TTh 1:00 PM' },
-  ])
+  const [courses, setCourses] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/syllabus`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (cancelled) return
+        setCourses(data.map(s => ({
+          id: s._id,
+          title: `${s.subject} — ${s.form}`,
+          instructor: s.teacherName || 'TBA',
+          students: s.topics?.length || 0,
+          schedule: `${s.term} · ${s.academicYear}`,
+        })))
+      })
+      .catch(() => { if (!cancelled) setCourses([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     setNotchText('Syllabus');
@@ -46,27 +62,33 @@ const Syllabus = () => {
         </div>
         <div className="stat-box">
           <div className="number">{courses.reduce((sum, c) => sum + c.students, 0)}</div>
-          <div className="label">Total Students</div>
+          <div className="label">Total Topics</div>
         </div>
         <div className="stat-box">
-          <div className="number">{courses.length}</div>
+          <div className="number">{new Set(courses.map(c => c.instructor)).size}</div>
           <div className="label">Instructors</div>
         </div>
       </div>
 
-      <div className="content-grid">
-        {courses.map(course => (
-          <div key={course.id} className="content-card">
-            <h3>{course.title}</h3>
-            <p><strong>Instructor:</strong> {course.instructor}</p>
-            <p><strong>Students:</strong> {course.students}</p>
-            <p><strong>Schedule:</strong> {course.schedule}</p>
-            <button className="page-button" style={{ marginTop: '12px', width: '100%' }}>
-              View Syllabus
-            </button>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <p style={{ textAlign: 'center', padding: '2rem' }}>Loading…</p>
+      ) : courses.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>No syllabuses found.</p>
+      ) : (
+        <div className="content-grid">
+          {courses.map(course => (
+            <div key={course.id} className="content-card">
+              <h3>{course.title}</h3>
+              <p><strong>Instructor:</strong> {course.instructor}</p>
+              <p><strong>Topics:</strong> {course.students}</p>
+              <p><strong>Schedule:</strong> {course.schedule}</p>
+              <button className="page-button" style={{ marginTop: '12px', width: '100%' }}>
+                View Syllabus
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

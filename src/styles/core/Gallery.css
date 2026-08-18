@@ -1013,6 +1013,17 @@ body.modal-open .topbar {
   }
 }
 
+@media (max-width: 400px) {
+  /* Card height is image-driven (height: auto on the image, no fixed height or
+     aspect-ratio on the card). At this width the grid is 1 column (~320px wide).
+     A typical 4:3 photo renders at ~240px tall; 20% more = 288px.
+     object-fit: cover is already set globally — the image fills the taller slot. */
+  .masonry-image {
+    height: 288px;
+    object-fit: cover;
+  }
+}
+
 /* ─────────────────────────────────────────────
    TOUCH DEVICES — overlay always visible
 ───────────────────────────────────────────── */

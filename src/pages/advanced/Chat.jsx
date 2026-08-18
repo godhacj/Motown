@@ -2,91 +2,49 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   FiInbox, FiUsers, FiRadio, FiFileText,
-  FiSearch, FiSend, FiPaperclip, FiSmile, FiMoreVertical,
+  FiSend, FiPaperclip, FiSmile, FiMoreVertical,
   FiPhone, FiVideo, FiMic, FiMicOff, FiVideoOff, FiMonitor,
   FiUserPlus, FiHash, FiLock, FiChevronDown, FiCheck, FiCheckCircle,
-  FiEdit3, FiDownload, FiClock, FiAlertCircle, FiX, FiPlus,
-  FiChevronRight, FiSettings,
+  FiEdit3, FiClock, FiAlertCircle, FiX, FiPlus,
+  FiSettings, FiArrowLeft,
 } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import '../../styles/advanced/Chat.css'
+import API from '../../config/api'
+import { io } from 'socket.io-client'
+import { useSocket } from '../../contexts/SocketContext.jsx'
+
+function currentUserId() {
+  try {
+    const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
+    return p.userId || p.id || null
+  } catch { return null }
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso)
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+function fmtListTime(iso) {
+  const d = new Date(iso)
+  const today = new Date()
+  if (d.toDateString() === today.toDateString()) return fmtTime(iso)
+  return fmtDate(iso)
+}
 
 /* ─────────────────────────────────────────────
-   MOCK DATA
+   MOCK DATA (features with no backend yet)
 ───────────────────────────────────────────── */
-const ME = { id: 'me', name: 'Michael Owusu', avatar: null, initials: 'MO' }
-
-const INBOX = [
-  {
-    id: 'i1', name: 'Mr. Asante Kwame', initials: 'AK', role: 'Teacher',
-    lastMsg: 'Your assignment has been graded. Well done!', time: '10:42 AM', unread: 2, online: true,
-    messages: [
-      { id: 1, from: 'i1', text: 'Good morning Michael, please submit your Physics assignment before Friday.', time: '9:00 AM', date: 'Today' },
-      { id: 2, from: 'me', text: 'Good morning sir. I will submit it by Thursday.', time: '9:15 AM', date: 'Today' },
-      { id: 3, from: 'i1', text: 'Your assignment has been graded. Well done!', time: '10:42 AM', date: 'Today' },
-    ],
-  },
-  {
-    id: 'i2', name: 'Grace Owusu', initials: 'GO', role: 'Parent',
-    lastMsg: 'How was school today?', time: 'Yesterday', unread: 0, online: false,
-    messages: [
-      { id: 1, from: 'i2', text: 'Michael, how are you doing in school?', time: '3:00 PM', date: 'Yesterday' },
-      { id: 2, from: 'me', text: 'I am doing great mum! We had a science test today.', time: '3:30 PM', date: 'Yesterday' },
-      { id: 3, from: 'i2', text: 'How was school today?', time: '6:00 PM', date: 'Yesterday' },
-    ],
-  },
-  {
-    id: 'i3', name: 'Ama Serwaa', initials: 'AS', role: 'Classmate',
-    lastMsg: 'Did you solve question 5 on the maths sheet?', time: 'Mon', unread: 1, online: true,
-    messages: [
-      { id: 1, from: 'i3', text: 'Hey! Did you solve question 5 on the maths sheet?', time: '4:10 PM', date: 'Mon' },
-    ],
-  },
-  {
-    id: 'i4', name: 'Kofi Mensah', initials: 'KM', role: 'Classmate',
-    lastMsg: 'Football practice is cancelled tomorrow.', time: 'Sun', unread: 0, online: false,
-    messages: [
-      { id: 1, from: 'i4', text: 'Football practice is cancelled tomorrow.', time: '7:00 PM', date: 'Sun' },
-      { id: 2, from: 'me', text: 'Oh okay, thanks for letting me know!', time: '7:05 PM', date: 'Sun' },
-    ],
-  },
-]
-
-const GROUPS = [
-  {
-    id: 'g1', name: 'SHS 3 Science — General', initials: 'S3', type: 'class', locked: false,
-    members: 42, lastMsg: 'Mr. Acheampong: Reminder — term exam timetable released.', time: '11:00 AM', unread: 5,
-    messages: [
-      { id: 1, from: 'teacher', name: 'Mr. Acheampong', text: 'Good morning class. The term exam timetable has been released.', time: '8:00 AM', date: 'Today' },
-      { id: 2, from: 'i3', name: 'Ama Serwaa', text: 'Thank you sir!', time: '8:05 AM', date: 'Today' },
-      { id: 3, from: 'me', name: 'Michael Owusu', text: 'Received. Thank you.', time: '8:10 AM', date: 'Today' },
-      { id: 4, from: 'teacher', name: 'Mr. Acheampong', text: 'Reminder — term exam timetable released.', time: '11:00 AM', date: 'Today' },
-    ],
-  },
-  {
-    id: 'g2', name: 'Science Club', initials: 'SC', type: 'club', locked: false,
-    members: 18, lastMsg: 'Meeting this Friday at 3pm in Lab 2.', time: 'Yesterday', unread: 0,
-    messages: [
-      { id: 1, from: 'i1', name: 'Mr. Asante Kwame', text: 'Science Club meeting this Friday at 3pm in Lab 2.', time: '2:00 PM', date: 'Yesterday' },
-      { id: 2, from: 'me', name: 'Michael Owusu', text: 'I will be there!', time: '2:15 PM', date: 'Yesterday' },
-    ],
-  },
-  {
-    id: 'g3', name: 'Mathematics Club', initials: 'MC', type: 'club', locked: false,
-    members: 12, lastMsg: 'Great work on the regional competition everyone!', time: 'Mon', unread: 0,
-    messages: [
-      { id: 1, from: 'teacher', name: 'Mrs. Boateng', text: 'Great work on the regional competition everyone!', time: '10:00 AM', date: 'Mon' },
-    ],
-  },
-  {
-    id: 'g4', name: 'House 6 Prefects', initials: 'H6', type: 'prefect', locked: true,
-    members: 8, lastMsg: 'Assembly duty roster updated.', time: 'Sun', unread: 0,
-    messages: [
-      { id: 1, from: 'i1', name: 'Head Prefect', text: 'Assembly duty roster updated. Check the noticeboard.', time: '5:00 PM', date: 'Sun' },
-    ],
-  },
-]
-
 const CONFERENCES = [
   {
     id: 'c1', title: 'SHS 3 Physics Lecture', host: 'Mr. Asante Kwame',
@@ -117,10 +75,6 @@ const REPORT_TEMPLATES = [
   { id: 'r4', label: 'General Report', icon: <FiFileText size={16} /> },
 ]
 
-const PAST_REPORTS = [
-  { id: 'p1', type: 'Incident Report', subject: 'Bullying incident in dormitory', date: '12 Jun 2025', status: 'reviewed' },
-  { id: 'p2', type: 'Feedback to Teacher', subject: 'Physics class pace is too fast', date: '3 Jun 2025', status: 'pending' },
-]
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -145,14 +99,99 @@ function Avatar({ initials, src, size = 40, online = false, color }) {
 const GROUP_COLORS = { class: '#2563eb', club: '#10b981', prefect: '#f59e0b' }
 
 /* ─────────────────────────────────────────────
+   NEW CHAT DIALOG — pick a recipient by ID
+───────────────────────────────────────────── */
+function NewChatDialog({ onClose, onCreated }) {
+  const [query, setQuery] = useState('')
+  const [error, setError] = useState('')
+  const [busy,  setBusy]  = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const submit = e => {
+    e.preventDefault()
+    const recipientId = query.trim()
+    if (!recipientId) return
+    setBusy(true)
+    setError('')
+    fetch(`${API}/api/messages/direct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId(), recipientId }),
+    })
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error || 'Could not start conversation')
+        onCreated(data)
+      })
+      .catch(err => { setError(err.message); setBusy(false) })
+  }
+
+  return (
+    <div className="ch-modal-backdrop" onClick={onClose}>
+      <div className="ch-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="New message">
+        <div className="ch-modal-head">
+          <span>New Message</span>
+          <button className="ch-icon-btn" onClick={onClose} aria-label="Close"><FiX size={16} /></button>
+        </div>
+        <form className="ch-modal-body" onSubmit={submit}>
+          <label className="ch-modal-label" htmlFor="ch-recipient">Student or Teacher ID</label>
+          <input
+            id="ch-recipient"
+            ref={inputRef}
+            className={`ch-modal-input${error ? ' ch-modal-input--error' : ''}`}
+            placeholder="e.g. ACH-S-014 or ACH-T-003"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setError('') }}
+            disabled={busy}
+          />
+          {error && <span className="ch-modal-err"><FiAlertCircle size={12} /> {error}</span>}
+          <button type="submit" className="ch-modal-submit" disabled={busy || !query.trim()}>
+            {busy ? 'Starting…' : 'Start Conversation'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    PART 1 — INBOX
 ───────────────────────────────────────────── */
-function PartInbox() {
-  const [activeId, setActiveId] = useState(INBOX[0].id)
+function PartInbox({ setSearchConfig, setConversationActions }) {
+  const userId = currentUserId()
+  const { socket, refetchUnreadCount } = useSocket() || {}
+  const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState('')
-  const [threads, setThreads] = useState(INBOX)
+  const [threads, setThreads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showNewChat, setShowNewChat] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [pendingAttachment, setPendingAttachment] = useState(null)
+  const [attachError, setAttachError] = useState('')
+  const [mobileView, setMobileView] = useState('list')
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
+  const fileInputRef = useRef(null)
+  const activeIdRef = useRef(activeId)
+
+  useEffect(() => { activeIdRef.current = activeId }, [activeId])
+
+  useEffect(() => {
+    if (!userId) { setLoading(false); return }
+    fetch(`${API}/api/messages/inbox/${userId}`)
+      .then(r => r.json())
+      .then(json => { setThreads(json); setActiveId(json[0]?.id ?? null); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [userId])
 
   const active = threads.find(t => t.id === activeId)
 
@@ -160,41 +199,154 @@ function PartInbox() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeId, active?.messages?.length])
 
+  // Live-append incoming direct messages; keep unread counts in sync
+  useEffect(() => {
+    if (!socket) return
+    const handler = ({ threadId, type, message }) => {
+      if (type !== 'direct') return
+      const isActive = threadId === activeIdRef.current
+      setThreads(prev => {
+        const exists = prev.some(t => t.id === threadId)
+        if (!exists) return prev
+        return prev.map(t => t.id !== threadId ? t : {
+          ...t,
+          lastMsg: message.text || '📎 Attachment',
+          time: message.time,
+          unread: isActive ? t.unread : t.unread + 1,
+          messages: [...t.messages, message],
+        })
+      })
+      if (isActive && userId) {
+        fetch(`${API}/api/messages/${threadId}/read`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        }).then(() => refetchUnreadCount?.()).catch(() => {})
+      }
+    }
+    socket.on('new-message', handler)
+    return () => socket.off('new-message', handler)
+  }, [socket, userId, refetchUnreadCount])
+
+  // Mark the selected thread as read
+  useEffect(() => {
+    if (!activeId || !userId) return
+    fetch(`${API}/api/messages/${activeId}/read`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    }).then(() => refetchUnreadCount?.()).catch(() => {})
+  }, [activeId, userId, refetchUnreadCount])
+
+  // Mobile list/conversation navigation
+  const enterConversation = () => {
+    setMobileView('conversation')
+    window.history.pushState(null, '', window.location.href)
+  }
+  const returnToList = useCallback(() => setMobileView('list'), [])
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape' && mobileView === 'conversation') returnToList() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileView, returnToList])
+
+  useEffect(() => {
+    if (mobileView !== 'conversation') return
+    const onPopState = () => returnToList()
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [mobileView, returnToList])
+
+  // Wire the Topbar's search input to filter this thread list
+  useEffect(() => {
+    setSearchConfig?.({ visible: true, placeholder: 'Search messages…', handler: q => setSearchQuery(q.toLowerCase()) })
+  }, [setSearchConfig])
+
+  // Surface call/video/more actions in the Topbar tray while a conversation is open
+  useEffect(() => {
+    if (!active) { setConversationActions?.(null); return }
+    setConversationActions?.([
+      { icon: <FiPhone size={16} />, label: 'Call', disabled: true },
+      { icon: <FiVideo size={16} />, label: 'Video call', disabled: true },
+      { icon: <FiMoreVertical size={16} />, label: 'More options', onClick: () => {} },
+    ])
+    return () => setConversationActions?.(null)
+  }, [active, setConversationActions])
+
+  const filteredThreads = threads.filter(t => t.name.toLowerCase().includes(searchQuery))
+
+  const handleAttachClick = () => fileInputRef.current?.click()
+
+  const handleFileChange = e => {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    setAttachError('')
+    const form = new FormData()
+    form.append('file', file)
+    fetch(`${API}/api/media/upload/chat-attachments`, { method: 'POST', body: form })
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error || 'Upload failed')
+        setPendingAttachment({ url: data.url, name: file.name, type: 'image' })
+      })
+      .catch(err => setAttachError(err.message))
+      .finally(() => setUploading(false))
+  }
+
   const send = () => {
     const text = draft.trim()
-    if (!text) return
+    if ((!text && !pendingAttachment) || !active || uploading) return
+    const attachments = pendingAttachment ? [pendingAttachment] : []
+    const optimistic = { id: `local-${Date.now()}`, from: 'me', text, time: new Date().toISOString(), date: new Date().toISOString(), attachments }
     setThreads(prev => prev.map(t =>
       t.id === activeId
-        ? { ...t, lastMsg: text, time: 'Now', messages: [...t.messages, { id: Date.now(), from: 'me', text, time: 'Now', date: 'Today' }] }
+        ? { ...t, lastMsg: text || '📎 Attachment', time: optimistic.time, messages: [...t.messages, optimistic] }
         : t
     ))
     setDraft('')
+    setPendingAttachment(null)
     inputRef.current?.focus()
+    fetch(`${API}/api/messages/${activeId}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId: userId, text, attachments }),
+    }).catch(() => {})
   }
 
   const handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
 
+  const handleCreated = thread => {
+    setThreads(prev => prev.some(t => t.id === thread.id) ? prev : [thread, ...prev])
+    setActiveId(thread.id)
+    setShowNewChat(false)
+    enterConversation()
+  }
+
+  if (loading) return <div className="ch-split"><p className="ch-empty">Loading messages…</p></div>
+
   return (
-    <div className="ch-split">
+    <div className="ch-split" data-mobile-view={mobileView}>
       {/* Thread list */}
       <div className="ch-list">
         <div className="ch-list-head">
-          <div className="ch-search-bar">
-            <FiSearch size={14} className="ch-search-icon" />
-            <input className="ch-search-input" placeholder="Search messages…" />
-          </div>
+          <button className="ch-new-btn" onClick={() => setShowNewChat(true)}><FiPlus size={14} /> New Message</button>
         </div>
-        {threads.map(t => (
+        {filteredThreads.length === 0 ? (
+          <p className="ch-empty">No messages yet.</p>
+        ) : filteredThreads.map(t => (
           <button
             key={t.id}
             className={`ch-thread${activeId === t.id ? ' ch-thread--active' : ''}`}
-            onClick={() => setActiveId(t.id)}
+            onClick={() => { setActiveId(t.id); enterConversation() }}
           >
-            <Avatar initials={t.initials} online={t.online} />
+            <Avatar initials={t.initials} src={t.photo ? `${API}${t.photo}` : null} online={t.online} />
             <div className="ch-thread-body">
               <div className="ch-thread-top">
                 <span className="ch-thread-name">{t.name}</span>
-                <span className="ch-thread-time">{t.time}</span>
+                <span className="ch-thread-time">{fmtListTime(t.time)}</span>
               </div>
               <div className="ch-thread-bottom">
                 <span className="ch-thread-preview">{t.lastMsg}</span>
@@ -207,60 +359,72 @@ function PartInbox() {
       </div>
 
       {/* Conversation */}
-      <div className="ch-convo">
-        <div className="ch-convo-head">
-          <Avatar initials={active.initials} online={active.online} />
-          <div className="ch-convo-head-info">
-            <span className="ch-convo-name">{active.name}</span>
-            <span className="ch-convo-sub">{active.role} · {active.online ? 'Online' : 'Offline'}</span>
-          </div>
-          <div className="ch-convo-actions">
-            <button className="ch-icon-btn"><FiPhone size={16} /></button>
-            <button className="ch-icon-btn"><FiVideo size={16} /></button>
-            <button className="ch-icon-btn"><FiMoreVertical size={16} /></button>
-          </div>
+      {!active ? (
+        <div className="ch-convo ch-convo--empty">
+          <p className="ch-empty">Select or start a conversation.</p>
         </div>
-
-        <div className="ch-messages">
-          {active.messages.map((m, i) => {
-            const isMe = m.from === 'me'
-            const showDate = i === 0 || active.messages[i - 1].date !== m.date
-            return (
-              <React.Fragment key={m.id}>
-                {showDate && <div className="ch-date-divider">{m.date}</div>}
-                <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
-                  {!isMe && <Avatar initials={active.initials} size={28} />}
-                  <div className="ch-msg-bubble">
-                    <p className="ch-msg-text">{m.text}</p>
-                    <span className="ch-msg-time">
-                      {m.time}
-                      {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
-                    </span>
-                  </div>
-                </div>
-              </React.Fragment>
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
-
-        <div className="ch-composer">
-          <button className="ch-icon-btn"><FiPaperclip size={16} /></button>
-          <textarea
-            ref={inputRef}
-            className="ch-composer-input"
-            placeholder="Type a message…"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={handleKey}
-            rows={1}
-          />
-          <button className="ch-icon-btn"><FiSmile size={16} /></button>
-          <button className={`ch-send-btn${draft.trim() ? ' ch-send-btn--active' : ''}`} onClick={send}>
-            <FiSend size={15} />
+      ) : (
+        <div className="ch-convo">
+          <button className="ch-back-btn" onClick={returnToList} aria-label="Back to conversations">
+            <FiArrowLeft size={18} />
           </button>
+          <div className="ch-messages">
+            {active.messages.map((m, i) => {
+              const isMe = m.from === 'me'
+              const showDate = i === 0 || fmtDate(active.messages[i - 1].date) !== fmtDate(m.date)
+              return (
+                <React.Fragment key={m.id}>
+                  {showDate && <div className="ch-date-divider">{fmtDate(m.date)}</div>}
+                  <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
+                    {!isMe && <Avatar initials={active.initials} size={28} />}
+                    <div className="ch-msg-bubble">
+                      {m.attachments?.[0] && (
+                        <img className="ch-msg-attachment-img" src={`${API}${m.attachments[0].url}`} alt={m.attachments[0].name || 'attachment'} />
+                      )}
+                      {m.text && <p className="ch-msg-text">{m.text}</p>}
+                      <span className="ch-msg-time">
+                        {fmtTime(m.time)}
+                        {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
+                      </span>
+                    </div>
+                  </div>
+                </React.Fragment>
+              )
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {pendingAttachment && (
+            <div className="ch-attachment-chip">
+              <img src={`${API}${pendingAttachment.url}`} alt={pendingAttachment.name} />
+              <span>{pendingAttachment.name}</span>
+              <button className="ch-attachment-chip__remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment"><FiX size={12} /></button>
+            </div>
+          )}
+          {uploading && <div className="ch-attachment-chip ch-attachment-chip--loading">Uploading…</div>}
+          {attachError && <span className="ch-modal-err"><FiAlertCircle size={12} /> {attachError}</span>}
+
+          <div className="ch-composer">
+            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <button className="ch-icon-btn" onClick={handleAttachClick} aria-label="Add attachment"><FiPaperclip size={16} /></button>
+            <textarea
+              ref={inputRef}
+              className="ch-composer-input"
+              placeholder="Type a message…"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={handleKey}
+              rows={1}
+            />
+            <button className="ch-icon-btn"><FiSmile size={16} /></button>
+            <button className={`ch-send-btn${draft.trim() || pendingAttachment ? ' ch-send-btn--active' : ''}`} onClick={send} disabled={uploading}>
+              <FiSend size={15} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {showNewChat && <NewChatDialog onClose={() => setShowNewChat(false)} onCreated={handleCreated} />}
     </div>
   )
 }
@@ -268,11 +432,36 @@ function PartInbox() {
 /* ─────────────────────────────────────────────
    PART 2 — GROUPS
 ───────────────────────────────────────────── */
-function PartGroups() {
-  const [activeId, setActiveId] = useState(GROUPS[0].id)
+function PartGroups({ setSearchConfig, setConversationActions }) {
+  const userId = currentUserId()
+  const { socket, refetchUnreadCount } = useSocket() || {}
+  const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState('')
-  const [groups, setGroups] = useState(GROUPS)
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [myName, setMyName] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [pendingAttachment, setPendingAttachment] = useState(null)
+  const [attachError, setAttachError] = useState('')
+  const [mobileView, setMobileView] = useState('list')
   const bottomRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const activeIdRef = useRef(activeId)
+
+  useEffect(() => { activeIdRef.current = activeId }, [activeId])
+
+  useEffect(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
+      setMyName(p.name || '')
+    } catch { /* ignore */ }
+    if (!userId) { setLoading(false); return }
+    fetch(`${API}/api/messages/groups/${userId}`)
+      .then(r => r.json())
+      .then(json => { setGroups(json); setActiveId(json[0]?.id ?? null); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [userId])
 
   const active = groups.find(g => g.id === activeId)
 
@@ -280,35 +469,137 @@ function PartGroups() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeId, active?.messages?.length])
 
+  // Live-append incoming group messages; keep unread counts in sync
+  useEffect(() => {
+    if (!socket) return
+    const handler = ({ threadId, type, message }) => {
+      if (type !== 'group') return
+      const isActive = threadId === activeIdRef.current
+      setGroups(prev => {
+        const exists = prev.some(g => g.id === threadId)
+        if (!exists) return prev
+        return prev.map(g => g.id !== threadId ? g : {
+          ...g,
+          lastMsg: `${message.name}: ${message.text || '📎 Attachment'}`,
+          time: message.time,
+          unread: isActive ? g.unread : g.unread + 1,
+          messages: [...g.messages, message],
+        })
+      })
+      if (isActive && userId) {
+        fetch(`${API}/api/messages/${threadId}/read`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        }).then(() => refetchUnreadCount?.()).catch(() => {})
+      }
+    }
+    socket.on('new-message', handler)
+    return () => socket.off('new-message', handler)
+  }, [socket, userId, refetchUnreadCount])
+
+  // Mark the selected group as read
+  useEffect(() => {
+    if (!activeId || !userId) return
+    fetch(`${API}/api/messages/${activeId}/read`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    }).then(() => refetchUnreadCount?.()).catch(() => {})
+  }, [activeId, userId, refetchUnreadCount])
+
+  // Mobile list/conversation navigation
+  const enterConversation = () => {
+    setMobileView('conversation')
+    window.history.pushState(null, '', window.location.href)
+  }
+  const returnToList = useCallback(() => setMobileView('list'), [])
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape' && mobileView === 'conversation') returnToList() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileView, returnToList])
+
+  useEffect(() => {
+    if (mobileView !== 'conversation') return
+    const onPopState = () => returnToList()
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [mobileView, returnToList])
+
+  useEffect(() => {
+    setSearchConfig?.({ visible: true, placeholder: 'Search groups…', handler: q => setSearchQuery(q.toLowerCase()) })
+  }, [setSearchConfig])
+
+  useEffect(() => {
+    if (!active) { setConversationActions?.(null); return }
+    setConversationActions?.([
+      { icon: <FiUserPlus size={16} />, label: 'Add member', onClick: () => {} },
+      { icon: <FiMoreVertical size={16} />, label: 'More options', onClick: () => {} },
+    ])
+    return () => setConversationActions?.(null)
+  }, [active, setConversationActions])
+
+  const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchQuery))
+
+  const handleAttachClick = () => fileInputRef.current?.click()
+
+  const handleFileChange = e => {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    setAttachError('')
+    const form = new FormData()
+    form.append('file', file)
+    fetch(`${API}/api/media/upload/chat-attachments`, { method: 'POST', body: form })
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error || 'Upload failed')
+        setPendingAttachment({ url: data.url, name: file.name, type: 'image' })
+      })
+      .catch(err => setAttachError(err.message))
+      .finally(() => setUploading(false))
+  }
+
   const send = () => {
     const text = draft.trim()
-    if (!text) return
+    if ((!text && !pendingAttachment) || !active || active.locked || uploading) return
+    const attachments = pendingAttachment ? [pendingAttachment] : []
+    const optimistic = { id: `local-${Date.now()}`, from: 'me', name: myName, text, time: new Date().toISOString(), date: new Date().toISOString(), attachments }
     setGroups(prev => prev.map(g =>
       g.id === activeId
-        ? { ...g, lastMsg: `You: ${text}`, time: 'Now', messages: [...g.messages, { id: Date.now(), from: 'me', name: ME.name, text, time: 'Now', date: 'Today' }] }
+        ? { ...g, lastMsg: `You: ${text || '📎 Attachment'}`, time: optimistic.time, messages: [...g.messages, optimistic] }
         : g
     ))
     setDraft('')
+    setPendingAttachment(null)
+    fetch(`${API}/api/messages/${activeId}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId: userId, senderName: myName, text, attachments }),
+    }).catch(() => {})
   }
 
   const handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
 
+  if (loading) return <div className="ch-split"><p className="ch-empty">Loading groups…</p></div>
+
   return (
-    <div className="ch-split">
+    <div className="ch-split" data-mobile-view={mobileView}>
       {/* Group list */}
       <div className="ch-list">
         <div className="ch-list-head">
-          <div className="ch-search-bar">
-            <FiSearch size={14} className="ch-search-icon" />
-            <input className="ch-search-input" placeholder="Search groups…" />
-          </div>
           <button className="ch-new-btn"><FiPlus size={14} /> New Group</button>
         </div>
-        {groups.map(g => (
+        {filteredGroups.length === 0 ? (
+          <p className="ch-empty">No messages yet.</p>
+        ) : filteredGroups.map(g => (
           <button
             key={g.id}
             className={`ch-thread${activeId === g.id ? ' ch-thread--active' : ''}`}
-            onClick={() => setActiveId(g.id)}
+            onClick={() => { setActiveId(g.id); enterConversation() }}
           >
             <Avatar initials={g.initials} color={GROUP_COLORS[g.type]} />
             <div className="ch-thread-body">
@@ -317,7 +608,7 @@ function PartGroups() {
                   {g.locked && <FiLock size={10} style={{ marginRight: 4, opacity: 0.6 }} />}
                   {g.name}
                 </span>
-                <span className="ch-thread-time">{g.time}</span>
+                <span className="ch-thread-time">{fmtListTime(g.time)}</span>
               </div>
               <div className="ch-thread-bottom">
                 <span className="ch-thread-preview">{g.lastMsg}</span>
@@ -330,109 +621,175 @@ function PartGroups() {
       </div>
 
       {/* Group conversation */}
-      <div className="ch-convo">
-        <div className="ch-convo-head">
-          <Avatar initials={active.initials} color={GROUP_COLORS[active.type]} />
-          <div className="ch-convo-head-info">
-            <span className="ch-convo-name">{active.name}</span>
-            <span className="ch-convo-sub"><FiUsers size={11} /> {active.members} members</span>
-          </div>
-          <div className="ch-convo-actions">
-            <button className="ch-icon-btn"><FiUserPlus size={16} /></button>
-            <button className="ch-icon-btn"><FiMoreVertical size={16} /></button>
-          </div>
+      {!active ? (
+        <div className="ch-convo ch-convo--empty">
+          <p className="ch-empty">No messages yet.</p>
         </div>
-
-        <div className="ch-messages">
-          {active.messages.map((m, i) => {
-            const isMe = m.from === 'me'
-            const showDate = i === 0 || active.messages[i - 1].date !== m.date
-            return (
-              <React.Fragment key={m.id}>
-                {showDate && <div className="ch-date-divider">{m.date}</div>}
-                <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
-                  {!isMe && <Avatar initials={m.name?.split(' ').map(w => w[0]).join('').slice(0,2)} size={28} />}
-                  <div className="ch-msg-bubble">
-                    {!isMe && <span className="ch-msg-sender">{m.name}</span>}
-                    <p className="ch-msg-text">{m.text}</p>
-                    <span className="ch-msg-time">
-                      {m.time}
-                      {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
-                    </span>
-                  </div>
-                </div>
-              </React.Fragment>
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
-
-        <div className="ch-composer">
-          <button className="ch-icon-btn"><FiPaperclip size={16} /></button>
-          <textarea
-            className="ch-composer-input"
-            placeholder={active.locked ? 'This group is read-only…' : 'Message the group…'}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={handleKey}
-            rows={1}
-            disabled={active.locked}
-          />
-          <button className="ch-icon-btn"><FiSmile size={16} /></button>
-          <button className={`ch-send-btn${draft.trim() && !active.locked ? ' ch-send-btn--active' : ''}`} onClick={send} disabled={active.locked}>
-            <FiSend size={15} />
+      ) : (
+        <div className="ch-convo">
+          <button className="ch-back-btn" onClick={returnToList} aria-label="Back to conversations">
+            <FiArrowLeft size={18} />
           </button>
+          <div className="ch-messages">
+            {active.messages.map((m, i) => {
+              const isMe = m.from === 'me'
+              const showDate = i === 0 || fmtDate(active.messages[i - 1].date) !== fmtDate(m.date)
+              return (
+                <React.Fragment key={m.id}>
+                  {showDate && <div className="ch-date-divider">{fmtDate(m.date)}</div>}
+                  <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
+                    {!isMe && <Avatar initials={m.name?.split(' ').map(w => w[0]).join('').slice(0,2)} size={28} />}
+                    <div className="ch-msg-bubble">
+                      {!isMe && <span className="ch-msg-sender">{m.name}</span>}
+                      {m.attachments?.[0] && (
+                        <img className="ch-msg-attachment-img" src={`${API}${m.attachments[0].url}`} alt={m.attachments[0].name || 'attachment'} />
+                      )}
+                      {m.text && <p className="ch-msg-text">{m.text}</p>}
+                      <span className="ch-msg-time">
+                        {fmtTime(m.time)}
+                        {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
+                      </span>
+                    </div>
+                  </div>
+                </React.Fragment>
+              )
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {pendingAttachment && (
+            <div className="ch-attachment-chip">
+              <img src={`${API}${pendingAttachment.url}`} alt={pendingAttachment.name} />
+              <span>{pendingAttachment.name}</span>
+              <button className="ch-attachment-chip__remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment"><FiX size={12} /></button>
+            </div>
+          )}
+          {uploading && <div className="ch-attachment-chip ch-attachment-chip--loading">Uploading…</div>}
+          {attachError && <span className="ch-modal-err"><FiAlertCircle size={12} /> {attachError}</span>}
+
+          <div className="ch-composer">
+            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <button className="ch-icon-btn" onClick={handleAttachClick} aria-label="Add attachment" disabled={active.locked}><FiPaperclip size={16} /></button>
+            <textarea
+              className="ch-composer-input"
+              placeholder={active.locked ? 'This group is read-only…' : 'Message the group…'}
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={handleKey}
+              rows={1}
+              disabled={active.locked}
+            />
+            <button className="ch-icon-btn"><FiSmile size={16} /></button>
+            <button className={`ch-send-btn${(draft.trim() || pendingAttachment) && !active.locked ? ' ch-send-btn--active' : ''}`} onClick={send} disabled={active.locked || uploading}>
+              <FiSend size={15} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
 /* ─────────────────────────────────────────────
    PART 3 — LIVE CONFERENCE
+   Real Socket.io signaling + WebRTC (mesh, STUN-only — see project notes
+   for what remains out of scope: recording, screen-share-to-peers, TURN).
 ───────────────────────────────────────────── */
-/* ── mock data ── */
-const CONF_PARTICIPANTS_INIT = [
-  { id: 'p1', name: 'User 1', micOn: true  },
-  { id: 'p2', name: 'User 2', micOn: false },
-  { id: 'p3', name: 'User 3', micOn: false },
-  { id: 'p4', name: 'User 4', micOn: false },
-  { id: 'p5', name: 'User 5', micOn: false },
-  { id: 'p6', name: 'User 6', micOn: false },
-]
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
-const CONF_HISTORY = [
-  { id: 'h1', title: 'SHS 3 Physics Lecture',  host: 'Mr. Asante Kwame', date: 'Mon, Jun 16 · 10:00 AM', duration: '52 min', participants: 28 },
-  { id: 'h2', title: 'Science Club — Lab Demo', host: 'Mrs. Boateng',     date: 'Fri, Jun 13 · 3:00 PM',  duration: '38 min', participants: 14 },
-  { id: 'h3', title: 'Prefect Board Meeting',   host: 'Head Prefect',     date: 'Wed, Jun 11 · 1:00 PM',  duration: '24 min', participants: 8  },
-]
+function PeerTile({ peer, isActive, onSelect, onFocus }) {
+  const videoRef = useRef(null)
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.srcObject = peer.stream || null
+  }, [peer.stream])
 
-const CONF_LINK = 'https://meet.achimota.edu.gh/room/SCI-4820'
+  return (
+    <div className={`vcr-tile${isActive ? ' vcr-tile--active' : ''}`} onClick={onSelect}>
+      {peer.stream ? (
+        <video ref={videoRef} autoPlay playsInline className="vcr-video" />
+      ) : (
+        <div className="vcr-tile-avatar">
+          <svg viewBox="0 0 80 80" className="vcr-avatar-svg">
+            <circle cx="40" cy="28" r="16" fill="currentColor" opacity="0.3" />
+            <ellipse cx="40" cy="68" rx="26" ry="18" fill="currentColor" opacity="0.3" />
+          </svg>
+        </div>
+      )}
+      <div className="vcr-tile-footer">
+        <span className="vcr-tile-name">{peer.name}</span>
+        {peer.micOn ? <FiMic size={13} className="vcr-mic-on" /> : <FiMicOff size={13} className="vcr-mic-off" />}
+      </div>
+      <button className="vcr-tile-expand" title="Focus" onClick={e => { e.stopPropagation(); onFocus() }}>
+        <FiMonitor size={12} />
+      </button>
+    </div>
+  )
+}
+
+function currentUserRole() {
+  try {
+    const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
+    return p.role || 'Student'
+  } catch { return 'Student' }
+}
+
+function initialsOf(name = '') {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
 
 function PartConference({ setHideTopbar }) {
+  const userId = currentUserId()
+
+  /* room identity — the user's own class group chat name is the room key */
+  const [roomKey, setRoomKey] = useState(null)
+  const [roomLoading, setRoomLoading] = useState(true)
+  const [history, setHistory] = useState([])
+
   /* room state */
   const [inRoom, setInRoom]         = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const [layout, setLayout]         = useState('grid')
-  const [activeId, setActiveId]     = useState('p1')
+  const [activeId, setActiveId]     = useState('me')
   const [micOn, setMicOn]           = useState(true)
   const [camOn, setCamOn]           = useState(false)
-  const [sharing, setSharing]       = useState(false)
-  const [recording, setRecording]   = useState(false)
-  const [recSecs, setRecSecs]       = useState(0)
-  const recIntervalRef              = useRef(null)
+  const [peers, setPeers]           = useState([])   // [{ socketId, name, role, micOn, stream }]
 
   /* panel state */
-  const [panel, setPanel]           = useState(null)   // 'invite' | 'chat' | 'doc' | 'settings'
+  const [panel, setPanel]           = useState(null)   // 'invite' | 'chat' | 'settings'
   const [chatMsg, setChatMsg]       = useState('')
-  const [chatLog, setChatLog]       = useState([
-    { id: 1, from: 'Mr. Asante Kwame', text: 'Good morning everyone, please keep your mics muted unless speaking.', time: 'Just now' },
-  ])
+  const [chatLog, setChatLog]       = useState([])
 
-  /* photo flash */
-  const [photoFlash, setPhotoFlash] = useState(false)
   const [toast, setToast]           = useState(null)
 
+  const socketRef      = useRef(null)
+  const localStreamRef = useRef(null)
+  const localVideoRef  = useRef(null)
+  const peerConnsRef   = useRef(new Map())   // socketId -> RTCPeerConnection
+  const peersRef       = useRef([])          // mirrors `peers` for use inside socket callbacks
+
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+
+  useEffect(() => { peersRef.current = peers }, [peers])
+
+  /* resolve this user's class room + past conference history */
+  useEffect(() => {
+    if (!userId) { setRoomLoading(false); return }
+    fetch(`${API}/api/messages/groups/${userId}`)
+      .then(r => r.json())
+      .then(groups => {
+        const classGroup = groups.find(g => g.type === 'class')
+        setRoomKey(classGroup?.name || null)
+        setRoomLoading(false)
+      })
+      .catch(() => setRoomLoading(false))
+  }, [userId])
+
+  useEffect(() => {
+    fetch(`${API}/api/conferences/active`)
+      .then(r => r.json())
+      .then(setHistory)
+      .catch(() => {})
+  }, [])
 
   /* hide topbar while in room, restore on exit */
   useEffect(() => {
@@ -445,44 +802,99 @@ function PartConference({ setHideTopbar }) {
     setTimeout(() => setToast(null), 2400)
   }
 
-  /* recording timer */
-  const toggleRecord = () => {
-    if (recording) {
-      clearInterval(recIntervalRef.current)
-      setRecording(false)
-      setRecSecs(0)
-      showToast('Recording saved')
-    } else {
-      setRecording(true)
-      setRecSecs(0)
-      recIntervalRef.current = setInterval(() => setRecSecs(s => s + 1), 1000)
-      showToast('Recording started')
-    }
-  }
-  const fmtTime = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-
-  /* photo */
-  const takePhoto = () => {
-    setPhotoFlash(true)
-    setTimeout(() => setPhotoFlash(false), 350)
-    showToast('Screenshot captured')
-  }
-
-  /* share screen */
-  const toggleShare = () => {
-    setSharing(v => !v)
-    showToast(sharing ? 'Screen sharing stopped' : 'Screen sharing started')
-  }
-
-  /* copy invite link */
   const copyLink = () => {
-    navigator.clipboard?.writeText(CONF_LINK).catch(() => {})
-    showToast('Link copied!')
+    if (!roomKey) return
+    navigator.clipboard?.writeText(roomKey).catch(() => {})
+    showToast('Room name copied!')
+  }
+
+  function createPeerConnection(socketId, name, role) {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    localStreamRef.current?.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current))
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socketRef.current?.emit('signal', { to: socketId, data: { candidate: e.candidate } })
+    }
+    pc.ontrack = (e) => {
+      setPeers(prev => prev.map(p => p.socketId === socketId ? { ...p, stream: e.streams[0] } : p))
+    }
+
+    peerConnsRef.current.set(socketId, pc)
+    setPeers(prev => prev.some(p => p.socketId === socketId)
+      ? prev
+      : [...prev, { socketId, name, role, micOn: true, stream: null }])
+    return pc
+  }
+
+  async function joinRoom() {
+    if (!roomKey || !userId) return
+    setConnecting(true)
+    try {
+      localStreamRef.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current
+    } catch {
+      showToast('Camera/microphone permission denied — joining audio/video off')
+    }
+
+    const socket = io(API)
+    socketRef.current = socket
+
+    // Existing room members: we initiate an offer to each of them.
+    socket.on('room-joined', async ({ roster }) => {
+      for (const { socketId, name, role } of roster) {
+        const pc = createPeerConnection(socketId, name, role)
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        socket.emit('signal', { to: socketId, data: { sdp: offer } })
+      }
+    })
+
+    // A peer who joins after us: they will send us an offer via 'signal',
+    // so here we just track that they exist (tile appears once ontrack fires).
+    socket.on('user-joined', ({ socketId, name, role }) => {
+      createPeerConnection(socketId, name, role)
+    })
+
+    socket.on('signal', async ({ from, data }) => {
+      let pc = peerConnsRef.current.get(from)
+      if (!pc) pc = createPeerConnection(from, 'Participant', 'Student')
+
+      if (data.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp))
+        if (data.sdp.type === 'offer') {
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          socket.emit('signal', { to: from, data: { sdp: answer } })
+        }
+      } else if (data.candidate) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)) } catch { /* ignore */ }
+      }
+    })
+
+    socket.on('peer-mic-state', ({ socketId, micOn: peerMicOn }) => {
+      setPeers(prev => prev.map(p => p.socketId === socketId ? { ...p, micOn: peerMicOn } : p))
+    })
+
+    socket.on('user-left', ({ socketId }) => {
+      peerConnsRef.current.get(socketId)?.close()
+      peerConnsRef.current.delete(socketId)
+      setPeers(prev => prev.filter(p => p.socketId !== socketId))
+    })
+
+    socket.on('chat-message', ({ from, text, time }) => {
+      setChatLog(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, from, text, time: new Date(time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }])
+    })
+
+    socket.emit('join-room', { conferenceId: roomKey, userId, name: JSON.parse(localStorage.getItem('signedInProfile') || '{}').name, role: currentUserRole() })
+
+    setConnecting(false)
+    setInRoom(true)
   }
 
   /* send in-call chat */
   const sendChat = () => {
     if (!chatMsg.trim()) return
+    socketRef.current?.emit('chat-message', { text: chatMsg.trim() })
     setChatLog(prev => [...prev, { id: Date.now(), from: 'You', text: chatMsg.trim(), time: 'Just now' }])
     setChatMsg('')
   }
@@ -493,18 +905,46 @@ function PartConference({ setHideTopbar }) {
     setLayout('focus')
   }
 
-  /* exit cleans up recording */
+  /* mic/cam operate on the real MediaStream tracks */
+  const toggleMic = () => {
+    const next = !micOn
+    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = next })
+    setMicOn(next)
+    socketRef.current?.emit('mic-state', { micOn: next })
+  }
+  const toggleCam = () => {
+    const next = !camOn
+    localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = next })
+    setCamOn(next)
+  }
+
+  /* exit cleans up all peer connections + local media */
   const exitRoom = () => {
-    clearInterval(recIntervalRef.current)
-    setRecording(false)
-    setRecSecs(0)
+    socketRef.current?.emit('leave-room')
+    socketRef.current?.disconnect()
+    socketRef.current = null
+
+    peerConnsRef.current.forEach(pc => pc.close())
+    peerConnsRef.current.clear()
+    localStreamRef.current?.getTracks().forEach(t => t.stop())
+    localStreamRef.current = null
+
+    setPeers([])
+    setChatLog([])
     setPanel(null)
     setMicOn(true)
     setCamOn(false)
-    setSharing(false)
     setLayout('grid')
     setInRoom(false)
   }
+
+  useEffect(() => () => {
+    // cleanup if the component unmounts while still in a room
+    socketRef.current?.emit('leave-room')
+    socketRef.current?.disconnect()
+    peerConnsRef.current.forEach(pc => pc.close())
+    localStreamRef.current?.getTracks().forEach(t => t.stop())
+  }, [])
 
   const togglePanel = (name) => setPanel(p => p === name ? null : name)
 
@@ -513,19 +953,11 @@ function PartConference({ setHideTopbar }) {
     return (
       <div className="vcr-shell">
 
-        {/* flash overlay for photo */}
-        {photoFlash && <div className="vcr-flash" />}
-
         {/* toast */}
         {toast && <div className="vcr-toast">{toast}</div>}
 
         {/* chrome bar */}
         <div className="vcr-chrome">
-          {recording && (
-            <span className="vcr-rec-badge">
-              <span className="vcr-rec-dot" /> REC {fmtTime(recSecs)}
-            </span>
-          )}
           <span className="vcr-chrome-title">Video Meeting</span>
           <div className="vcr-chrome-controls">
             <span className="vcr-chrome-btn" title="Minimise" />
@@ -537,7 +969,7 @@ function PartConference({ setHideTopbar }) {
         {/* header */}
         <div className="vcr-header">
           <div className="vcr-header-left">
-            <h2 className="vcr-meeting-title">Your Online Webinar</h2>
+            <h2 className="vcr-meeting-title">{roomKey || 'Conference'}</h2>
             <p className="vcr-meeting-date">{today}</p>
           </div>
           <div className="vcr-header-right">
@@ -557,42 +989,40 @@ function PartConference({ setHideTopbar }) {
 
           {/* video grid */}
           <div className={`vcr-grid vcr-grid--${layout}`}>
-            {CONF_PARTICIPANTS_INIT.map(p => {
-              const isMe = p.id === 'p1'
-              const effectiveMic = isMe ? micOn : p.micOn
-              return (
-                <div
-                  key={p.id}
-                  className={`vcr-tile${p.id === activeId ? ' vcr-tile--active' : ''}${sharing && isMe ? ' vcr-tile--sharing' : ''}`}
-                  onClick={() => setActiveId(p.id)}
-                >
-                  {isMe && camOn ? (
-                    <div className="vcr-cam-live"><FiVideo size={28} /><span>Camera On</span></div>
-                  ) : (
-                    <div className="vcr-tile-avatar">
-                      <svg viewBox="0 0 80 80" className="vcr-avatar-svg">
-                        <circle cx="40" cy="28" r="16" fill="currentColor" opacity="0.3" />
-                        <ellipse cx="40" cy="68" rx="26" ry="18" fill="currentColor" opacity="0.3" />
-                      </svg>
-                    </div>
-                  )}
-                  {sharing && isMe && <div className="vcr-sharing-badge"><FiMonitor size={11} /> Sharing</div>}
-                  <div className="vcr-tile-footer">
-                    <span className="vcr-tile-name">{isMe ? 'You' : p.name}</span>
-                    {effectiveMic
-                      ? <FiMic size={13} className="vcr-mic-on" />
-                      : <FiMicOff size={13} className="vcr-mic-off" />}
-                  </div>
-                  <button
-                    className="vcr-tile-expand"
-                    title="Focus"
-                    onClick={e => { e.stopPropagation(); focusTile(p.id) }}
-                  >
-                    <FiMonitor size={12} />
-                  </button>
+            {/* local tile */}
+            <div
+              className={`vcr-tile${activeId === 'me' ? ' vcr-tile--active' : ''}`}
+              onClick={() => setActiveId('me')}
+            >
+              {camOn ? (
+                <video ref={localVideoRef} autoPlay muted playsInline className="vcr-video" />
+              ) : (
+                <div className="vcr-tile-avatar">
+                  <svg viewBox="0 0 80 80" className="vcr-avatar-svg">
+                    <circle cx="40" cy="28" r="16" fill="currentColor" opacity="0.3" />
+                    <ellipse cx="40" cy="68" rx="26" ry="18" fill="currentColor" opacity="0.3" />
+                  </svg>
                 </div>
-              )
-            })}
+              )}
+              <div className="vcr-tile-footer">
+                <span className="vcr-tile-name">You</span>
+                {micOn ? <FiMic size={13} className="vcr-mic-on" /> : <FiMicOff size={13} className="vcr-mic-off" />}
+              </div>
+              <button className="vcr-tile-expand" title="Focus" onClick={e => { e.stopPropagation(); focusTile('me') }}>
+                <FiMonitor size={12} />
+              </button>
+            </div>
+
+            {/* remote peer tiles */}
+            {peers.map(p => (
+              <PeerTile
+                key={p.socketId}
+                peer={p}
+                isActive={activeId === p.socketId}
+                onSelect={() => setActiveId(p.socketId)}
+                onFocus={() => focusTile(p.socketId)}
+              />
+            ))}
           </div>
 
           {/* side panel */}
@@ -603,16 +1033,20 @@ function PartConference({ setHideTopbar }) {
                 <button className="vcr-panel-close" onClick={() => setPanel(null)}><FiX size={15} /></button>
               </div>
               <div className="vcr-panel-body">
-                <p className="vcr-panel-label">Meeting link</p>
+                <p className="vcr-panel-label">Room</p>
                 <div className="vcr-invite-link">
-                  <span className="vcr-invite-url">{CONF_LINK}</span>
+                  <span className="vcr-invite-url">{roomKey}</span>
                   <button className="vcr-invite-copy" onClick={copyLink}><FiCheck size={14} /> Copy</button>
                 </div>
-                <p className="vcr-panel-label" style={{ marginTop: 20 }}>Participants ({CONF_PARTICIPANTS_INIT.length})</p>
-                {CONF_PARTICIPANTS_INIT.map(p => (
-                  <div key={p.id} className="vcr-panel-participant">
-                    <div className="vcr-panel-avatar">{p.name[0]}{p.name.split(' ')[1]?.[0]}</div>
-                    <span>{p.id === 'p1' ? 'You (Host)' : p.name}</span>
+                <p className="vcr-panel-label" style={{ marginTop: 20 }}>Participants ({peers.length + 1})</p>
+                <div className="vcr-panel-participant">
+                  <div className="vcr-panel-avatar">You</div>
+                  <span>You</span>
+                </div>
+                {peers.map(p => (
+                  <div key={p.socketId} className="vcr-panel-participant">
+                    <div className="vcr-panel-avatar">{initialsOf(p.name)}</div>
+                    <span>{p.name}</span>
                   </div>
                 ))}
               </div>
@@ -649,31 +1083,6 @@ function PartConference({ setHideTopbar }) {
             </div>
           )}
 
-          {panel === 'doc' && (
-            <div className="vcr-panel">
-              <div className="vcr-panel-header">
-                <span>Documents</span>
-                <button className="vcr-panel-close" onClick={() => setPanel(null)}><FiX size={15} /></button>
-              </div>
-              <div className="vcr-panel-body">
-                {[
-                  { name: 'Physics Notes — EM Induction.pdf', size: '1.2 MB' },
-                  { name: 'Timetable Term 3.pdf', size: '340 KB' },
-                  { name: 'Assignment Sheet.docx', size: '88 KB' },
-                ].map((d, i) => (
-                  <div key={i} className="vcr-doc-item">
-                    <FiFileText size={18} className="vcr-doc-icon" />
-                    <div className="vcr-doc-info">
-                      <span className="vcr-doc-name">{d.name}</span>
-                      <span className="vcr-doc-size">{d.size}</span>
-                    </div>
-                    <button className="vcr-doc-dl" title="Download"><FiDownload size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {panel === 'settings' && (
             <div className="vcr-panel">
               <div className="vcr-panel-header">
@@ -693,10 +1102,10 @@ function PartConference({ setHideTopbar }) {
                   </button>
                 ))}
                 <p className="vcr-panel-label" style={{ marginTop: 18 }}>Audio &amp; Video</p>
-                <button className={`vcr-setting-opt${micOn ? ' vcr-setting-opt--on' : ''}`} onClick={() => setMicOn(v => !v)}>
+                <button className={`vcr-setting-opt${micOn ? ' vcr-setting-opt--on' : ''}`} onClick={toggleMic}>
                   {micOn ? <FiMic size={14} /> : <FiMicOff size={14} />} Microphone {micOn ? 'On' : 'Off'}
                 </button>
-                <button className={`vcr-setting-opt${camOn ? ' vcr-setting-opt--on' : ''}`} onClick={() => setCamOn(v => !v)}>
+                <button className={`vcr-setting-opt${camOn ? ' vcr-setting-opt--on' : ''}`} onClick={toggleCam}>
                   {camOn ? <FiVideo size={14} /> : <FiVideoOff size={14} />} Camera {camOn ? 'On' : 'Off'}
                 </button>
               </div>
@@ -706,42 +1115,11 @@ function PartConference({ setHideTopbar }) {
 
         {/* toolbar */}
         <div className="vcr-toolbar">
-          <button className="vcr-toolbar-visit" onClick={() => showToast('Opening portal…')}>
-            <FiChevronRight size={13} /> Visit site
-          </button>
           <div className="vcr-toolbar-actions">
-
-            <button className="vcr-tool-btn" onClick={takePhoto} title="Take screenshot">
-              <span className="vcr-tool-icon"><FiVideo size={19} /></span>
-              <span className="vcr-tool-label">Photo</span>
-            </button>
-
-            <button
-              className={`vcr-tool-btn${recording ? ' vcr-tool-btn--recording' : ''}`}
-              onClick={toggleRecord}
-              title={recording ? 'Stop recording' : 'Start recording'}
-            >
-              <span className="vcr-tool-icon"><FiMonitor size={19} /></span>
-              <span className="vcr-tool-label">{recording ? fmtTime(recSecs) : 'Record'}</span>
-            </button>
 
             <button className={`vcr-tool-btn${panel === 'invite' ? ' vcr-tool-btn--active' : ''}`} onClick={() => togglePanel('invite')} title="Invite people">
               <span className="vcr-tool-icon"><FiUserPlus size={19} /></span>
               <span className="vcr-tool-label">Invite</span>
-            </button>
-
-            <button
-              className={`vcr-tool-btn vcr-tool-btn--share${sharing ? ' vcr-tool-btn--sharing' : ''}`}
-              onClick={toggleShare}
-              title={sharing ? 'Stop sharing' : 'Share screen'}
-            >
-              <span className="vcr-tool-icon"><FiMonitor size={19} /></span>
-              <span className="vcr-tool-label">{sharing ? 'Stop Share' : 'Share'}</span>
-            </button>
-
-            <button className={`vcr-tool-btn${panel === 'doc' ? ' vcr-tool-btn--active' : ''}`} onClick={() => togglePanel('doc')} title="Documents">
-              <span className="vcr-tool-icon"><FiFileText size={19} /></span>
-              <span className="vcr-tool-label">Document</span>
             </button>
 
             <button className={`vcr-tool-btn${panel === 'chat' ? ' vcr-tool-btn--active' : ''}`} onClick={() => togglePanel('chat')} title="In-call chat">
@@ -760,14 +1138,14 @@ function PartConference({ setHideTopbar }) {
           <div className="vcr-toolbar-quick">
             <button
               className={`vcr-quick-btn${!micOn ? ' vcr-quick-btn--off' : ''}`}
-              onClick={() => setMicOn(v => !v)}
+              onClick={toggleMic}
               title={micOn ? 'Mute' : 'Unmute'}
             >
               {micOn ? <FiMic size={16} /> : <FiMicOff size={16} />}
             </button>
             <button
               className={`vcr-quick-btn${!camOn ? ' vcr-quick-btn--off' : ''}`}
-              onClick={() => setCamOn(v => !v)}
+              onClick={toggleCam}
               title={camOn ? 'Stop camera' : 'Start camera'}
             >
               {camOn ? <FiVideo size={16} /> : <FiVideoOff size={16} />}
@@ -783,27 +1161,37 @@ function PartConference({ setHideTopbar }) {
     <div className="vcr-landing">
       <div className="vcr-empty">
         <div className="vcr-empty-icon"><FiVideo size={36} /></div>
-        <h2 className="vcr-empty-title">No Live Conference Available</h2>
-        <p className="vcr-empty-sub">There are no active sessions right now. Start one or wait for a host to begin.</p>
-        <button className="vcr-create-btn" onClick={() => setInRoom(true)}>
-          <FiPlus size={16} /> Create a Conference
-        </button>
+        {roomLoading ? (
+          <h2 className="vcr-empty-title">Loading your class room…</h2>
+        ) : !roomKey ? (
+          <>
+            <h2 className="vcr-empty-title">No Class Room Found</h2>
+            <p className="vcr-empty-sub">You need to be part of a class group chat to join a video conference.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="vcr-empty-title">{roomKey}</h2>
+            <p className="vcr-empty-sub">Join your class's video conference — everyone in {roomKey} lands in the same room.</p>
+            <button className="vcr-create-btn" onClick={joinRoom} disabled={connecting}>
+              <FiPlus size={16} /> {connecting ? 'Joining…' : 'Join Conference'}
+            </button>
+          </>
+        )}
       </div>
 
-      {CONF_HISTORY.length > 0 && (
+      {history.length > 0 && (
         <div className="vcr-history">
-          <h3 className="vcr-history-title">Previous Conferences</h3>
+          <h3 className="vcr-history-title">Currently Live</h3>
           <div className="vcr-history-list">
-            {CONF_HISTORY.map(h => (
-              <div key={h.id} className="vcr-history-item">
+            {history.map(h => (
+              <div key={h._id} className="vcr-history-item">
                 <div className="vcr-history-icon"><FiVideo size={18} /></div>
                 <div className="vcr-history-info">
                   <span className="vcr-history-name">{h.title}</span>
-                  <span className="vcr-history-meta">{h.host} · {h.date}</span>
+                  <span className="vcr-history-meta">Hosted by {h.hostName}</span>
                 </div>
                 <div className="vcr-history-right">
-                  <span className="vcr-history-duration"><FiClock size={11} /> {h.duration}</span>
-                  <span className="vcr-history-count"><FiUsers size={11} /> {h.participants}</span>
+                  <span className="vcr-history-count"><FiUsers size={11} /> {h.participants?.filter(p => !p.leftAt).length ?? 0}</span>
                 </div>
               </div>
             ))}
@@ -818,16 +1206,34 @@ function PartConference({ setHideTopbar }) {
    PART 4 — WRITE REPORT
 ───────────────────────────────────────────── */
 function PartReport() {
+  const userId = currentUserId()
   const [selected, setSelected] = useState(null)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [anonymous, setAnonymous] = useState(false)
   const [sent, setSent] = useState(false)
+  const [pastReports, setPastReports] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) { setLoading(false); return }
+    fetch(`${API}/api/reports/${userId}`)
+      .then(r => r.json())
+      .then(json => { setPastReports(json); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [userId])
 
   const handleSubmit = e => {
     e.preventDefault()
-    if (!selected || !subject.trim() || !body.trim()) return
-    setSent(true)
+    if (!selected || !subject.trim() || !body.trim() || !userId) return
+    fetch(`${API}/api/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submitterId: userId, type: selected, subject: subject.trim(), body: body.trim(), anonymous }),
+    })
+      .then(r => r.json())
+      .then(created => { setPastReports(prev => [created, ...prev]); setSent(true) })
+      .catch(() => {})
   }
 
   if (sent) {
@@ -905,20 +1311,22 @@ function PartReport() {
         {/* Right — past reports */}
         <div className="ch-report-history-col">
           <h3 className="ch-report-heading">Past Reports</h3>
-          {PAST_REPORTS.length === 0
-            ? <p className="ch-report-empty">No reports submitted yet.</p>
-            : PAST_REPORTS.map(r => (
-              <div key={r.id} className="ch-report-item">
-                <div className="ch-report-item-top">
-                  <span className="ch-report-item-type">{r.type}</span>
-                  <span className={`ch-report-item-status ch-report-item-status--${r.status}`}>
-                    {r.status === 'reviewed' ? <><FiCheckCircle size={11} /> Reviewed</> : <><FiClock size={11} /> Pending</>}
-                  </span>
+          {loading
+            ? <p className="ch-report-empty">Loading…</p>
+            : pastReports.length === 0
+              ? <p className="ch-report-empty">No reports submitted yet.</p>
+              : pastReports.map(r => (
+                <div key={r._id} className="ch-report-item">
+                  <div className="ch-report-item-top">
+                    <span className="ch-report-item-type">{r.type}</span>
+                    <span className={`ch-report-item-status ch-report-item-status--${r.status}`}>
+                      {r.status === 'reviewed' ? <><FiCheckCircle size={11} /> Reviewed</> : <><FiClock size={11} /> Pending</>}
+                    </span>
+                  </div>
+                  <p className="ch-report-item-subject">{r.subject}</p>
+                  <span className="ch-report-item-date">{fmtDate(r.createdAt)}</span>
                 </div>
-                <p className="ch-report-item-subject">{r.subject}</p>
-                <span className="ch-report-item-date">{r.date}</span>
-              </div>
-            ))
+              ))
           }
         </div>
       </div>
@@ -937,7 +1345,8 @@ const PARTS = [
 ]
 
 export default function Chat() {
-  const { setSideMenu, setSearchConfig, setNotchText, applyNotchTabs, setNotchActiveTab, setHideTopbar } = useOutletContext()
+  const { setSideMenu, setSearchConfig, setConversationActions, setNotchText, applyNotchTabs, setNotchActiveTab, setHideTopbar } = useOutletContext()
+  const { unreadCount } = useSocket() || {}
   const [part, setPart] = useState('inbox')
 
   useEffect(() => {
@@ -953,21 +1362,21 @@ export default function Chat() {
         type: 'group', title: 'Advanced', icon: Icons.bell,
         children: [
           { title: 'Announcements', to: '/announcement',  icon: Icons.bell },
-          { title: 'Chat',          to: '/chat',           icon: Icons.chat },
+          { title: 'Chat',          to: '/chat',           icon: Icons.chat, badge: unreadCount },
           { title: 'Library',       to: '/library-users',  icon: Icons.library },
           { title: 'Syllabus',      to: '/syllabus',       icon: Icons.syllabus },
         ],
       },
       { title: 'Settings', to: '/settings', icon: Icons.settings },
     ])
-    setSearchConfig({ visible: false })
+    // Search is owned per-tab by PartInbox/PartGroups (setSearchConfig called there)
     // Defer one tick so Layout's pathname-change effect (which clears tabs) fires first
     const t = setTimeout(() => {
       applyNotchTabs(PARTS.map(p => ({ label: p.label, value: p.value })))
       setNotchActiveTab('inbox')
     }, 0)
     return () => clearTimeout(t)
-  }, [setSideMenu, setSearchConfig, setNotchText, applyNotchTabs, setNotchActiveTab])
+  }, [setSideMenu, setNotchText, applyNotchTabs, setNotchActiveTab, unreadCount])
 
   useEffect(() => {
     const handler = e => { if (e.detail?.value) setPart(e.detail.value) }
@@ -975,11 +1384,19 @@ export default function Chat() {
     return () => window.removeEventListener('notchTabChange', handler)
   }, [])
 
+  // Live Conference / Write Report have no conversation — clear any leftover tray
+  useEffect(() => {
+    if (part === 'conference' || part === 'report') setConversationActions?.(null)
+  }, [part, setConversationActions])
+
+  // Clear the tray on navigating away from Chat entirely
+  useEffect(() => () => setConversationActions?.(null), [setConversationActions])
+
   return (
     <div className="ch-main">
       <div className="ch-body">
-        {part === 'inbox'      && <PartInbox />}
-        {part === 'groups'     && <PartGroups />}
+        {part === 'inbox'      && <PartInbox setSearchConfig={setSearchConfig} setConversationActions={setConversationActions} />}
+        {part === 'groups'     && <PartGroups setSearchConfig={setSearchConfig} setConversationActions={setConversationActions} />}
         {part === 'conference' && <PartConference setHideTopbar={setHideTopbar} />}
         {part === 'report'     && <PartReport />}
       </div>

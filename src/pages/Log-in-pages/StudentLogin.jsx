@@ -5,7 +5,7 @@ import { Icons } from '../../assets/icons'
 import '../../styles/Login.css'
 import API from '../../config/api'
 
-const ID_REGEX = /^[A-Za-z][A-Za-z0-9_]{2,19}$/
+const ID_REGEX = /^[A-Za-z0-9][A-Za-z0-9_\-]{2,29}$/
 
 function Spinner() {
   return (
@@ -51,7 +51,7 @@ export default function StudentLogin() {
     if (!studentId.trim()) {
       errs.studentId = 'Student ID is required'
     } else if (!ID_REGEX.test(studentId.trim())) {
-      errs.studentId = 'Format: e.g. STU20240001 or Student_001'
+      errs.studentId = 'Format: e.g. ACH-S-001'
     }
     if (!password) {
       errs.password = 'Password is required'
@@ -97,24 +97,8 @@ export default function StudentLogin() {
         program:  data.program,
       })
     } catch {
-      // Backend unavailable — fall back to demo credentials
-      if (
-        studentId.trim().toLowerCase() === 'student_001' &&
-        password === 'Pass123'
-      ) {
-        saveAndGo({
-          role:     'student',
-          name:     'Michael Owusu',
-          username: 'Student_001',
-          id:       'STU20240001',
-          email:    'michael.owusu@achimota.edu.gh',
-          photo:    null,
-          program:  'General Science',
-        })
-      } else {
-        setError('Could not connect to server. Please try again.')
-        setLoading(false)
-      }
+      setError('Could not connect to server. Please try again.')
+      setLoading(false)
     }
   }
 
@@ -156,7 +140,7 @@ export default function StudentLogin() {
                   <input
                     id="forgotId"
                     type="text"
-                    placeholder="e.g. STU20240001 or Student_001"
+                    placeholder="e.g. ACH-S-001"
                     value={forgotId}
                     onChange={e => setForgotId(e.target.value)}
                     disabled={loading}
@@ -205,7 +189,7 @@ export default function StudentLogin() {
                 ref={idRef}
                 id="studentId"
                 type="text"
-                placeholder="e.g. STU20240001"
+                placeholder="e.g. ACH-S-001"
                 value={studentId}
                 onChange={e => { setStudentId(e.target.value); setFieldErrors(p => ({ ...p, studentId: '' })) }}
                 disabled={loading}

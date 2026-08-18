@@ -1,117 +1,79 @@
 import React, { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Icons } from '../../../assets/icons'
+import { useAdminPortal } from '../../../hooks/useAdminPortal'
+import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import '../../../styles/admin/Data/Infrastructure.css'
-import '../../../styles/PageContent.css' 
+import '../../../styles/PageContent.css'
+
+const COND_COLOR = { Excellent:'#10b981', Good:'#3b82f6', Fair:'#f59e0b', Poor:'#ef4444', 'Under Repair':'#8b5cf6' }
 
 export default function Infrastructure() {
-  const {setIsOpen, setSideMenu, setSearchConfig, setNotchText} = useOutletContext();
-  const [infrastructure] = useState([
-    { id: 1, name: 'Science Block', status: 'Good', capacity: 450, lastMaintenance: '2024-01-10' },
-    { id: 2, name: 'Library', status: 'Excellent', capacity: 300, lastMaintenance: '2024-01-15' },
-    { id: 3, name: 'Sports Complex', status: 'Good', capacity: 600, lastMaintenance: '2024-01-12' },
-    { id: 4, name: 'Auditorium', status: 'Fair', capacity: 800, lastMaintenance: '2024-01-05' }
-  ]);
+  const session = useAdminPortal('Infrastructure', 'Search facilities…')
+  const { apiFetch } = useAdminAuth()
+
+  const [facilities, setFacilities] = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState('')
+  const [category,   setCategory]   = useState('')
 
   useEffect(() => {
-    setNotchText('Infrastructure');
-    setSearchConfig({
-      visible: true,
-      placeholder: 'Search facilities, status',
-      Icon: Icons.search,
-      handler: (q) => console.log('Infrastructure search:', q)
-    });
-    setSideMenu([
-      {label: "Home", path: "/", icon: Icons.home},
-      {label: "Gallery", path: "/gallery", icon: Icons.gallery},
-      {label: "Page", path: "/page", icon: Icons.page},
-      {label: "Map", path: "/map", icon: Icons.map},
-      {label: "PTA Shop", path: "/pta-shop", icon: Icons.shopping},
-      {label: "About", path: "/about", icon: Icons.about},
-      {label: "Settings", path: "/settings", icon: Icons.settings}
-    ])
-  }, [setNotchText, setSideMenu, setSearchConfig]);
+    if (!session) return
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    setLoading(true)
+    apiFetch(`/api/admin/data/infrastructure?${params}`)
+      .then(data => setFacilities(data.facilities || []))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [session, category])
+
+  const counts = facilities.reduce((acc, f) => { acc[f.condition]=(acc[f.condition]||0)+1; return acc }, {})
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Infrastructure Management</h1>
-        <p>Monitor and maintain school facilities and resources</p>
+        <h1>Infrastructure</h1>
+        <p>Facilities, maintenance logs and condition tracking</p>
       </div>
 
       <div className="stats-section">
-        <div className="stat-box">
-          <div className="stat-value">12</div>
-          <div className="stat-label">Total Facilities</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">10</div>
-          <div className="stat-label">Good Condition</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">2650</div>
-          <div className="stat-label">Total Capacity</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">8</div>
-          <div className="stat-label">Maintenance Plans</div>
-        </div>
+        <div className="stat-box"><div className="stat-value">{facilities.length}</div><div className="stat-label">Facilities</div></div>
+        <div className="stat-box"><div className="stat-value">{counts.Excellent??0}</div><div className="stat-label">Excellent</div></div>
+        <div className="stat-box"><div className="stat-value">{counts.Good??0}</div><div className="stat-label">Good</div></div>
+        <div className="stat-box"><div className="stat-value">{(counts.Poor??0)+(counts['Under Repair']??0)}</div><div className="stat-label">Needs Attention</div></div>
       </div>
 
-      <div className="content-grid">
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#ef4444'}}>
-            <Icons.alert style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Maintenance Requests</h3>
-          <p>Create and track facility maintenance needs</p>
-          <button className="page-button">Submit Request</button>
-        </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#3b82f6'}}>
-            <Icons.chart style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Facility Reports</h3>
-          <p>View detailed infrastructure analytics and reports</p>
-          <button className="page-button">View Reports</button>
-        </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#10b981'}}>
-            <Icons.settings style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Schedule Maintenance</h3>
-          <p>Plan preventive maintenance for all facilities</p>
-          <button className="page-button">Schedule</button>
-        </div>
+      <div className="ap-filters">
+        <select value={category} onChange={e => setCategory(e.target.value)}>
+          <option value="">All categories</option>
+          {['Classroom','Laboratory','Dormitory','Sports','Chapel','Dining','Admin','ICT','Library','Other'].map(c=><option key={c}>{c}</option>)}
+        </select>
       </div>
 
-      <div className="table-container">
-        <h2>Facilities Overview</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Facility Name</th>
-              <th>Status</th>
-              <th>Capacity</th>
-              <th>Last Maintenance</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {infrastructure.map(facility => (
-              <tr key={facility.id}>
-                <td><strong>{facility.name}</strong></td>
-                <td><span style={{color: facility.status === 'Excellent' ? '#10b981' : facility.status === 'Good' ? '#f59e0b' : '#ef4444'}}>{facility.status}</span></td>
-                <td>{facility.capacity}</td>
-                <td>{facility.lastMaintenance}</td>
-                <td><button className="page-button">Details</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading && <p className="ap-loading">Loading facilities…</p>}
+      {error   && <p className="ap-error">{error}</p>}
+
+      {!loading && !error && (
+        <div className="table-container">
+          <h2>Facility Records</h2>
+          <table>
+            <thead>
+              <tr><th>Facility</th><th>Category</th><th>Location</th><th>Capacity</th><th>Condition</th></tr>
+            </thead>
+            <tbody>
+              {facilities.slice(0,100).map(f => (
+                <tr key={f._id}>
+                  <td><strong>{f.facilityName}</strong></td>
+                  <td>{f.category||'—'}</td>
+                  <td>{f.location||'—'}</td>
+                  <td>{f.capacity||'—'}</td>
+                  <td><span style={{color:COND_COLOR[f.condition]||'#6b7280',fontWeight:600}}>{f.condition}</span></td>
+                </tr>
+              ))}
+              {facilities.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No facilities found</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

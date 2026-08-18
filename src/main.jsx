@@ -7,6 +7,8 @@ import './styles/scrollbar.css'
 import { ThemeProvider } from 'next-themes'
 
 import { NotchProvider } from './contexts/NotchContext.jsx'
+import { AdminAuthProvider } from './contexts/AdminAuthContext.jsx'
+import { SocketProvider } from './contexts/SocketContext.jsx'
 import App from './App.jsx'
 
 // Apply saved or system theme before app renders so the whole page uses correct variables
@@ -39,6 +41,8 @@ try {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
+      <AdminAuthProvider>
+      <SocketProvider>
       <NotchProvider>
         <ThemeProvider
           attribute="data-theme"
@@ -49,6 +53,8 @@ createRoot(document.getElementById('root')).render(
           <App />
         </ThemeProvider>
       </NotchProvider>
+      </SocketProvider>
+      </AdminAuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

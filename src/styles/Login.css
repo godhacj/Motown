@@ -647,6 +647,20 @@
   }
 }
 
+@media (max-width: 400px) {
+  .sl-shell {
+    /* inset:0 already fills the fixed layer; min-height with dvh makes
+       the flex container respect the visible viewport excluding browser chrome */
+    min-height: 100dvh;
+    /* Restore centering that the 480px breakpoint overrides to flex-start.
+       padding-top matches topbar (top:10px + height:4.5em) so the card
+       centres in the visible area below the topbar, not behind it. */
+    align-items: center;
+    padding-top: calc(10px + 4.5em);
+    padding-bottom: calc(10px + 4.5em);
+  }
+}
+
 .sl-page-content {
   min-height: 100%;
   display: flex;

@@ -1,116 +1,80 @@
 import React, { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Icons } from '../../assets/icons'
+import { useAdminPortal } from '../../hooks/useAdminPortal'
+import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import '../../styles/admin/House.css'
-import '../../styles/PageContent.css' 
+import '../../styles/PageContent.css'
 
 export default function House() {
-  const {setIsOpen, setSideMenu, setSearchConfig, setNotchText} = useOutletContext();
-  const [houses] = useState([
-    { id: 1, name: 'Livingstone House', members: 85, captain: 'James Kiprotich', points: 1250 },
-    { id: 2, name: 'Darwin House', members: 82, captain: 'Sarah Kiplagat', points: 1180 },
-    { id: 3, name: 'Newton House', members: 88, captain: 'Michael Kipchoge', points: 1320 }
-  ]);
+  const session = useAdminPortal('Houses', 'Search houses…')
+  const { apiFetch } = useAdminAuth()
+
+  const [houses,  setHouses]  = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState('')
+
+  const isSenior = session?.scope?.level === 'senior' || session?.portal === 'management'
 
   useEffect(() => {
-    setNotchText('Houses');
-    setSearchConfig({
-      visible: true,
-      placeholder: 'Search houses, captains',
-      Icon: Icons.search,
-      handler: (q) => console.log('House search:', q)
-    });
-    setSideMenu([
-      {label: "Home", path: "/", icon: Icons.home},
-      {label: "Gallery", path: "/gallery", icon: Icons.gallery},
-      {label: "Page", path: "/page", icon: Icons.page},
-      {label: "Map", path: "/map", icon: Icons.map},
-      {label: "PTA Shop", path: "/pta-shop", icon: Icons.shopping},
-      {label: "About", path: "/about", icon: Icons.about},
-      {label: "Settings", path: "/settings", icon: Icons.settings}
-    ])
-  }, [setSearchConfig, setSideMenu, setNotchText]);
+    if (!session) return
+    const endpoint = isSenior ? '/api/admin/house' : '/api/admin/house/mine'
+    apiFetch(endpoint)
+      .then(data => {
+        // /mine returns { house, students } for a single house; /  returns { houses }
+        setHouses(isSenior ? data.houses || [] : (data.house ? [data.house] : []))
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [session])
+
+  const totalStudents = houses.reduce((s, h) => s + (h.students?.length ?? 0), 0)
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>House Management</h1>
-        <p>Manage boarding houses and house activities</p>
+        <p>{isSenior ? 'All Achimota houses' : `Your house — ${session?.displayName || ''}`}</p>
       </div>
 
       <div className="stats-section">
-        <div className="stat-box">
-          <div className="stat-value">3</div>
-          <div className="stat-label">Total Houses</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">255</div>
-          <div className="stat-label">Total Members</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">12</div>
-          <div className="stat-label">Scheduled Events</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">1320</div>
-          <div className="stat-label">Leading Points</div>
-        </div>
+        <div className="stat-box"><div className="stat-value">{houses.length}</div><div className="stat-label">Houses</div></div>
+        <div className="stat-box"><div className="stat-value">{totalStudents}</div><div className="stat-label">Students</div></div>
+        <div className="stat-box"><div className="stat-value">{houses.filter(h=>h.type==='boarding').length}</div><div className="stat-label">Boarding</div></div>
+        <div className="stat-box"><div className="stat-value">{houses.filter(h=>h.gender==='boys').length}/{houses.filter(h=>h.gender==='girls').length}</div><div className="stat-label">Boys / Girls</div></div>
       </div>
 
-      <div className="content-grid">
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#f59e0b'}}>
-            <Icons.users style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>House Events</h3>
-          <p>Organize inter-house competitions and events</p>
-          <button className="page-button">Schedule Event</button>
-        </div>
+      {loading && <p className="ap-loading">Loading houses…</p>}
+      {error   && <p className="ap-error">{error}</p>}
 
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#8b5cf6'}}>
-            <Icons.trophy style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Points System</h3>
-          <p>Track and manage house competition points</p>
-          <button className="page-button">View Points</button>
-        </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#ec4899'}}>
-            <Icons.settings style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>House Settings</h3>
-          <p>Configure house captains and rules</p>
-          <button className="page-button">Configure</button>
-        </div>
-      </div>
-
-      <div className="table-container">
-        <h2>House Overview</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>House Name</th>
-              <th>Members</th>
-              <th>Captain</th>
-              <th>Points</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {houses.map(house => (
-              <tr key={house.id}>
-                <td><strong>{house.name}</strong></td>
-                <td>{house.members}</td>
-                <td>{house.captain}</td>
-                <td><strong>{house.points}</strong></td>
-                <td><button className="page-button">Manage</button></td>
+      {!loading && !error && (
+        <div className="table-container">
+          <h2>House Overview</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>House</th>
+                <th>Type</th>
+                <th>Gender</th>
+                <th>Compound</th>
+                <th>Students</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {houses.map(h => (
+                <tr key={h._id}>
+                  <td><strong>{h.name}</strong></td>
+                  <td style={{textTransform:'capitalize'}}>{h.type}</td>
+                  <td style={{textTransform:'capitalize'}}>{h.gender}</td>
+                  <td>{h.compound || '—'}</td>
+                  <td>{h.students?.length ?? 0}</td>
+                </tr>
+              ))}
+              {houses.length === 0 && (
+                <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No houses found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

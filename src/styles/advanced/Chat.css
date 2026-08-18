@@ -5,7 +5,7 @@
   position: fixed;
   inset: 0;
   background: var(--background-page);
-  padding-top: calc(4.5em + 24px);
+  padding-top: calc(4.5em + 10px);
 }
 
 .ch-body {
@@ -21,6 +21,16 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   height: 100%;
+}
+
+.ch-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 /* ── Thread list ── */
@@ -69,19 +79,26 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: var(--background-subtle);
-  color: var(--color-text-secondary);
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   font-family: var(--font-name);
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.ch-new-btn:hover { background: var(--background-hover); color: var(--color-text-primary); }
+.ch-new-btn:hover {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.ch-new-btn:active { transform: translateY(0); }
 
 /* thread buttons */
 .ch-thread {
@@ -201,6 +218,166 @@
 }
 
 .ch-convo-actions { display: flex; gap: 4px; }
+
+.ch-convo--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile-only back button — returns from a conversation to the thread list.
+   Hidden on desktop (both panes visible side-by-side). */
+.ch-back-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 10px 0 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ch-back-btn:hover { background: var(--background-hover); color: var(--color-text-primary); }
+
+/* ═══════════════════════════════════════════
+   NEW CHAT DIALOG
+═══════════════════════════════════════════ */
+.ch-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 1rem;
+}
+
+.ch-modal {
+  width: 100%;
+  max-width: 380px;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.ch-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.ch-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.ch-modal-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ch-modal-input {
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-family: var(--font-name);
+  outline: none;
+}
+
+.ch-modal-input--error { border-color: var(--color-danger); }
+
+.ch-modal-err {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: var(--color-danger);
+}
+
+.ch-modal-submit {
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-weight: 700;
+  font-size: 0.88rem;
+  font-family: var(--font-name);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.ch-modal-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.ch-modal-submit:not(:disabled):hover { opacity: 0.9; }
+
+/* ═══════════════════════════════════════════
+   ATTACHMENTS
+═══════════════════════════════════════════ */
+.ch-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  width: fit-content;
+}
+
+.ch-attachment-chip img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.ch-attachment-chip--loading { color: var(--color-text-muted); font-style: italic; }
+
+.ch-attachment-chip__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.ch-attachment-chip__remove:hover { background: var(--background-hover); color: var(--color-text-primary); }
+
+.ch-msg-attachment-img {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  display: block;
+  object-fit: cover;
+}
 
 .ch-icon-btn {
   width: 34px;
@@ -1025,6 +1202,13 @@
 
 .vcr-avatar-svg { width: 100%; height: 100%; }
 
+.vcr-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--background-elevated);
+}
+
 .vcr-tile-footer {
   position: absolute;
   bottom: 8px;
@@ -1589,7 +1773,11 @@
     grid-template-columns: 1fr;
   }
 
-  .ch-list { display: none; }
+  /* Single-pane mobile navigation: list by default, conversation on select */
+  .ch-split[data-mobile-view="conversation"] .ch-list { display: none; }
+  .ch-split:not([data-mobile-view="conversation"]) .ch-convo { display: none; }
+
+  .ch-back-btn { display: flex; }
 
   .ch-tab { font-size: 0.74rem; padding: 10px 10px; gap: 4px; }
 

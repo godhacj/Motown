@@ -1,7 +1,8 @@
-const express  = require('express')
-const bcrypt   = require('bcryptjs')
-const Student  = require('../models/Student')
-const router   = express.Router()
+const express    = require('express')
+const bcrypt     = require('bcryptjs')
+const Student    = require('../models/Student')
+const { Assessment, Attendance, Achievement, Clearance } = require('../schema')
+const router     = express.Router()
 
 // POST /api/students/login
 router.post('/login', async (req, res) => {
@@ -26,6 +27,33 @@ router.post('/login', async (req, res) => {
       photo:      student.passportPhoto || null,
       program:    student.program || null,
     })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/students/:studentId/profile
+// Returns the full student profile including assessments, attendance,
+// achievements, and clearance — used by the Student page.
+router.get('/:studentId/profile', async (req, res) => {
+  try {
+    const student = await Student.findOne({ studentId: req.params.studentId }).lean()
+    if (!student) return res.status(404).json({ error: 'Student not found' })
+
+    const sid = student._id
+
+    const [assessments, attendance, achievement, clearance] = await Promise.all([
+      Assessment.find({ studentId: sid }).lean(),
+      Attendance.find({ studentId: sid }).lean(),
+      Achievement.findOne({ studentId: sid }).lean(),
+      Clearance.findOne({ studentId: sid }).lean(),
+    ])
+
+    // Remove sensitive field before sending
+    delete student.password
+
+    res.json({ student, assessments, attendance, achievement, clearance })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })

@@ -16,6 +16,11 @@ dist-ssr
 .env
 backend/.env
 
+# Seed credential files (contain plaintext passwords — never commit)
+backend/seed-credentials.json
+public/credentials.txt
+server/seed/credentials.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

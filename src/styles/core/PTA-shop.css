@@ -728,3 +728,34 @@
     bottom: 20px;
   }
 }
+
+@media (max-width: 400px) {
+  /* At 360px the 2-col grid gives each card ~163px. The price "GH₵150.00" at
+     1rem (~80px) + gap (8px) + Add button (~72px) hits the card edge and gets
+     clipped by shop-card's overflow:hidden.
+
+     Fix: harden the footer flex row so the button can never be pushed out,
+     then shrink the price font-size to 0.8rem (~64px) so there's clear room. */
+  .shop-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .shop-card__price {
+    font-size: 0.8rem;   /* down from 1rem — chosen to fit at 360px with room */
+    min-width: 0;        /* lets the price yield space to the button */
+    flex-shrink: 1;
+  }
+
+  .shop-card__add-btn {
+    flex-shrink: 0;      /* button never shrinks */
+    white-space: nowrap; /* already set globally, but explicit here for safety */
+  }
+
+  /* qty-ctrl (shown when item already in cart) also needs to not overflow */
+  .shop-card__qty-ctrl {
+    flex-shrink: 0;
+  }
+}

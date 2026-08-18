@@ -1,117 +1,79 @@
 import React, { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Icons } from '../../../assets/icons'
+import { useAdminPortal } from '../../../hooks/useAdminPortal'
+import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import '../../../styles/admin/Data/Staff-data.css'
-import '../../../styles/PageContent.css' 
+import '../../../styles/PageContent.css'
+
+const STATUS_COLOR = { Active:'#10b981', 'On Leave':'#f59e0b', Retired:'#6b7280', Resigned:'#ef4444' }
 
 export default function StaffData() {
-  const {setIsOpen, setSideMenu, setSearchConfig, setNotchText} = useOutletContext();
-  const [staff] = useState([
-    { id: 1, name: 'Mr. Peter Kipchoge', position: 'Principal', dept: 'Administration', status: 'Active' },
-    { id: 2, name: 'Ms. Jane Kiplagat', position: 'Vice Principal', dept: 'Administration', status: 'Active' },
-    { id: 3, name: 'Dr. James Okonkwo', position: 'Head of Science', dept: 'Science', status: 'Active' },
-    { id: 4, name: 'Mrs. Sarah Njeri', position: 'Head of Languages', dept: 'Languages', status: 'On Leave' }
-  ]);
+  const session = useAdminPortal('Staff Data', 'Search teachers…')
+  const { apiFetch } = useAdminAuth()
+
+  const [teachers, setTeachers] = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
+  const [dept,     setDept]     = useState('')
 
   useEffect(() => {
-    setNotchText('Staff Data');
-    setSearchConfig({
-      visible: true,
-      placeholder: 'Search staff, positions',
-      Icon: Icons.search,
-      handler: (q) => console.log('Staff search:', q)
-    });
-    setSideMenu([
-      {label: "Home", path: "/", icon: Icons.home},
-      {label: "Gallery", path: "/gallery", icon: Icons.gallery},
-      {label: "Page", path: "/page", icon: Icons.page},
-      {label: "Map", path: "/map", icon: Icons.map},
-      {label: "PTA Shop", path: "/pta-shop", icon: Icons.shopping},
-      {label: "About", path: "/about", icon: Icons.about},
-      {label: "Settings", path: "/settings", icon: Icons.settings}
-    ])
-  }, [setNotchText, setSideMenu, setSearchConfig]);
+    if (!session) return
+    const params = new URLSearchParams()
+    if (dept) params.set('department', dept)
+    setLoading(true)
+    apiFetch(`/api/admin/data/teachers?${params}`)
+      .then(data => setTeachers(data.teachers || []))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [session, dept])
+
+  const counts = teachers.reduce((acc, t) => { acc[t.status] = (acc[t.status]||0)+1; return acc }, {})
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Staff Data Management</h1>
-        <p>Manage employee records and personnel information</p>
+        <h1>Staff Data</h1>
+        <p>View and manage teacher records</p>
       </div>
 
       <div className="stats-section">
-        <div className="stat-box">
-          <div className="stat-value">87</div>
-          <div className="stat-label">Total Staff</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">82</div>
-          <div className="stat-label">Active</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">12</div>
-          <div className="stat-label">Departments</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">5</div>
-          <div className="stat-label">On Leave</div>
-        </div>
+        <div className="stat-box"><div className="stat-value">{teachers.length}</div><div className="stat-label">Showing</div></div>
+        <div className="stat-box"><div className="stat-value">{counts.Active??0}</div><div className="stat-label">Active</div></div>
+        <div className="stat-box"><div className="stat-value">{counts['On Leave']??0}</div><div className="stat-label">On Leave</div></div>
+        <div className="stat-box"><div className="stat-value">{counts.Retired??0}</div><div className="stat-label">Retired</div></div>
       </div>
 
-      <div className="content-grid">
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#10b981'}}>
-            <Icons.users style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Add Staff Member</h3>
-          <p>Register new staff and create personnel files</p>
-          <button className="page-button">Add Staff</button>
-        </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#f59e0b'}}>
-            <Icons.calendar style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Leave Management</h3>
-          <p>Manage staff leaves and absences</p>
-          <button className="page-button">Manage Leaves</button>
-        </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#8b5cf6'}}>
-            <Icons.award style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Performance Records</h3>
-          <p>Track staff performance and evaluations</p>
-          <button className="page-button">View Performance</button>
-        </div>
+      <div className="ap-filters">
+        <select value={dept} onChange={e => setDept(e.target.value)}>
+          <option value="">All departments</option>
+          {['General Science','General Arts','Visual Arts','Home Economics','Agriculture'].map(d=><option key={d}>{d}</option>)}
+        </select>
       </div>
 
-      <div className="table-container">
-        <h2>Staff Records</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Position</th>
-              <th>Department</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {staff.map(member => (
-              <tr key={member.id}>
-                <td><strong>{member.name}</strong></td>
-                <td>{member.position}</td>
-                <td>{member.dept}</td>
-                <td><span style={{color: member.status === 'Active' ? '#10b981' : '#f59e0b', fontWeight: 'bold'}}>{member.status}</span></td>
-                <td><button className="page-button">Edit</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading && <p className="ap-loading">Loading teachers…</p>}
+      {error   && <p className="ap-error">{error}</p>}
+
+      {!loading && !error && (
+        <div className="table-container">
+          <h2>Teacher Records</h2>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Staff ID</th><th>Department</th><th>Gender</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {teachers.slice(0,100).map(t => (
+                <tr key={t._id}>
+                  <td><strong>{t.firstName} {t.lastName}</strong></td>
+                  <td>{t.staffId||'—'}</td>
+                  <td>{t.department||'—'}</td>
+                  <td>{t.gender||'—'}</td>
+                  <td><span style={{color:STATUS_COLOR[t.status]||'#6b7280',fontWeight:600}}>{t.status}</span></td>
+                </tr>
+              ))}
+              {teachers.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No teachers found</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

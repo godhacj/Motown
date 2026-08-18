@@ -661,3 +661,56 @@
     max-height: 380px;
   }
 }
+
+@media (max-width: 400px) {
+  /* ── Feed: no gap between posts; a single 1px border-bottom acts as divider ── */
+  .page-feed {
+    gap: 0;
+  }
+
+  /* Replace the card's top border with nothing (the previous card's bottom border
+     already acts as the divider). Remove box-shadow at this density. */
+  .post-card {
+    border-top: none;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: none;
+  }
+
+  /* ── Media: fully edge-to-edge, no rounded corners ── */
+  .post-image-wrap {
+    width: 100vw;         /* break out of any residual containing width */
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .post-image {
+    border-radius: 0;
+    max-height: 320px;
+  }
+
+  /* ── Text rows: keep 14px horizontal breathing room ── */
+  .post-header {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .post-actions {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .post-caption {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .post-comments__list {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .post-comment-input {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

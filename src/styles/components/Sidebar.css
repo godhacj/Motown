@@ -233,6 +233,7 @@
    ICON WRAP — the "key hole" square
 ═══════════════════════════════════════════ */
 .sidebar-icon-wrap {
+  position: relative;
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -261,6 +262,48 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════
+   UNREAD BADGE
+═══════════════════════════════════════════ */
+.sidebar-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  animation: sidebar-badge-hop 4s ease-in-out infinite;
+}
+
+/* Small dot variant — shown on the collapsed "Advanced" group trigger */
+.sidebar-badge--dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 0;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  line-height: 0;
+}
+
+@keyframes sidebar-badge-hop {
+  0%, 85%, 100% { transform: translateY(0); }
+  89% { transform: translateY(-3px); }
+  92% { transform: translateY(0); }
+  95% { transform: translateY(-2px); }
+  98% { transform: translateY(0); }
+}
+
+:root[data-reduced-motion="true"] .sidebar-badge {
+  animation: none;
 }
 
 /* ═══════════════════════════════════════════

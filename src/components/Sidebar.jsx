@@ -27,6 +27,9 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
             {IconComponent && <IconComponent className="sidebar-icon" />}
           </span>
           <span className="sidebar-label">{item.title}</span>
+          {item.badge > 0 && (
+            <span className="sidebar-badge">{item.badge > 99 ? '99+' : item.badge}</span>
+          )}
         </Link>
       </li>
     )
@@ -35,6 +38,7 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
   // Collapsible group — children expand/collapse
   const NavGroup = ({ item }) => {
     const hasActive = item.children?.some(c => activeMenu === c.to)
+    const hasUnread = item.children?.some(c => c.badge > 0)
     const [expanded, setExpanded] = useState(hasActive)
     const IconComponent = item.icon
     const bodyRef = useRef(null)
@@ -48,6 +52,7 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
         >
           <span className="sidebar-icon-wrap">
             {IconComponent && <IconComponent className="sidebar-icon" />}
+            {!expanded && hasUnread && <span className="sidebar-badge sidebar-badge--dot" aria-hidden="true" />}
           </span>
           <span className="sidebar-label">{item.title}</span>
           <FiChevronDown

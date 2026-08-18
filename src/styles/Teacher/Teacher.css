@@ -1,0 +1,873 @@
+/* =========================================================
+   TEACHER PORTAL - Teacher.css
+   Mirrors Student.css naming/structure but uses .tea-* prefix.
+   Double-locking: all responsive overrides at < 400px are
+   scoped inside BOTH @media AND .teacher-portal parent.
+   min-width: 0 on .notch--sp is the critical shrink property.
+========================================================= */
+
+.tea-main {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--background-page);
+}
+
+.tea-page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding-top: calc(4.5em + 24px);
+  padding-bottom: 8rem;
+}
+
+.tea-part-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tea-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.tea-avatar--init {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.tea-avatar-wrap { position: relative; flex-shrink: 0; }
+
+.tea-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px;
+  background: var(--background-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
+}
+
+.tea-profile-hero__info { flex: 1; min-width: 0; }
+
+.tea-profile-hero__name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tea-profile-hero__id {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+
+.tea-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+.tea-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tea-chip--accent { color: var(--color-accent); border-color: var(--color-accent); background: transparent; }
+
+.tea-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.tea-role-badge--teacher { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-accent); }
+.tea-role-badge--hod { background: color-mix(in srgb, var(--color-success) 15%, transparent); color: var(--color-success); }
+.tea-role-badge--hod_assistant { background: color-mix(in srgb, var(--color-warning) 15%, transparent); color: var(--color-warning); }
+
+.tea-card {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.tea-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tea-card__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.tea-card__action { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.tea-card__body { display: flex; flex-direction: column; }
+.tea-card__body--pad { padding: 14px 20px; }
+
+.tea-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tea-row:last-child { border-bottom: none; }
+.tea-row__icon { color: var(--color-accent); flex-shrink: 0; display: flex; align-items: center; }
+.tea-row__label { font-size: 0.77rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; min-width: 130px; }
+.tea-row__value { font-size: 0.87rem; color: var(--color-text-primary); flex: 1; text-align: right; }
+
+.tea-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.tea-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
+.tea-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tea-btn--sm { padding: 4px 10px; font-size: 0.74rem; }
+.tea-btn--wide { width: 100%; justify-content: center; padding: 10px; border-radius: 10px; }
+.tea-btn--ghost { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--border-color); }
+.tea-btn--ghost:hover:not(:disabled) { background: var(--background-hover); }
+
+.tea-input, .tea-select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--background-page);
+  color: var(--color-text-primary);
+  font-size: 0.83rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.tea-input:focus, .tea-select:focus { outline: none; border-color: var(--color-accent); }
+
+.tea-date-input {
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--background-page);
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+}
+
+.tea-field { display: flex; flex-direction: column; gap: 5px; }
+
+.tea-field > span, .tea-field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tea-form-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.tea-assess-form { display: flex; flex-direction: column; gap: 14px; }
+
+.tea-roster-note { font-size: 0.78rem; color: var(--color-text-muted); margin-bottom: 8px; }
+
+.tea-roster-title-input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--background-page);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.tea-roster-editor {
+  width: 100%;
+  min-height: 280px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--background-page);
+  color: var(--color-text-primary);
+  font-size: 0.83rem;
+  line-height: 1.6;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.tea-roster-editor:focus { outline: none; border-color: var(--color-accent); }
+
+.tea-register-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.tea-register-summary { display: flex; gap: 12px; padding: 8px 0 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px; }
+
+.tea-register-stat { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
+.tea-register-stat--present { color: var(--color-success); }
+.tea-register-stat--absent { color: var(--color-danger); }
+
+.tea-register-grid { display: flex; flex-direction: column; gap: 2px; }
+
+.tea-register-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
+}
+
+.tea-register-row:hover { background: var(--background-hover); }
+.tea-register-row--absent { background: color-mix(in srgb, var(--color-danger) 6%, transparent); }
+
+.tea-register-num { font-size: 0.72rem; color: var(--color-text-muted); text-align: right; }
+.tea-register-name { font-size: 0.83rem; font-weight: 600; color: var(--color-text-primary); }
+.tea-register-id { font-size: 0.7rem; color: var(--color-text-muted); }
+
+.tea-register-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.tea-register-toggle--present { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
+.tea-register-toggle--absent { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
+
+.tea-assess-wrap { display: flex; flex-direction: column; gap: 16px; }
+
+.tea-assess-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tea-assess-item:last-child { border-bottom: none; }
+.tea-assess-item:hover { background: var(--background-hover); }
+.tea-assess-item--active { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+.tea-assess-item__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tea-assess-item__name { font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); }
+.tea-assess-item__meta { font-size: 0.72rem; color: var(--color-text-muted); }
+.tea-assess-item__count { font-size: 0.72rem; color: var(--color-text-muted); white-space: nowrap; }
+.tea-assess-item__edit { color: var(--color-text-muted); flex-shrink: 0; }
+
+.tea-score-meta { font-size: 0.78rem; color: var(--color-text-muted); margin-bottom: 10px; }
+.tea-score-grid { display: flex; flex-direction: column; gap: 6px; }
+
+.tea-score-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 80px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.tea-score-num { font-size: 0.72rem; color: var(--color-text-muted); text-align: right; }
+.tea-score-name { font-size: 0.82rem; color: var(--color-text-primary); }
+
+.tea-score-input {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--background-page);
+  color: var(--color-text-primary);
+  font-size: 0.83rem;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tea-score-input:focus { outline: none; border-color: var(--color-accent); }
+
+.tea-schedule-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+.tea-schedule-grid {
+  display: grid;
+  grid-template-columns: 4.5rem repeat(5, minmax(90px, 1fr));
+  gap: 2px;
+  min-width: 520px;
+}
+
+.tea-schedule-corner { background: transparent; }
+
+.tea-schedule-day-head {
+  background: var(--background-hover);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 6px 4px;
+  letter-spacing: 0.05em;
+}
+
+.tea-schedule-time {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tea-schedule-cell {
+  background: var(--background-hover);
+  border-radius: 6px;
+  min-height: 52px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.35;
+}
+
+.tea-schedule-cell--filled {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--background-elevated));
+  opacity: 1;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.tea-schedule-lesson { display: flex; flex-direction: column; gap: 1px; }
+.tea-schedule-subj { font-size: 0.72rem; font-weight: 700; color: var(--color-accent); line-height: 1.2; }
+.tea-schedule-class { font-size: 0.65rem; color: var(--color-text-muted); line-height: 1.2; }
+
+.tea-term-switch { display: flex; gap: 4px; }
+
+.tea-term-btn {
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tea-term-btn--active { background: var(--color-accent); color: var(--color-accent-fg); border-color: var(--color-accent); }
+
+.tea-check-group { display: flex; gap: 14px; margin-top: 4px; }
+
+.tea-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tea-empty { font-size: 0.82rem; color: var(--color-text-muted); text-align: center; padding: 24px 0; }
+.tea-record-note { font-size: 0.78rem; color: var(--color-text-muted); margin-bottom: 10px; }
+
+/* =========================================================
+   PHASE 5 — HOD TIMETABLE BUILDER
+   All rules double-locked (inside .teacher-portal for
+   responsive overrides). Base rules here are unrestricted.
+========================================================= */
+
+/* Class picker sidebar */
+.tea-tt-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.tea-tt-sidebar {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  position: sticky;
+  top: calc(4.5em + 30px);
+}
+
+.tea-tt-sidebar__head {
+  padding: 10px 14px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tea-tt-yg-btn {
+  display: flex;
+  width: 100%;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.12s ease;
+}
+
+.tea-tt-yg-btn:hover { background: var(--background-hover); }
+.tea-tt-yg-btn--active { color: var(--color-accent); }
+
+.tea-tt-cls-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tea-tt-cls-btn:last-child { border-bottom: none; }
+.tea-tt-cls-btn:hover { background: var(--background-hover); }
+
+.tea-tt-cls-btn--active {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Builder panel */
+.tea-tt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tea-tt-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Period grid */
+.tea-tt-grid-wrap { overflow-x: auto; }
+
+.tea-tt-grid {
+  display: grid;
+  grid-template-columns: 100px repeat(5, minmax(120px, 1fr));
+  gap: 4px;
+  min-width: 700px;
+}
+
+.tea-tt-grid-corner { }
+
+.tea-tt-grid-day {
+  background: var(--background-hover);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 6px 4px;
+  letter-spacing: 0.05em;
+}
+
+.tea-tt-time-label {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+
+.tea-tt-cell {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 8px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.12s ease;
+}
+
+.tea-tt-cell:hover { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 4%, var(--background-elevated)); }
+
+.tea-tt-cell--filled {
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--background-elevated));
+}
+
+.tea-tt-cell__subj {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1.2;
+}
+
+.tea-tt-cell__teacher {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+
+.tea-tt-cell__empty {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  margin: auto;
+}
+
+/* Period editor modal */
+.tea-tt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.tea-tt-modal {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tea-tt-modal__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tea-tt-modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* HOD gate banner */
+.tea-hod-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.tea-hod-gate__icon {
+  font-size: 2.4rem;
+  opacity: 0.4;
+}
+
+.tea-hod-gate__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tea-hod-gate__sub {
+  font-size: 0.83rem;
+  color: var(--color-text-muted);
+  max-width: 320px;
+}
+
+/* ─── Responsive: 700px ─── */
+@media (max-width: 700px) {
+  .teacher-portal .tea-tt-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-portal .tea-tt-sidebar {
+    position: static;
+  }
+
+  .tea-part-content { padding: 0 12px; }
+
+  .tea-profile-hero {
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .tea-nav-wrapper {
+    bottom: 1.5rem;
+    right: 1.25rem;
+    left: 1.25rem;
+    align-items: stretch;
+  }
+
+  .tea-nav-controls { justify-content: space-between; }
+  .tea-nav-trigger { flex: 1; height: 48px; min-width: 0; }
+  .tea-nav-prev, .tea-nav-next { height: 48px; }
+  .tea-nav-menu { width: 100%; transform-origin: bottom center; }
+}
+
+.tea-nav-wrapper {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.tea-nav-menu {
+  width: 240px;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transform-origin: bottom right;
+}
+
+.tea-nav-menu--open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.tea-nav-menu__header {
+  padding: 12px 16px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tea-nav-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-name);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s ease, padding-left 0.15s ease;
+}
+
+.tea-nav-option:last-child { border-bottom: none; }
+.tea-nav-option:hover { background: var(--background-hover); padding-left: 20px; }
+.tea-nav-option--active { background: var(--background-subtle); }
+
+.tea-nav-option__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.tea-nav-option--active .tea-nav-option__icon {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-color: transparent;
+}
+
+.tea-nav-option__label {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tea-nav-option__check { color: var(--color-accent); flex-shrink: 0; }
+
+.tea-nav-controls { display: flex; align-items: center; gap: 6px; }
+
+.tea-nav-prev, .tea-nav-next {
+  width: 44px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tea-nav-prev:hover:not(:disabled), .tea-nav-next:hover:not(:disabled) {
+  background: var(--background-hover);
+  transform: translateY(-2px);
+}
+
+.tea-nav-prev:disabled, .tea-nav-next:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.tea-nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  color: var(--color-text-primary);
+  font-family: var(--font-name);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.tea-nav-trigger:hover {
+  background: var(--background-hover);
+  border-color: var(--border-color-strong);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  transform: translateY(-2px);
+}
+
+.tea-nav-trigger:active { transform: translateY(0); }
+
+.tea-nav-trigger--open {
+  background: var(--background-hover);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.tea-nav-trigger__icon { color: var(--color-accent); display: flex; align-items: center; flex-shrink: 0; }
+.tea-nav-trigger__chevron { color: var(--color-text-muted); flex-shrink: 0; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.tea-nav-trigger__chevron--up { transform: rotate(180deg); }
+
+/* =========================================================
+   TEACHER-ONLY MOBILE NAV (< 400px)
+   The generic Topbar mobile-expand mechanic (notch shrink,
+   sp-expand-btn, icon-only tab strip) now lives in
+   Topbar.css under .topbar--sp-active, which applies
+   app-wide rather than only on portal routes.
+   Only .tea-nav-* remains here — .tea-nav-wrapper renders
+   inside Teacher.jsx, outside Topbar's <header>, so it
+   still needs the .teacher-portal ancestor class.
+========================================================= */
+@media (max-width: 400px) {
+  .teacher-portal .tea-nav-wrapper {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    align-items: stretch;
+  }
+
+  .teacher-portal .tea-nav-controls { justify-content: space-between; }
+  .teacher-portal .tea-nav-trigger { flex: 1; height: 48px; min-width: 0; }
+  .teacher-portal .tea-nav-prev, .teacher-portal .tea-nav-next { height: 48px; }
+  .teacher-portal .tea-nav-menu { width: 100%; transform-origin: bottom center; }
+}

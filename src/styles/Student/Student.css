@@ -18,6 +18,20 @@
   padding-bottom: 8rem; /* space for bottom nav */
 }
 
+.stu-loading,
+.stu-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.stu-error { color: var(--color-danger); }
+
 /* ═══════════════════════════════════════════
    PART CONTENT WRAPPER
 ═══════════════════════════════════════════ */
@@ -348,80 +362,157 @@
 }
 
 /* ═══════════════════════════════════════════
-   YEAR TOGGLE PILL GROUP
-═══════════════════════════════════════════ */
-.stu-year-toggle {
-  display: inline-flex;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  background: var(--background-subtle);
-  flex-shrink: 0;
-}
-
-.stu-year-btn {
-  padding: 5px 14px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: var(--font-name);
-  cursor: pointer;
-  border-right: 1px solid var(--border-color);
-  transition: background 0.15s ease, color 0.15s ease;
-  white-space: nowrap;
-}
-
-.stu-year-btn:last-child { border-right: none; }
-
-.stu-year-btn:hover:not(.stu-year-btn--active) { background: var(--background-hover); color: var(--color-text-primary); }
-
-.stu-year-btn--active {
-  background: var(--color-accent);
-  color: var(--color-accent-fg);
-}
-
-/* ═══════════════════════════════════════════
-   TRANSCRIPT — SELECTORS
+   SELECTOR TOOLBAR (year + term row)
 ═══════════════════════════════════════════ */
 .stu-assess { display: flex; flex-direction: column; gap: 0; }
 
 .stu-assess-selectors {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px 16px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border-color);
   align-items: center;
+  background: var(--background-subtle);
 }
 
-.stu-sel-btn {
-  padding: 5px 12px;
+/* Each labelled group: "Year [pill]" or "Term [pill]" */
+.stu-sel-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Small uppercase label to the left of a selector */
+.stu-sel-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Vertical divider between groups */
+.stu-sel-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Form chip (SHS 1 / SHS 2 / SHS 3) — sits beside the year pill */
+.stu-form-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--color-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: var(--card-shadow);
+}
+
+/* ── Year toggle pill group ── */
+.stu-year-toggle {
+  display: inline-flex;
   border-radius: 999px;
   border: 1px solid var(--border-color);
-  background: var(--background-subtle);
+  background: var(--background-elevated);
+  flex-shrink: 0;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.stu-year-btn {
+  padding: 5px 13px;
+  border: none;
+  background: transparent;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-family: var(--font-name);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  border-right: 1px solid var(--border-color);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+  position: relative;
 }
 
-.stu-sel-btn:hover { background: var(--background-hover); }
+.stu-year-btn:last-child { border-right: none; }
 
-.stu-sel-btn--active {
+.stu-year-btn:hover:not(.stu-year-btn--active) {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+}
+
+.stu-year-btn:active:not(.stu-year-btn--active) {
+  transform: scale(0.95);
+}
+
+.stu-year-btn--active {
   background: var(--color-accent);
-  border-color: var(--color-accent);
   color: var(--color-accent-fg);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.18);
 }
 
-.stu-sel-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border-color);
+/* ── Term toggle pill group (matches year style) ── */
+.stu-term-toggle {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
   flex-shrink: 0;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.stu-term-btn {
+  padding: 5px 13px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-name);
+  cursor: pointer;
+  border-right: 1px solid var(--border-color);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.stu-term-btn:last-child { border-right: none; }
+
+.stu-term-btn:hover:not(.stu-term-btn--active) {
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+}
+
+.stu-term-btn:active:not(.stu-term-btn--active) {
+  transform: scale(0.95);
+}
+
+.stu-term-btn--active {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.18);
+}
+
+/* ── Transcript-view year row (standalone, not in assess-selectors) ── */
+.stu-transcript-year-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 2px;
+  align-self: flex-start;
 }
 
 /* ═══════════════════════════════════════════
@@ -1026,4 +1117,9 @@
 
 @media (max-width: 400px) {
   .stu-nav-wrapper { bottom: 1rem; right: 1rem; left: 1rem; }
+
+  /* Topbar at < 400px is 3.4em tall, top: 6px — match the padding-top accordingly */
+  .stu-page {
+    padding-top: calc(3.4em + 6px + 10px);
+  }
 }

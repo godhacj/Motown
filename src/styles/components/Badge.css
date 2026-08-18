@@ -349,11 +349,19 @@
 }
 
 @media (max-width: 400px) {
+  /* Badge: 20% larger than the 480px breakpoint's clamp(11em, 58vw, 14em).
+     At 360px this gives ~251px; at 390px ~271px — both clear of the viewport. */
   .shield-svg {
-    width: clamp(11em, 58vw, 14em);
+    width: clamp(13.2em, 69.6vw, 16.8em);
   }
 
+  /* Exactly 8px gap between badge and motto; override the calc() default. */
+  .motto {
+    margin-top: 8px;
+  }
+
+  /* 1.1rem fits "Ut Omnes Unum Sint" on one line at 360px with room to spare. */
   .motto span {
-    font-size: clamp(0.85rem, 4.5vw, 1.2rem);
+    font-size: 1.1rem;
   }
 }

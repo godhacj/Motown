@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import './styles/App.css'
 import './styles/global.css'
 import './styles/backgrounds.css'
@@ -7,7 +7,37 @@ import './styles/SettingsConfig.css'
 import { useSettingsSync } from './hooks/useSettingsSync'
 
 import {
-  Layout, Home, Library, Management, Settings, SignOut, NotFound, Academics, Club, Domestic, House, AggreyChapel, Catholic, Infrastructure, Records, StaffData, StudentData, Announcement, Chat, LibraryUsers, Syllabus, About, Gallery, Map, Page, PtaShop, Checkout, AdminLogin, StudentLogin, TeacherLogin, Student, ProspectStudent, Teacher} from './routes/routes'
+  Layout, Home, Library, Management, Settings, SignOut, NotFound,
+  Academics, Club, Domestic, House, AggreyChapel, Catholic,
+  Infrastructure, Records, StaffData, StudentData,
+  AdminLibrary, Media, Accounts,
+  Announcement, Chat, LibraryUsers, Syllabus,
+  About, Gallery, Map, Page, PtaShop, Checkout,
+  AdminLogin, StudentLogin, TeacherLogin,
+  Student, ProspectStudent, Teacher,
+} from './routes/routes'
+
+// Signed-in users land on their status page instead of the guest Home page.
+function readHomeRedirect() {
+  try {
+    if (JSON.parse(localStorage.getItem('adminPortalSession') || 'null')) {
+      return '/management'
+    }
+  } catch { /* ignore */ }
+
+  try {
+    const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
+    if (['teacher', 'hod', 'hod_assistant'].includes(p.role)) return '/teacher'
+    if (p.role === 'student' || (!p.adminType && !p.role && (p.id || p.name === 'Student'))) return '/student'
+  } catch { /* ignore */ }
+
+  return null
+}
+
+function HomeOrStatus() {
+  const redirectTo = readHomeRedirect()
+  return redirectTo ? <Navigate to={redirectTo} replace /> : <Home />
+}
 
 function App() {
   useSettingsSync()
@@ -15,7 +45,7 @@ function App() {
     <div className="App-content">
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
+            <Route index element={<HomeOrStatus />} />
 
             <Route path="library" element={<Library />} />
             <Route path="management" element={<Management />} />
@@ -37,6 +67,9 @@ function App() {
               <Route path="club" element={<Club />} />
               <Route path="domestic" element={<Domestic />} />
               <Route path="house" element={<House />} />
+              <Route path="library" element={<AdminLibrary />} />
+              <Route path="media" element={<Media />} />
+              <Route path="accounts" element={<Accounts />} />
 
               <Route path="chapel/">
                 <Route path="aggrey-chapel" element={<AggreyChapel />} />

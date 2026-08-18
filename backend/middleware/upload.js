@@ -5,7 +5,7 @@ const fs = require('fs');
 const MEDIA_DIR = process.env.MEDIA_DIR || 'C:\\Users\\HP\\Downloads\\Motown_Media';
 
 // Ensure sub-folders exist at startup
-['gallery', 'products', 'page', 'avatars'].forEach(sub => {
+['gallery', 'products', 'page', 'avatars', 'chat-attachments'].forEach(sub => {
   fs.mkdirSync(path.join(MEDIA_DIR, sub), { recursive: true });
 });
 

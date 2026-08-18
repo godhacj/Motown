@@ -10,11 +10,14 @@
   display: flex;
   align-items: center;
   /* Collapsed: just big enough for one button */
-  height: var(--icon-btn-size, 2.8em);
-  width: var(--icon-btn-size, 2.8em);
+  height: 2.4em;
+  width: 2.4em;
   border-radius: 100px;
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow: inset var(--card-shadow);
+  /* Collapsed: no container background — the trigger button IS the pill.
+     Having a different color here caused lighter corners to show through
+     around the trigger's circular fill (Cause A color mismatch). */
+  background: transparent;
+  box-shadow: none;
   /* Do NOT use overflow:hidden here — it clips the trigger icon.
      Clipping is handled per-child where needed. */
   overflow: visible;
@@ -33,6 +36,10 @@
   width: 340px;
   border-radius: 20px;
   justify-content: flex-start;
+  /* Restore the pill background when expanded — it now needs to show
+     behind the full row of option buttons */
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset var(--card-shadow);
   /* Only clip when expanded so options don't spill outside the pill */
   overflow: hidden;
 }
@@ -49,9 +56,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: var(--icon-btn-size, 2.8em);
-  min-width: var(--icon-btn-size, 2.8em);
-  height: var(--icon-btn-size, 2.8em);
+  width: 2.4em;
+  min-width: 2.4em;
+  height: 2.4em;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -61,7 +68,10 @@
 }
 
 .theme-toggle-trigger.active {
-  background: var(--background-subtle);
+  /* Match the glass-pill style of the search wrapper and notch so the
+     collapsed toggle looks consistent with the other topbar elements */
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset var(--card-shadow);
 }
 
 .theme-toggle-trigger:hover {
@@ -72,13 +82,10 @@
 /* ── Icon inside trigger — explicit px size, not em, so it never
    depends on the em chain or gets clipped ── */
 .theme-toggle-trigger svg {
-  position: relative;
-  left: 6px;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
   display: block;
-  /* Feather icons are stroke-based — ensure they inherit text color */
   stroke: currentColor;
   fill: none;
 }
@@ -89,13 +96,14 @@
   align-items: center;
   flex: 1;
   justify-content: space-evenly;
-  /* Hide options when container is collapsed */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.18s ease;
-  /* Prevent options from widening the collapsed container */
   overflow: hidden;
   width: 0;
+  /* Remove from flex flow when collapsed so the trigger centers correctly */
+  position: absolute;
+  visibility: hidden;
 }
 
 .theme-toggle-container[data-expanded="true"] .theme-options {
@@ -104,6 +112,9 @@
   transition: opacity 0.2s ease 0.08s;
   overflow: visible;
   width: auto;
+  /* Restore to normal flex flow when expanded */
+  position: static;
+  visibility: visible;
 }
 
 /* ── Option buttons ── */
@@ -113,8 +124,8 @@
   justify-content: center;
   flex-shrink: 0;
   flex: 1;
-  min-width: var(--icon-btn-size, 2.8em);
-  height: var(--icon-btn-size, 2.8em);
+  min-width: 2.4em;
+  height: 2.4em;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -124,8 +135,8 @@
 }
 
 .theme-option svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
   display: block;
   stroke: currentColor;

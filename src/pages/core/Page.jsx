@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { Icons } from '../../assets/icons'
-import { galleryImages } from '../../routes/galleryImages'
+import { galleryImages as FALLBACK_POSTS } from '../../routes/galleryImages'
+import API from '../../config/api'
 import '../../styles/core/Page.css'
 
 const LIKES_KEY = 'page-likes'
@@ -9,6 +10,29 @@ const SAVES_KEY = 'page-saves'
 const LIKE_COUNTS_KEY = 'page-like-counts'
 const SAVE_COUNTS_KEY = 'page-save-counts'
 const SHARE_COUNTS_KEY = 'page-share-counts'
+
+// Accepts both the old static shape and the MongoDB PagePost shape
+function normalise(post) {
+  const id = post._id || post.id
+  return {
+    ...post,
+    id,
+    src: post.coverImage?.startsWith('/media/') ? `${API}${post.coverImage}` : (post.coverImage || post.src),
+    publisher: post.author || post.publisher,
+    avatar: post.authorAvatar?.startsWith('/media/') ? `${API}${post.authorAvatar}` : (post.authorAvatar || post.avatar || null),
+    date: post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : post.date,
+    likeCountInitial: post.likeCount || 0,
+    saveCountInitial: post.saveCount || 0,
+    shareCountInitial: post.shareCount || 0,
+    comments: (post.comments || []).map(c => ({
+      id: c._id || c.id,
+      author: c.authorName || c.author,
+      avatar: c.authorAvatar?.startsWith('/media/') ? `${API}${c.authorAvatar}` : (c.authorAvatar || c.avatar || null),
+      text: c.text,
+      time: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : (c.time || 'just now'),
+    })),
+  }
+}
 
 function Avatar({ src, name, size = 36 }) {
   const initials = name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'
@@ -176,8 +200,8 @@ function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike
   )
 }
 
-function SavedPostsPanel({ savedPosts, onClose }) {
-  const saved = galleryImages.filter(p => savedPosts.has(p.id))
+function SavedPostsPanel({ posts, savedPosts, onClose }) {
+  const saved = posts.filter(p => savedPosts.has(p.id))
 
   return (
     <div className="saved-panel-overlay" onClick={onClose}>
@@ -270,6 +294,8 @@ function loadCounts(key) {
 
 export default function Page() {
   const { setSideMenu, setNotchText } = useOutletContext()
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
   const [likedPosts, setLikedPosts] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY)) || []) } catch { return new Set() }
   })
@@ -294,6 +320,40 @@ export default function Page() {
       { title: 'Settings', to: '/settings', icon: Icons.settings },
     ])
   }, [setSideMenu, setNotchText])
+
+  // Fetch posts from API, fall back to static file if backend is down
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/posts`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { if (!cancelled) setPosts(data.map(normalise)) })
+      .catch(() => { if (!cancelled) setPosts(FALLBACK_POSTS.map(normalise)) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Seed like/save/share counts from server data the first time each post is seen
+  useEffect(() => {
+    if (posts.length === 0) return
+    setLikeCounts(c => {
+      const next = { ...c }
+      let changed = false
+      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.likeCountInitial; changed = true }
+      return changed ? next : c
+    })
+    setSaveCounts(c => {
+      const next = { ...c }
+      let changed = false
+      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.saveCountInitial; changed = true }
+      return changed ? next : c
+    })
+    setShareCounts(c => {
+      const next = { ...c }
+      let changed = false
+      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.shareCountInitial; changed = true }
+      return changed ? next : c
+    })
+  }, [posts])
 
   useEffect(() => {
     try { localStorage.setItem(LIKES_KEY, JSON.stringify([...likedPosts])) } catch {}
@@ -344,7 +404,9 @@ export default function Page() {
     <div className="page-main">
       <div className="page-scroll">
         <div className="page-feed">
-          {galleryImages.map((post) => (
+          {loading ? (
+            <p style={{ textAlign: 'center', padding: '2rem' }}>Loading…</p>
+          ) : posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
@@ -364,7 +426,7 @@ export default function Page() {
       {sharePost && <ShareDialog post={sharePost} onClose={() => setSharePost(null)} />}
 
       {savedPanelOpen && (
-        <SavedPostsPanel savedPosts={savedPosts} onClose={() => setSavedPanelOpen(false)} />
+        <SavedPostsPanel posts={posts} savedPosts={savedPosts} onClose={() => setSavedPanelOpen(false)} />
       )}
 
       <button

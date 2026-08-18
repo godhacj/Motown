@@ -154,8 +154,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--icon-btn-size);
-  height: var(--icon-btn-size);
+  width: 2.4em;
+  height: 2.4em;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -364,6 +364,58 @@
   background: var(--color-accent);
 }
 
+/* ─── Below 640px: widen the notch so full tab labels fit ───
+   .topbar-middle is the direct flex child of .topbar, so the 80% must go
+   there (a % on .notch--nav would resolve against .topbar-middle, not the
+   topbar). The side sections shrink to let it through. */
+@media (max-width: 640px) {
+  /* Tighten the shell so the side controls fit in the remaining 20% without
+     colliding with the notch. */
+  .topbar--nav-mode {
+    gap: 0.15rem;
+    padding: 0 0.35rem;
+  }
+
+  .topbar--nav-mode .topbar-middle {
+    flex: 0 0 80%;
+    width: 80%;
+    max-width: 80%;
+  }
+
+  .topbar--nav-mode .topbar-left,
+  .topbar--nav-mode .topbar-right {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 0.1rem;
+  }
+
+  /* Side icon buttons shrink slightly to make room for the wider notch */
+  .topbar--nav-mode .sidebar-toggle,
+  .topbar--nav-mode .search-wrapper,
+  .topbar--nav-mode .search-btn,
+  .topbar--nav-mode .profile-btn,
+  .topbar--nav-mode .conv-tray-btn {
+    width: 2.1em;
+    min-width: 2.1em;
+    height: 2.1em;
+  }
+
+  .topbar--nav-mode .sidebar-toggle svg,
+  .topbar--nav-mode .search-btn svg,
+  .topbar--nav-mode .profile-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  /* The notch is a flex item of .topbar-middle, so width:100% alone doesn't
+     fill it — it needs flex-grow to actually claim the full 80%. */
+  .notch--nav {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
 /* ─── Responsive: fewer labels on small screens ─── */
 @media (max-width: 700px) {
   .notch--nav {
@@ -405,6 +457,41 @@
   }
 }
 
+/* ── Very narrow screens (<500px): icon-only tabs, evenly spaced ── */
+@media (max-width: 500px) {
+  .notch--nav {
+    padding: 3px;
+    gap: 0;
+    justify-content: space-evenly;
+  }
+
+  .notch-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .notch-tab__label {
+    display: none;
+  }
+
+  .notch-tab__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .notch-tab__icon svg {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+}
+
 /* ═══════════════════════════════════════════
    RIGHT SECTION
 ═══════════════════════════════════════════ */
@@ -420,6 +507,79 @@
 }
 
 /* Search wrapper — only used on wide screens */
+.conv-tray-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.conv-tray-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-btn-size);
+  height: var(--icon-btn-size);
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset var(--card-shadow);
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: background 0.15s ease;
+}
+
+.conv-tray-btn:hover,
+.conv-tray-btn--active {
+  background: var(--background-hover);
+}
+
+.conv-tray-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: flex;
+  gap: 0.35rem;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0.4rem;
+  z-index: 1100;
+  animation: tb-fade-in 0.15s ease;
+}
+
+.conv-tray-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: background 0.15s ease;
+}
+
+.conv-tray-action:hover { background: var(--background-hover); }
+
+.conv-tray-toast {
+  position: absolute;
+  top: calc(100% + 3.2rem);
+  right: 0;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  padding: 6px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 1101;
+  white-space: nowrap;
+  animation: tb-fade-in 0.15s ease;
+}
+
 .search-wrapper {
   position: relative;
   display: flex;
@@ -538,6 +698,15 @@
 .profile-btn--active {
   background: var(--background-hover);
   box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+/* Admin portal session — shield icon gets an orange tint ring */
+.profile-btn--admin {
+  color: #ea7323;
+}
+
+.profile-btn--admin.profile-btn--active {
+  box-shadow: 0 0 0 2px #ea7323;
 }
 
 /* ═══════════════════════════════════════════
@@ -684,13 +853,16 @@
 .pd-role-badge[data-role="teacher"]    { background: rgba(34,197,94,0.12);  color: #16a34a; border-color: rgba(34,197,94,0.25); }
 .pd-role-badge[data-role="house"],
 .pd-role-badge[data-role="academic"],
+.pd-role-badge[data-role="academics"],
 .pd-role-badge[data-role="data"],
 .pd-role-badge[data-role="club"],
 .pd-role-badge[data-role="domestic"],
 .pd-role-badge[data-role="chapel"],
 .pd-role-badge[data-role="library"],
 .pd-role-badge[data-role="management"],
-.pd-role-badge[data-role="media"]      { background: rgba(249,115,22,0.12); color: #ea7323; border-color: rgba(249,115,22,0.25); }
+.pd-role-badge[data-role="media"],
+.pd-role-badge[data-role="accounts"],
+.pd-role-badge[data-role="admin"]      { background: rgba(249,115,22,0.12); color: #ea7323; border-color: rgba(249,115,22,0.25); }
 
 .pd-sub {
   font-size: 0.72rem;
@@ -849,7 +1021,7 @@
   }
 
   .notch {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -864,7 +1036,16 @@
   }
 
   .notch {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
+    /* Grow to fill the space between left and right control groups */
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    /* Truncate long page names cleanly */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }
 
@@ -895,5 +1076,155 @@
 
   .search-wrapper[data-open="true"] .search-input{
     outline: none;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE EXPAND TOGGLES (app-wide, any page)
+   Double-locked: must match BOTH
+     (a) width < 400px  AND
+     (b) the self-applied .topbar--sp-active class
+   Topbar.jsx sets that class purely from screen
+   width — no route/portal check — so this now
+   applies uniformly on every page.
+═══════════════════════════════════════════ */
+@media (max-width: 400px) {
+  /* Topbar row stays a single horizontal flex row — no changes needed to .topbar
+     itself; this block only adds/tweaks SP-active-specific children. */
+
+  /* Notch in SP mode: flex: 1 so it grows/shrinks to fill available space.
+     min-width: 0 is essential — without it the notch won't shrink below its
+     content width and the revealed icons get squeezed off screen.
+     text-overflow: ellipsis ensures the label stays readable when narrow. */
+  .topbar--sp-active .notch--sp {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: width 200ms ease;
+  }
+
+  /* Expand buttons: fixed size, sit as normal flex children of topbar-left/right.
+     The parent topbar-left / topbar-right already has display:flex; flex-direction:row;
+     align-items:center — no structural overrides needed. */
+  .topbar--sp-active .sp-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-btn-size);
+    height: var(--icon-btn-size);
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-text-primary);
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.2s ease;
+  }
+
+  .topbar--sp-active .sp-expand-btn:hover {
+    background: var(--background-hover);
+  }
+
+  /* Rotate chevron 180° when open — signals "tap again to close" */
+  .topbar--sp-active .sp-expand-btn--open {
+    transform: rotate(180deg);
+  }
+
+  /* Revealed icons (sidebar-toggle, search-btn, profile-btn) must be fixed size
+     and never shrink — they take priority for space; the notch shrinks instead. */
+  .topbar--sp-active .topbar-left .sidebar-toggle,
+  .topbar--sp-active .topbar-left .theme-toggle-wrapper,
+  .topbar--sp-active .topbar-right .search-wrapper,
+  .topbar--sp-active .topbar-right .profile-btn {
+    flex-shrink: 0;
+  }
+
+  /* Right-side search wrapper in SP mode: icon-only (no expandable input) */
+  .topbar--sp-active .topbar-right .search-wrapper {
+    background: transparent;
+    box-shadow: none;
+    width: var(--icon-btn-size);
+    min-width: var(--icon-btn-size);
+  }
+
+  /* ── SP mobile: icon-only tab strip inside the notch ──
+     The notch becomes a horizontally scrollable row of icon buttons.
+     Labels are already hidden at <480px by the global rule above.
+     This block overrides the notch--nav layout to be scrollable and
+     keeps each tab button as a compact icon-only circle. */
+  .topbar--sp-active .notch--sp.notch--nav {
+    /* Scrollable strip: overflow-x allows swipe when many icons */
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* Hide scrollbar visually but keep swipeable */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* Single horizontal row, no wrap */
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 4px;
+    /* Touch scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .topbar--sp-active .notch--sp.notch--nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Each icon button: compact circle, fixed size, never shrinks */
+  .topbar--sp-active .notch--sp .notch-tab {
+    flex: 0 0 auto;
+    width: 2em;
+    height: 2em;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  /* Icon inside the tab: match the button size */
+  .topbar--sp-active .notch--sp .notch-tab__icon {
+    font-size: 1em;
+  }
+  .topbar--sp-active .notch--sp .notch-tab__icon svg {
+    width: 1em;
+    height: 1em;
+  }
+
+  /* Active tab: filled background + accent color, no pip (no room) */
+  .topbar--sp-active .notch--sp .notch-tab--active {
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
+    box-shadow: none;
+  }
+
+  /* Inactive tab hover */
+  .topbar--sp-active .notch--sp .notch-tab:hover:not(.notch-tab--active) {
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--color-text-primary);
+  }
+
+  /* Hide the pip — no room in icon-only mode */
+  .topbar--sp-active .notch--sp .notch-tab__pip {
+    display: none;
+  }
+
+  /* SP expanded plain notch: row with icon + name */
+  .topbar--sp-active .notch--sp:not(.notch--nav) {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    overflow: hidden;
   }
 }

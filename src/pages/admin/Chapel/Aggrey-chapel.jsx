@@ -1,116 +1,74 @@
 import React, { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Icons } from '../../../assets/icons'
+import { useAdminPortal } from '../../../hooks/useAdminPortal'
+import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import '../../../styles/admin/Chapel/Aggrey-chapel.css'
-import '../../../styles/PageContent.css' 
+import '../../../styles/PageContent.css'
 
 export default function AggreyChapel() {
-  const {setIsOpen, setSideMenu, setSearchConfig, setNotchText} = useOutletContext();
-  const [services] = useState([
-    { id: 1, day: 'Sunday', time: '10:00 AM', type: 'Main Service', attendees: 450 },
-    { id: 2, day: 'Wednesday', time: '2:00 PM', type: 'Midweek Prayer', attendees: 180 },
-    { id: 3, day: 'Friday', time: '6:00 PM', type: 'Evening Prayers', attendees: 120 }
-  ]);
+  const session = useAdminPortal('Aggrey Chapel')
+  const { apiFetch } = useAdminAuth()
+
+  const [chapels,  setChapels]  = useState([])
+  const [stats,    setStats]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
 
   useEffect(() => {
-    setNotchText('Aggrey Chapel');
-    setSearchConfig({
-      visible: true,
-      placeholder: 'Search services, events',
-      Icon: Icons.search,
-      handler: (q) => console.log('Chapel search:', q)
-    });
-    setSideMenu([
-      {label: "Home", path: "/", icon: Icons.home},
-      {label: "Gallery", path: "/gallery", icon: Icons.gallery},
-      {label: "Page", path: "/page", icon: Icons.page},
-      {label: "Map", path: "/map", icon: Icons.map},
-      {label: "PTA Shop", path: "/pta-shop", icon: Icons.shopping},
-      {label: "About", path: "/about", icon: Icons.about},
-      {label: "Settings", path: "/settings", icon: Icons.settings}
+    if (!session) return
+    Promise.all([
+      apiFetch('/api/admin/chapel/services'),
+      apiFetch('/api/admin/chapel/stats'),
     ])
-  }, [setNotchText, setSideMenu, setSearchConfig]);
+      .then(([sData, stData]) => {
+        setChapels(sData.chapels || [])
+        setStats(stData.stats || [])
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [session])
+
+  const aggreyStats = stats.find(s => s.chapelName === 'Aggrey Chapel')
+  const aggreyServices = chapels.find(c => c.chapelName === 'Aggrey Chapel')?.services || []
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>Aggrey Chapel</h1>
-        <p>Spiritual center for interfaith services and community gatherings</p>
+        <p>Service records and attendance management</p>
       </div>
 
       <div className="stats-section">
-        <div className="stat-box">
-          <div className="stat-value">3</div>
-          <div className="stat-label">Weekly Services</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">750</div>
-          <div className="stat-label">Weekly Attendees</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">12</div>
-          <div className="stat-label">Chaplains</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-value">156</div>
-          <div className="stat-label">Events/Year</div>
-        </div>
+        <div className="stat-box"><div className="stat-value">{aggreyStats?.totalServices??'—'}</div><div className="stat-label">Services</div></div>
+        <div className="stat-box"><div className="stat-value">{aggreyStats?.totalAttendance??'—'}</div><div className="stat-label">Attendance Records</div></div>
+        <div className="stat-box"><div className="stat-value">{aggreyStats?.presentCount??'—'}</div><div className="stat-label">Present</div></div>
+        <div className="stat-box"><div className="stat-value">{aggreyStats?.exemptedCount??'—'}</div><div className="stat-label">Exempted</div></div>
       </div>
 
-      <div className="content-grid">
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#8b5cf6'}}>
-            <Icons.calendar style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Schedule Service</h3>
-          <p>Plan chapel services and spiritual events</p>
-          <button className="page-button">Schedule</button>
-        </div>
+      {loading && <p className="ap-loading">Loading…</p>}
+      {error   && <p className="ap-error">{error}</p>}
 
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#f59e0b'}}>
-            <Icons.users style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Volunteer Management</h3>
-          <p>Coordinate chaplains and volunteers</p>
-          <button className="page-button">Manage</button>
+      {!loading && !error && (
+        <div className="table-container">
+          <h2>Service Records</h2>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Time</th><th>Topic</th><th>Speaker</th><th>Scripture</th></tr>
+            </thead>
+            <tbody>
+              {aggreyServices.slice(0,50).map((s,i) => (
+                <tr key={i}>
+                  <td>{s.date ? new Date(s.date).toLocaleDateString() : '—'}</td>
+                  <td>{s.time||'—'}</td>
+                  <td>{s.topic||'—'}</td>
+                  <td>{s.speaker||'—'}</td>
+                  <td>{s.scriptureRef||'—'}</td>
+                </tr>
+              ))}
+              {aggreyServices.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No service records yet</td></tr>}
+            </tbody>
+          </table>
         </div>
-
-        <div className="content-card">
-          <div className="card-icon" style={{backgroundColor: '#10b981'}}>
-            <Icons.announcement style={{width: '24px', height: '24px'}} />
-          </div>
-          <h3>Announcements</h3>
-          <p>Broadcast chapel announcements</p>
-          <button className="page-button">Announce</button>
-        </div>
-      </div>
-
-      <div className="table-container">
-        <h2>Weekly Services Schedule</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Day</th>
-              <th>Time</th>
-              <th>Service Type</th>
-              <th>Expected Attendees</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map(service => (
-              <tr key={service.id}>
-                <td><strong>{service.day}</strong></td>
-                <td>{service.time}</td>
-                <td>{service.type}</td>
-                <td>{service.attendees}</td>
-                <td><button className="page-button">Edit</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   )
 }

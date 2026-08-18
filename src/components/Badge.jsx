@@ -1,18 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { keyData } from './files/badge_keyData.js';
+import { keyData as FALLBACK_KEY_DATA } from './files/badge_keyData.js';
 import { Icons } from '../assets/icons.js';
 import { useNotch } from '../contexts/NotchContext.jsx';
+import API from '../config/api';
 import '../styles/components/Badge.css';
+
+function normalise(item) {
+  return {
+    title: item.title,
+    description: item.description,
+    image: item.image?.startsWith('/media/') ? `${API}${item.image}` : item.image,
+  };
+}
 
 export default function Badge({ className = '', isLoading = false }) {
   const { setNotchText } = useNotch();
   const [popup, setPopup] = useState(null);
   const [liked, setLiked] = useState({});
+  const [keyData, setKeyData] = useState(FALLBACK_KEY_DATA);
 
   const popupRef = useRef(null);
   const draggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
-  
+
+  // Fetch campus highlights from API, fall back to static file if backend is down
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/campus-highlights`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return
+        setKeyData(data.map(normalise))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   //Open Pop up function
 
   const handleKeyClick = (e, index) => {
