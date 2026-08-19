@@ -270,15 +270,26 @@
    and renders a segmented tab strip.
 ═══════════════════════════════════════════ */
 
-/* In nav mode the topbar-middle gets more horizontal space */
+/* In nav mode the topbar-middle gets more horizontal space, and the notch
+   keeps a guaranteed 5px clearance from the side button clusters. */
+.topbar--nav-mode {
+  gap: 5px;
+}
+
 .topbar--nav-mode .topbar-middle {
   flex: 1 1 auto;
 }
 
 .notch--nav {
-  /* Override plain-notch sizing */
+  /* Override plain-notch sizing — fills whatever .topbar-middle gives it
+     rather than a hard cap, so it uses the space actually available.
+     flex-grow is required here: as a flex item of .topbar-middle,
+     width:100% alone doesn't claim the parent's space, it just caps how
+     large the item is ALLOWED to be — without flex:1 it shrinks to fit
+     its content instead of filling the row. */
+  flex: 1 1 100%;
   width: 100%;
-  max-width: 640px;
+  max-width: 100%;
   height: 80%;
   min-width: 0;
   cursor: default;
@@ -368,105 +379,39 @@
    .topbar-middle is the direct flex child of .topbar, so the 80% must go
    there (a % on .notch--nav would resolve against .topbar-middle, not the
    topbar). The side sections shrink to let it through. */
+/* ─── Tier B (<=640px): icon-only notch, fixed 65% width ───
+   Single unified breakpoint replacing the old overlapping 640/700/480/500px
+   rules. Below this point the notch is a fixed 65% of the topbar, tabs
+   become fixed 30x30px tap targets with an 18px icon (no label — the
+   Tooltip wrapping each tab shows the name on hover/long-press instead). */
 @media (max-width: 640px) {
-  /* Tighten the shell so the side controls fit in the remaining 20% without
-     colliding with the notch. */
-  .topbar--nav-mode {
-    gap: 0.15rem;
-    padding: 0 0.35rem;
-  }
-
   .topbar--nav-mode .topbar-middle {
-    flex: 0 0 80%;
-    width: 80%;
-    max-width: 80%;
+    flex: 0 0 65%;
+    width: 65%;
+    max-width: 65%;
   }
 
-  .topbar--nav-mode .topbar-left,
-  .topbar--nav-mode .topbar-right {
-    flex: 0 1 auto;
-    min-width: 0;
-    gap: 0.1rem;
-  }
-
-  /* Side icon buttons shrink slightly to make room for the wider notch */
-  .topbar--nav-mode .sidebar-toggle,
-  .topbar--nav-mode .search-wrapper,
-  .topbar--nav-mode .search-btn,
-  .topbar--nav-mode .profile-btn,
-  .topbar--nav-mode .conv-tray-btn {
-    width: 2.1em;
-    min-width: 2.1em;
-    height: 2.1em;
-  }
-
-  .topbar--nav-mode .sidebar-toggle svg,
-  .topbar--nav-mode .search-btn svg,
-  .topbar--nav-mode .profile-btn svg {
-    width: 1.1rem;
-    height: 1.1rem;
-  }
-
-  /* The notch is a flex item of .topbar-middle, so width:100% alone doesn't
-     fill it — it needs flex-grow to actually claim the full 80%. */
   .notch--nav {
     flex: 1 1 100%;
     width: 100%;
     max-width: 100%;
-  }
-}
-
-/* ─── Responsive: fewer labels on small screens ─── */
-@media (max-width: 700px) {
-  .notch--nav {
-    max-width: 100%;
-    padding: 3px;
-    gap: 1px;
-  }
-
-  .notch-tab {
-    font-size: 0.72rem;
-    padding: 0 6px;
-    gap: 4px;
-  }
-
-  /* Hide tab labels when there are many tabs and screen is narrow —
-     icons only. Pages should supply icons for mobile. */
-  .notch--nav[data-tab-count="5"] .notch-tab__label,
-  .notch--nav[data-tab-count="6"] .notch-tab__label,
-  .notch--nav[data-tab-count="7"] .notch-tab__label,
-  .notch--nav[data-tab-count="8"] .notch-tab__label,
-  .notch--nav[data-tab-count="9"] .notch-tab__label {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .notch--nav {
-    padding: 3px 2px;
-  }
-
-  .notch-tab {
-    font-size: 0.68rem;
-    padding: 0 4px;
-  }
-
-  /* Always hide labels on very small screens */
-  .notch-tab__label {
-    display: none;
-  }
-}
-
-/* ── Very narrow screens (<500px): icon-only tabs, evenly spaced ── */
-@media (max-width: 500px) {
-  .notch--nav {
     padding: 3px;
     gap: 0;
     justify-content: space-evenly;
   }
 
+  /* Tooltip wraps each tab button in its own .tooltip-wrapper div, which
+     becomes the actual flex child of .notch--nav — size the wrapper, not
+     just the button inside it, so the fixed-30px intent actually holds. */
+  .notch--nav .tooltip-wrapper {
+    display: flex;
+    flex: 0 0 30px;
+  }
+
   .notch-tab {
-    flex: 1 1 0;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
     min-width: 0;
     padding: 0;
     gap: 0;
@@ -486,9 +431,50 @@
   }
 
   .notch-tab__icon svg {
-    width: 30px;
-    height: 30px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+  }
+
+  /* Side buttons shrink here (not in the fluid tier above 640px) since the
+     notch now claims a fixed 65%, leaving less natural room for the sides. */
+  .topbar--nav-mode .sidebar-toggle,
+  .topbar--nav-mode .search-wrapper,
+  .topbar--nav-mode .search-btn,
+  .topbar--nav-mode .profile-btn,
+  .topbar--nav-mode .conv-tray-btn {
+    width: 2.1em;
+    min-width: 2.1em;
+    height: 2.1em;
+  }
+
+  .topbar--nav-mode .sidebar-toggle svg,
+  .topbar--nav-mode .search-btn svg,
+  .topbar--nav-mode .profile-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  /* High tab-count pages (e.g. ProspectStudent's 9 wizard stages) —
+     fixed-size boxes would overflow .notch--nav's bounds and get clipped
+     by overflow:hidden, so switch to a horizontally scrollable strip
+     instead (same proven pattern already used by SP-mode below). */
+  .notch--nav[data-tab-count="7"],
+  .notch--nav[data-tab-count="8"],
+  .notch--nav[data-tab-count="9"],
+  .notch--nav[data-tab-count="10"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .notch--nav[data-tab-count="7"]::-webkit-scrollbar,
+  .notch--nav[data-tab-count="8"]::-webkit-scrollbar,
+  .notch--nav[data-tab-count="9"]::-webkit-scrollbar,
+  .notch--nav[data-tab-count="10"]::-webkit-scrollbar {
+    display: none;
   }
 }
 

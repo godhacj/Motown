@@ -1372,7 +1372,7 @@ export default function Chat() {
     // Search is owned per-tab by PartInbox/PartGroups (setSearchConfig called there)
     // Defer one tick so Layout's pathname-change effect (which clears tabs) fires first
     const t = setTimeout(() => {
-      applyNotchTabs(PARTS.map(p => ({ label: p.label, value: p.value })))
+      applyNotchTabs(PARTS.map(p => ({ label: p.label, value: p.value, icon: p.icon })))
       setNotchActiveTab('inbox')
     }, 0)
     return () => clearTimeout(t)
