@@ -25,11 +25,11 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
         <Link to={item.to} aria-current={isActive ? 'page' : undefined} onClick={() => setIsOpen(false)}>
           <span className="sidebar-icon-wrap">
             {IconComponent && <IconComponent className="sidebar-icon" />}
+            {item.badge > 0 && (
+              <span className="sidebar-badge">{item.badge > 99 ? '99+' : item.badge}</span>
+            )}
           </span>
           <span className="sidebar-label">{item.title}</span>
-          {item.badge > 0 && (
-            <span className="sidebar-badge">{item.badge > 99 ? '99+' : item.badge}</span>
-          )}
         </Link>
       </li>
     )
