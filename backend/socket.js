@@ -1,6 +1,7 @@
 const { Server } = require('socket.io')
 const mongoose = require('mongoose')
 const { Conference, Student, Teacher } = require('./schema')
+const { clientOrigins } = require('./config/origins')
 
 // Resolve a studentId/staffId/username/ObjectId to { id, role, name } — same
 // pattern used by routes/messages.js and routes/reports.js.
@@ -43,7 +44,7 @@ async function findOrCreateConference(roomKey, host) {
 
 function attachSignaling(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' },
+    cors: { origin: clientOrigins() },
   })
 
   // socket.id -> { conferenceId, userId, name, role }

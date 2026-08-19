@@ -1,0 +1,43 @@
+services:
+  # ── Backend: Express + Socket.IO ────────────────────────────────────────────
+  # A Web Service (not serverless) so WebSockets and the long-lived HTTP server
+  # in backend/index.js work as written.
+  - type: web
+    name: motown-api
+    runtime: node
+    rootDir: backend
+    plan: free # upgrade to "starter" to stop the 15-min idle spin-down
+    buildCommand: npm ci
+    startCommand: node index.js
+    healthCheckPath: /healthz
+    disk:
+      # Uploads land here. Without a persistent disk every redeploy wipes them.
+      name: motown-media
+      mountPath: /var/data/media
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MEDIA_DIR
+        value: /var/data/media
+      - key: MONGO_URI
+        sync: false # set in the Render dashboard — never commit this
+      - key: CLIENT_ORIGIN
+        sync: false # e.g. https://motown-web.onrender.com
+
+  # ── Frontend: Vite static build ─────────────────────────────────────────────
+  - type: web
+    name: motown-web
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_API_URL
+        sync: false # e.g. https://motown-api.onrender.com
+    routes:
+      # SPA fallback so react-router deep links don't 404 on refresh.
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -2,10 +2,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const MEDIA_DIR = process.env.MEDIA_DIR || 'C:\\Users\\HP\\Downloads\\Motown_Media';
+const { MEDIA_DIR, MEDIA_SUBFOLDERS } = require('../config/paths');
 
 // Ensure sub-folders exist at startup
-['gallery', 'products', 'page', 'avatars', 'chat-attachments'].forEach(sub => {
+MEDIA_SUBFOLDERS.forEach(sub => {
   fs.mkdirSync(path.join(MEDIA_DIR, sub), { recursive: true });
 });
 

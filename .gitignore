@@ -16,6 +16,9 @@ dist-ssr
 .env
 backend/.env
 
+# Locally uploaded media (default MEDIA_DIR)
+backend/media
+
 # Seed credential files (contain plaintext passwords — never commit)
 backend/seed-credentials.json
 public/credentials.txt

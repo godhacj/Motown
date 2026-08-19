@@ -4,16 +4,17 @@ const express  = require('express');
 const cors     = require('cors');
 const connectDB = require('./config/db');
 const { attachSignaling } = require('./socket');
+const { MEDIA_DIR } = require('./config/paths');
+const { clientOrigins } = require('./config/origins');
 
 const app = express();
 
 connectDB();
 
 // ── Static media ──────────────────────────────────────────────────────────────
-const MEDIA_DIR = process.env.MEDIA_DIR || 'C:\\Users\\HP\\Downloads\\Motown_Media';
 app.use('/media', express.static(MEDIA_DIR));
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
+app.use(cors({ origin: clientOrigins() }));
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -58,6 +59,15 @@ app.use('/api/admin/accounts',    require('./routes/adminAccounts'));
 app.use('/api/admin/house',       require('./routes/adminHouse'));
 
 app.get('/', (req, res) => res.json({ message: 'Motown API running' }));
+
+// Health check — Render pings this to confirm the service is up.
+app.get('/healthz', (req, res) => {
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  res.json({
+    status: 'ok',
+    db: states[require('mongoose').connection.readyState] || 'unknown',
+  });
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
