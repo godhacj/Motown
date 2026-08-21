@@ -1,7 +1,7 @@
 const express  = require('express')
 const mongoose = require('mongoose')
 const { Message, Student, Teacher } = require('../schema')
-const { emitToUser } = require('../socket')
+const { emitToUser, isUserOnline } = require('../socket')
 const router   = express.Router()
 
 // Resolve a route param (Mongo ObjectId, studentId, or username) to a user's ObjectId
@@ -27,6 +27,57 @@ function initials(name) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+// Tick state for a message the requesting user sent:
+//   sent      — stored on the server, recipient not connected yet
+//   delivered — reached at least one recipient's device (double grey tick)
+//   read      — opened by every other participant (double accent tick)
+function receiptStatus(m, otherIds) {
+  if (!otherIds.length) return 'sent'
+  const has = (list, id) => (list || []).some(x => String(x) === String(id))
+  if (otherIds.every(o => has(m.readBy, o))) return 'read'
+  if (otherIds.some(o => has(m.deliveredTo, o))) return 'delivered'
+  return 'sent'
+}
+
+// One shape for every message the client receives — from the initial thread
+// fetch and from the live socket event alike, so the UI never has to branch.
+function serializeMessage(m, uid, otherIds) {
+  const isMine = String(m.senderId) === String(uid)
+  return {
+    id: m._id,
+    from: isMine ? 'me' : String(m.senderId),
+    name: m.senderName,
+    text: m.text,
+    time: m.sentAt,
+    date: m.sentAt,
+    attachments: m.attachments || [],
+    replyTo: m.replyTo?.messageId
+      ? { id: String(m.replyTo.messageId), name: m.replyTo.senderName, text: m.replyTo.text, type: m.replyTo.type }
+      : null,
+    status: isMine ? receiptStatus(m, otherIds) : null,
+  }
+}
+
+// Trim a client-supplied reply quote down to the fields we store.
+function cleanReplyTo(raw) {
+  if (!raw?.id || !mongoose.isValidObjectId(raw.id)) return undefined
+  return {
+    messageId:  raw.id,
+    senderName: String(raw.name || '').slice(0, 80),
+    text:       String(raw.text || '').slice(0, 240),
+    type:       String(raw.type || 'text').slice(0, 20),
+  }
+}
+
+// A short preview of a message for thread lists and reply quotes.
+function previewOf(msg) {
+  if (msg?.text) return msg.text
+  const type = msg?.attachments?.[0]?.type
+  if (type === 'audio') return '🎤 Voice note'
+  if (type) return '📎 Attachment'
+  return ''
+}
+
 // GET /api/messages/inbox/:userId — direct-message threads for a user, newest first
 router.get('/inbox/:userId', async (req, res) => {
   try {
@@ -46,14 +97,11 @@ router.get('/inbox/:userId', async (req, res) => {
         initials: initials(other.name),
         role: other.role,
         photo: other.photo,
-        lastMsg: last?.text || '',
+        lastMsg: previewOf(last),
         time: last?.sentAt || t.updatedAt,
         unread,
-        online: false,
-        messages: t.messages.map(m => ({
-          id: m._id, from: String(m.senderId) === String(uid) ? 'me' : String(m.senderId),
-          text: m.text, time: m.sentAt, date: m.sentAt, attachments: m.attachments || [],
-        })),
+        online: isUserOnline(otherId),
+        messages: t.messages.map(m => serializeMessage(m, uid, [otherId])),
       }
     }))
 
@@ -73,6 +121,7 @@ router.get('/groups/:userId', async (req, res) => {
 
     const result = groups.map(g => {
       const last = g.messages[g.messages.length - 1]
+      const otherIds = g.participants.filter(p => String(p) !== String(uid))
       const unread = g.messages.filter(m => String(m.senderId) !== String(uid) && !m.readBy?.some(r => String(r) === String(uid))).length
 
       return {
@@ -82,13 +131,10 @@ router.get('/groups/:userId', async (req, res) => {
         initials: initials(g.groupName || ''),
         locked: g.isLocked,
         members: g.totalMembers ?? g.participants.length,
-        lastMsg: last ? `${last.senderName}: ${last.text}` : '',
+        lastMsg: last ? `${last.senderName}: ${previewOf(last)}` : '',
         time: last?.sentAt || g.updatedAt,
         unread,
-        messages: g.messages.map(m => ({
-          id: m._id, from: String(m.senderId) === String(uid) ? 'me' : String(m.senderId),
-          name: m.senderName, text: m.text, time: m.sentAt, date: m.sentAt, attachments: m.attachments || [],
-        })),
+        messages: g.messages.map(m => serializeMessage(m, uid, otherIds)),
       }
     })
 
@@ -106,10 +152,25 @@ router.patch('/:threadId/read', async (req, res) => {
     const uid = await resolveUserId(rawUserId)
     if (!uid) return res.status(404).json({ error: 'User not found' })
 
-    await Message.updateOne(
+    // Reading also implies delivery — a message you have open certainly reached you.
+    const result = await Message.updateOne(
       { _id: req.params.threadId },
-      { $addToSet: { 'messages.$[].readBy': uid } }
+      { $addToSet: { 'messages.$[].readBy': uid, 'messages.$[].deliveredTo': uid } }
     )
+
+    // Tell the other participants to flip their ticks. Only worth a round trip
+    // when something actually changed.
+    if (result.modifiedCount) {
+      const thread = await Message.findById(req.params.threadId).select('participants type').lean()
+      thread?.participants
+        .filter(p => String(p) !== String(uid))
+        .forEach(p => emitToUser(String(p), 'messages-read', {
+          threadId: String(req.params.threadId),
+          type: thread.type,
+          readerId: String(uid),
+        }))
+    }
+
     res.json({ ok: true })
   } catch (err) {
     console.error(err)
@@ -184,7 +245,7 @@ router.post('/direct', async (req, res) => {
 // POST /api/messages/:threadId/send — append a message to a thread
 router.post('/:threadId/send', async (req, res) => {
   try {
-    const { senderId: rawSenderId, senderName, text, attachments } = req.body
+    const { senderId: rawSenderId, senderName, text, attachments, replyTo } = req.body
     const cleanAttachments = Array.isArray(attachments) ? attachments.slice(0, 1) : []
     if (!rawSenderId || (!text?.trim() && !cleanAttachments.length))
       return res.status(400).json({ error: 'senderId and (text or an attachment) are required' })
@@ -195,29 +256,33 @@ router.post('/:threadId/send', async (req, res) => {
     const thread = await Message.findById(req.params.threadId)
     if (!thread) return res.status(404).json({ error: 'Thread not found' })
 
+    const recipients = thread.participants.filter(p => String(p) !== String(senderId))
+    // Anyone with a live socket right now counts as delivered immediately;
+    // the rest are caught up by the sweep in socket.js when they reconnect.
+    const deliveredTo = recipients.filter(rid => isUserOnline(rid))
+
     const msg = {
       senderId, senderName, text: text?.trim() || '',
-      sentAt: new Date(), readBy: [senderId],
+      sentAt: new Date(), readBy: [senderId], deliveredTo,
       attachments: cleanAttachments,
+      replyTo: cleanReplyTo(replyTo),
     }
     thread.messages.push(msg)
     await thread.save()
 
     const savedMsg = thread.messages[thread.messages.length - 1]
-    const recipients = thread.participants.filter(p => String(p) !== String(senderId))
     recipients.forEach(rid => emitToUser(String(rid), 'new-message', {
       threadId: String(thread._id),
       type: thread.type,
-      message: {
-        id: savedMsg._id, from: String(senderId), text: savedMsg.text,
-        time: savedMsg.sentAt, date: savedMsg.sentAt,
-        attachments: savedMsg.attachments || [],
-        name: savedMsg.senderName,
-      },
+      // Serialized from the recipient's point of view — `from` is the sender's
+      // id and `status` is null, exactly as the thread fetch would return it.
+      message: serializeMessage(savedMsg, String(rid), [senderId]),
       senderName,
     }))
 
-    res.status(201).json(savedMsg)
+    // Echo the stored message back to the sender so the optimistic bubble can
+    // swap in the real id (needed for replies) and the correct tick state.
+    res.status(201).json(serializeMessage(savedMsg, String(senderId), recipients.map(String)))
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })

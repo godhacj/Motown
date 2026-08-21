@@ -20,11 +20,20 @@ const storage = multer.diskStorage({
   },
 });
 
+// Images everywhere; chat attachments may additionally be voice notes, whose
+// container varies by browser (webm on Chrome/Firefox, mp4/m4a on Safari).
+const IMAGE_EXT = /^\.(jpeg|jpg|png|gif|webp|svg)$/;
+const AUDIO_EXT = /^\.(webm|ogg|oga|mp3|m4a|mp4|wav|aac)$/;
+
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp|svg/;
-  const ok = allowed.test(path.extname(file.originalname).toLowerCase())
-           && allowed.test(file.mimetype.split('/')[1]);
-  ok ? cb(null, true) : cb(new Error('Images only'));
+  const ext  = path.extname(file.originalname).toLowerCase();
+  const mime = file.mimetype || '';
+
+  if (IMAGE_EXT.test(ext) && mime.startsWith('image/')) return cb(null, true);
+  if (req.params.folder === 'chat-attachments' && AUDIO_EXT.test(ext) && mime.startsWith('audio/'))
+    return cb(null, true);
+
+  cb(new Error(req.params.folder === 'chat-attachments' ? 'Images and voice notes only' : 'Images only'));
 };
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });

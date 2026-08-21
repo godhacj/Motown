@@ -1,6 +1,6 @@
 const { Server } = require('socket.io')
 const mongoose = require('mongoose')
-const { Conference, Student, Teacher } = require('./schema')
+const { Conference, Message, Student, Teacher } = require('./schema')
 
 // Resolve a studentId/staffId/username/ObjectId to { id, role, name } — same
 // pattern used by routes/messages.js and routes/reports.js.
@@ -39,6 +39,55 @@ async function findOrCreateConference(roomKey, host) {
     await conf.save()
   }
   return conf
+}
+
+// Participant lists for typing relays. Membership changes rarely and a stale
+// entry only costs a missed/extra "typing…", so a short TTL cache is plenty —
+// it keeps a per-keystroke event from becoming a per-keystroke query.
+const participantCache = new Map()   // threadId -> { ids: [String], expires: number }
+const PARTICIPANT_TTL = 60_000
+
+async function threadParticipants(threadId) {
+  if (!mongoose.isValidObjectId(threadId)) return []
+  const key = String(threadId)
+  const hit = participantCache.get(key)
+  if (hit && hit.expires > Date.now()) return hit.ids
+
+  const thread = await Message.findById(key).select('participants').lean()
+  const ids = (thread?.participants || []).map(String)
+  participantCache.set(key, { ids, expires: Date.now() + PARTICIPANT_TTL })
+  return ids
+}
+
+// When a user connects, everything addressed to them that never reached a
+// device is now delivered. Flip those receipts and tell the senders so their
+// single tick becomes a double one without needing a refresh.
+async function markPendingAsDelivered(userId) {
+  const uid = new mongoose.Types.ObjectId(String(userId))
+  const threads = await Message.find({
+    participants: uid,
+    messages: { $elemMatch: { senderId: { $ne: uid }, deliveredTo: { $ne: uid } } },
+  }).select('type messages.senderId messages.deliveredTo').lean()
+  if (!threads.length) return
+
+  await Message.updateMany(
+    { participants: uid },
+    { $addToSet: { 'messages.$[m].deliveredTo': uid } },
+    { arrayFilters: [{ 'm.senderId': { $ne: uid }, 'm.deliveredTo': { $ne: uid } }] }
+  )
+
+  for (const t of threads) {
+    const senders = new Set(
+      t.messages
+        .filter(m => String(m.senderId) !== String(uid) && !(m.deliveredTo || []).some(d => String(d) === String(uid)))
+        .map(m => String(m.senderId))
+    )
+    senders.forEach(sid => emitToUser(sid, 'messages-delivered', {
+      threadId: String(t._id),
+      type: t.type,
+      recipientId: String(uid),
+    }))
+  }
 }
 
 function attachSignaling(httpServer) {
@@ -87,6 +136,30 @@ function attachSignaling(httpServer) {
       if (!user) return
       socket.join(`user:${user.id}`)
       socket.data.userId = String(user.id)
+      socket.data.userName = user.name
+      markPendingAsDelivered(user.id).catch(err =>
+        console.error('delivery sweep error:', err.message))
+    })
+
+    // ── Typing indicator ────────────────────────────────────────────────
+    // Relayed, never stored. The client throttles these and always sends a
+    // final { isTyping: false }, but we also expire them on the receiving
+    // side so a dropped connection can't leave a stuck "typing…" forever.
+    socket.on('typing', async ({ threadId, isTyping }) => {
+      const userId = socket.data.userId
+      if (!userId || !threadId) return
+      try {
+        const participants = await threadParticipants(threadId)
+        if (!participants.some(p => p === userId)) return
+        participants
+          .filter(p => p !== userId)
+          .forEach(p => emitToUser(p, 'peer-typing', {
+            threadId: String(threadId),
+            userId,
+            name: socket.data.userName || '',
+            isTyping: !!isTyping,
+          }))
+      } catch { /* a bad thread id is not worth logging */ }
     })
 
     // Pure relay of WebRTC SDP/ICE payloads — server never inspects contents.
@@ -148,4 +221,11 @@ function emitToUser(userId, event, payload) {
   _io.to(`user:${userId}`).emit(event, payload)
 }
 
-module.exports = { attachSignaling, emitToUser }
+// Whether a user currently has at least one socket connected — used to decide
+// whether a freshly sent message counts as delivered.
+function isUserOnline(userId) {
+  if (!_io || !userId) return false
+  return (_io.sockets.adapter.rooms.get(`user:${userId}`)?.size || 0) > 0
+}
+
+module.exports = { attachSignaling, emitToUser, isUserOnline }

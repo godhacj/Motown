@@ -26,7 +26,10 @@ const commentSchema = new mongoose.Schema({
 const attachmentSchema = new mongoose.Schema({
   name: { type: String },
   url:  { type: String },
-  type: { type: String, enum: ['pdf','image','doc','link','video'] },
+  type: { type: String, enum: ['pdf','image','doc','link','video','audio'] },
+  // Voice notes carry their length in seconds so the player can draw a
+  // duration before the audio element has loaded any metadata.
+  duration: { type: Number },
 }, { _id: false })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -514,7 +517,18 @@ const messageSchema = new mongoose.Schema({
     text:         { type: String },
     sentAt:       { type: Date, default: Date.now },
     attachments:  [attachmentSchema],
+    // Delivery receipts drive the tick state on the sender's side:
+    // one tick = stored, two grey = in deliveredTo, two accent = in readBy.
+    deliveredTo:  [{ type: mongoose.Schema.Types.ObjectId }],
     readBy:       [{ type: mongoose.Schema.Types.ObjectId }],
+    // Quoted message this one replies to. Denormalised on purpose — the
+    // quote must survive even if the original is later edited.
+    replyTo: {
+      messageId:  { type: mongoose.Schema.Types.ObjectId },
+      senderName: { type: String },
+      text:       { type: String },
+      type:       { type: String },
+    },
     edited:       { type: Boolean, default: false },
   }],
 }, { timestamps: true })
