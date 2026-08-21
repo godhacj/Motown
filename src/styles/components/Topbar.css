@@ -302,6 +302,19 @@
   overflow: hidden;
 }
 
+/* Tooltip wraps each tab button in its own .tooltip-wrapper div, and that
+   wrapper — not the button inside it — is the actual flex child of
+   .notch--nav. It must carry the equal-distribution + shrink rules or the
+   .notch-tab's own `flex: 1` below is inert: sizing happens one level up.
+   min-width: 0 overrides the wrapper's intrinsic (content) minimum so tabs
+   can shrink below their label's min-content width instead of overflowing. */
+.notch--nav .tooltip-wrapper {
+  display: flex;
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 100%;
+}
+
 /* Individual tab button */
 .notch-tab {
   position: relative;
@@ -309,7 +322,9 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  flex: 1;
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
   height: 100%;
   padding: 0 10px;
   border: none;
@@ -381,9 +396,14 @@
    topbar). The side sections shrink to let it through. */
 /* ─── Tier B (<=640px): icon-only notch, fixed 65% width ───
    Single unified breakpoint replacing the old overlapping 640/700/480/500px
-   rules. Below this point the notch is a fixed 65% of the topbar, tabs
-   become fixed 30x30px tap targets with an 18px icon (no label — the
-   Tooltip wrapping each tab shows the name on hover/long-press instead). */
+   rules. Below this point the notch is a fixed 65% of the topbar and tabs
+   drop their label (icon only — the Tooltip wrapping each tab shows the
+   name on hover/long-press instead). Tabs still stretch to equally fill
+   the notch's width (same flex: 1 1 0% wrapper rule as the wide tier) —
+   fixed-size boxes would leave empty track for low tab counts, which the
+   spec calls out explicitly. Each tab's rendered width is therefore
+   notch-inner-width ÷ tab-count; that number, not a hardcoded guess, is
+   what decides whether a page needs the scrollable fallback below. */
 @media (max-width: 640px) {
   .topbar--nav-mode .topbar-middle {
     flex: 0 0 65%;
@@ -397,22 +417,9 @@
     max-width: 100%;
     padding: 3px;
     gap: 0;
-    justify-content: space-evenly;
-  }
-
-  /* Tooltip wraps each tab button in its own .tooltip-wrapper div, which
-     becomes the actual flex child of .notch--nav — size the wrapper, not
-     just the button inside it, so the fixed-30px intent actually holds. */
-  .notch--nav .tooltip-wrapper {
-    display: flex;
-    flex: 0 0 30px;
   }
 
   .notch-tab {
-    flex: 0 0 30px;
-    width: 30px;
-    height: 30px;
-    min-width: 0;
     padding: 0;
     gap: 0;
     justify-content: center;
@@ -420,7 +427,18 @@
   }
 
   .notch-tab__label {
-    display: none;
+    /* Not display:none — that would drop the accessible name along with
+       the visible text. Visually hide only; aria-label on the button is
+       the real accessible name, this is redundant-but-harmless for AT. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .notch-tab__icon {
@@ -455,10 +473,13 @@
     height: 1.1rem;
   }
 
-  /* High tab-count pages (e.g. ProspectStudent's 9 wizard stages) —
-     fixed-size boxes would overflow .notch--nav's bounds and get clipped
-     by overflow:hidden, so switch to a horizontally scrollable strip
-     instead (same proven pattern already used by SP-mode below). */
+  /* High tab-count pages (e.g. ProspectStudent's 9 wizard stages) — equally
+     dividing the notch would push each tap target below a usable size, so
+     switch to a horizontally scrollable strip of fixed-size icon buttons
+     instead (same proven pattern already used by SP-mode below). The
+     threshold is tab count, not viewport width, per the spec: 7+ tabs
+     never fits comfortably at this tier's ~65%-of-topbar notch width,
+     regardless of how wide the viewport is within this tier. */
   .notch--nav[data-tab-count="7"],
   .notch--nav[data-tab-count="8"],
   .notch--nav[data-tab-count="9"],
@@ -475,6 +496,25 @@
   .notch--nav[data-tab-count="9"]::-webkit-scrollbar,
   .notch--nav[data-tab-count="10"]::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Scrollable tab strip: tabs revert to a fixed comfortable tap target
+     (can't equally divide — the row is intentionally wider than the
+     viewport) and the wrapper follows suit so sizing isn't fought by the
+     base flex: 1 1 0% rule above. */
+  .notch--nav[data-tab-count="7"] .tooltip-wrapper,
+  .notch--nav[data-tab-count="8"] .tooltip-wrapper,
+  .notch--nav[data-tab-count="9"] .tooltip-wrapper,
+  .notch--nav[data-tab-count="10"] .tooltip-wrapper {
+    flex: 0 0 44px;
+  }
+
+  .notch--nav[data-tab-count="7"] .notch-tab,
+  .notch--nav[data-tab-count="8"] .notch-tab,
+  .notch--nav[data-tab-count="9"] .notch-tab,
+  .notch--nav[data-tab-count="10"] .notch-tab {
+    flex: 0 0 44px;
+    width: 44px;
   }
 }
 
@@ -1138,43 +1178,64 @@
   }
 
   /* ── SP mobile: icon-only tab strip inside the notch ──
-     The notch becomes a horizontally scrollable row of icon buttons.
      Labels are already hidden at <480px by the global rule above.
-     This block overrides the notch--nav layout to be scrollable and
-     keeps each tab button as a compact icon-only circle. */
+     Low tab counts (<=6) equally fill the notch, same flex: 1 1 0%
+     wrapper pattern as the main tab-nav tier — a fixed 2em box here left
+     visible empty track on the right for e.g. Chat's 4 tabs. High counts
+     (7+) can't divide the notch and stay above a usable tap target, so
+     they fall back to a fixed-size horizontally scrollable strip. */
   .topbar--sp-active .notch--sp.notch--nav {
-    /* Scrollable strip: overflow-x allows swipe when many icons */
-    overflow-x: auto;
-    overflow-y: hidden;
-    /* Hide scrollbar visually but keep swipeable */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    /* Single horizontal row, no wrap */
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     gap: 2px;
     padding: 3px 4px;
-    /* Touch scrolling on iOS */
-    -webkit-overflow-scrolling: touch;
   }
 
-  .topbar--sp-active .notch--sp.notch--nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Each icon button: compact circle, fixed size, never shrinks */
   .topbar--sp-active .notch--sp .notch-tab {
-    flex: 0 0 auto;
-    width: 2em;
-    height: 2em;
-    padding: 0;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0;
+  }
+
+  .topbar--sp-active .notch--sp[data-tab-count="7"],
+  .topbar--sp-active .notch--sp[data-tab-count="8"],
+  .topbar--sp-active .notch--sp[data-tab-count="9"],
+  .topbar--sp-active .notch--sp[data-tab-count="10"] {
+    /* Scrollable strip: overflow-x allows swipe when too many icons to fit */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .topbar--sp-active .notch--sp[data-tab-count="7"]::-webkit-scrollbar,
+  .topbar--sp-active .notch--sp[data-tab-count="8"]::-webkit-scrollbar,
+  .topbar--sp-active .notch--sp[data-tab-count="9"]::-webkit-scrollbar,
+  .topbar--sp-active .notch--sp[data-tab-count="10"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* High tab-count: fixed compact circle, never shrinks, row scrolls instead */
+  .topbar--sp-active .notch--sp[data-tab-count="7"] .tooltip-wrapper,
+  .topbar--sp-active .notch--sp[data-tab-count="8"] .tooltip-wrapper,
+  .topbar--sp-active .notch--sp[data-tab-count="9"] .tooltip-wrapper,
+  .topbar--sp-active .notch--sp[data-tab-count="10"] .tooltip-wrapper {
+    flex: 0 0 auto;
+  }
+
+  .topbar--sp-active .notch--sp[data-tab-count="7"] .notch-tab,
+  .topbar--sp-active .notch--sp[data-tab-count="8"] .notch-tab,
+  .topbar--sp-active .notch--sp[data-tab-count="9"] .notch-tab,
+  .topbar--sp-active .notch--sp[data-tab-count="10"] .notch-tab {
+    flex: 0 0 auto;
+    width: 2em;
+    height: 2em;
+    padding: 0;
   }
 
   /* Icon inside the tab: match the button size */
