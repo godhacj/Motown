@@ -97,31 +97,6 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
   const [account,     setAccount]     = React.useState(resolveAccount)
   const [screenWidth, setScreenWidth] = React.useState(() => window.innerWidth)
 
-  // Long-press on a notch tab (touch devices) shows its tooltip without switching tabs
-  const [longPressTabValue, setLongPressTabValue] = React.useState(null)
-  const longPressTimerRef = React.useRef(null)
-  const longPressFiredRef = React.useRef(false)
-  const LONG_PRESS_MS = 500
-
-  const handleTabTouchStart = (value) => {
-    longPressFiredRef.current = false
-    longPressTimerRef.current = setTimeout(() => {
-      longPressFiredRef.current = true
-      setLongPressTabValue(value)
-    }, LONG_PRESS_MS)
-  }
-  const handleTabTouchEnd = () => {
-    clearTimeout(longPressTimerRef.current)
-    if (longPressFiredRef.current) {
-      setTimeout(() => setLongPressTabValue(null), 1200)
-    }
-  }
-  const handleTabTouchMove = () => {
-    clearTimeout(longPressTimerRef.current)
-    longPressFiredRef.current = false
-    setLongPressTabValue(null)
-  }
-
   // Reload account from both localStorage slots whenever either changes
   const loadAccount = React.useCallback(() => setAccount(resolveAccount()), [])
 
@@ -426,7 +401,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                 {notchTabs.map((tab) => {
                   const active = notchActiveTab === tab.value
                   return (
-                    <Tooltip key={tab.value} text={tab.label} position="bottom" forceVisible={longPressTabValue === tab.value}>
+                    <Tooltip key={tab.value} text={tab.label} position="bottom">
                     <button
                       role="tab"
                       aria-selected={active}
@@ -434,13 +409,9 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                       title={tab.label}
                       aria-label={tab.label}
                       onClick={() => {
-                        if (longPressFiredRef.current) { longPressFiredRef.current = false; return }
                         setNotchActiveTab(tab.value)
                         window.dispatchEvent(new CustomEvent('notchTabChange', { detail: { value: tab.value } }))
                       }}
-                      onTouchStart={() => handleTabTouchStart(tab.value)}
-                      onTouchEnd={handleTabTouchEnd}
-                      onTouchMove={handleTabTouchMove}
                     >
                       {tab.icon && <span className="notch-tab__icon">{tab.icon}</span>}
                       <span className="notch-tab__label">{tab.label}</span>

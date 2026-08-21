@@ -20,6 +20,19 @@
   animation: tooltipFadeIn 0.2s ease-out;
 }
 
+/* ===================== TOOLTIP — PORTAL VARIANT ===================== */
+/* Rendered via createPortal to document.body (long-press on touch), so it
+   escapes .notch--nav's overflow:hidden. Position comes entirely from the
+   inline style set in Tooltip.jsx (measured off the trigger's real
+   bounding rect), so the relative-positioning rules below (bottom:100%,
+   transform:translateX(-50%), etc.) must not apply here — reset them. */
+.tooltip-portal {
+  z-index: 1100; /* above .topbar's 1000 */
+  bottom: auto;
+  transform: none;
+  margin: 0;
+}
+
 /* ===================== TOOLTIP POSITIONS ===================== */
 .tooltip-top {
   bottom: 100%;
