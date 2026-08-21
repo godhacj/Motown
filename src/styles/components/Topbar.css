@@ -1118,6 +1118,23 @@
   /* Topbar row stays a single horizontal flex row — no changes needed to .topbar
      itself; this block only adds/tweaks SP-active-specific children. */
 
+  /* Undo the 640px tier's fixed "flex: 0 0 65%" on .topbar-middle. That
+     number assumes both side clusters are always their full collapsed
+     icon-cluster width, which is true in ordinary tab-nav mode but not
+     here: topbar-left/-right swap between a single ~2.8em chevron and a
+     fully expanded cluster depending on expandedSide, so a fixed
+     non-shrinking basis doesn't track the space they actually leave.
+     Revert to flex:1 1 auto so .topbar-middle (and the notch--sp rule
+     below, which already assumes this) fills whatever remains — this is
+     what was overflowing the topbar's right edge when the left cluster
+     was expanded. */
+  .topbar--sp-active .topbar-middle {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+
   /* Notch in SP mode: flex: 1 so it grows/shrinks to fill available space.
      min-width: 0 is essential — without it the notch won't shrink below its
      content width and the revealed icons get squeezed off screen.

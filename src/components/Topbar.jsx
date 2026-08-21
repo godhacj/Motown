@@ -440,7 +440,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                       </span>
                     )}
                     <span className="notch-text" style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                      {hasNavTabs && notchActiveTab ? notchActiveTab : notchText}
+                      {hasNavTabs && notchActiveTab ? (notchTabs.find(t => t.value === notchActiveTab)?.label ?? notchActiveTab) : notchText}
                     </span>
                   </>
                 ) : notchCollapsed ? (
