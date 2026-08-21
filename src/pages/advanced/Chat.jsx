@@ -11,6 +11,10 @@ import {
 import { Icons } from '../../assets/icons'
 import '../../styles/advanced/Chat.css'
 import API from '../../config/api'
+import MessageList from '../../components/chat/MessageList'
+import MessageComposer from '../../components/chat/MessageComposer'
+import AttachmentLightbox from '../../components/chat/AttachmentLightbox'
+import { fmtDate, fmtListTime, previewOf } from '../../components/chat/format'
 import { io } from 'socket.io-client'
 import { useSocket } from '../../contexts/SocketContext.jsx'
 
@@ -19,27 +23,6 @@ function currentUserId() {
     const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
     return p.userId || p.id || null
   } catch { return null }
-}
-
-function fmtTime(iso) {
-  const d = new Date(iso)
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
-
-function fmtDate(iso) {
-  const d = new Date(iso)
-  const today = new Date()
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-  if (d.toDateString() === today.toDateString()) return 'Today'
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-function fmtListTime(iso) {
-  const d = new Date(iso)
-  const today = new Date()
-  if (d.toDateString() === today.toDateString()) return fmtTime(iso)
-  return fmtDate(iso)
 }
 
 /* ─────────────────────────────────────────────
@@ -163,27 +146,90 @@ function NewChatDialog({ onClose, onCreated }) {
 }
 
 /* ─────────────────────────────────────────────
+   SHARED CONVERSATION STATE
+───────────────────────────────────────────── */
+
+/* A peer stops "typing" on its own after this long, so a dropped connection
+   can't leave the indicator stuck on screen. */
+const TYPING_EXPIRY_MS = 6000
+
+function usePeerTyping(socket) {
+  const [typers, setTypers] = useState([])   // [{ threadId, userId, name, at }]
+
+  useEffect(() => {
+    if (!socket) return
+    const handler = ({ threadId, userId, name, isTyping }) => {
+      setTypers(prev => {
+        const rest = prev.filter(t => !(t.threadId === threadId && t.userId === userId))
+        return isTyping ? [...rest, { threadId, userId, name, at: Date.now() }] : rest
+      })
+    }
+    socket.on('peer-typing', handler)
+    return () => socket.off('peer-typing', handler)
+  }, [socket])
+
+  useEffect(() => {
+    if (!typers.length) return
+    const id = setInterval(
+      () => setTypers(prev => prev.filter(t => Date.now() - t.at < TYPING_EXPIRY_MS)),
+      1000,
+    )
+    return () => clearInterval(id)
+  }, [typers.length])
+
+  return useCallback(
+    threadId => typers.filter(t => t.threadId === threadId).map(t => t.name || 'Someone'),
+    [typers],
+  )
+}
+
+/* Flip the tick state on messages this user sent in one thread. `delivered`
+   must never downgrade a message that is already `read`. */
+function applyReceipt(threads, threadId, status) {
+  return threads.map(t => t.id !== threadId ? t : {
+    ...t,
+    messages: t.messages.map(m => {
+      if (m.from !== 'me' || m.status === 'pending' || m.status === 'failed') return m
+      if (status === 'read') return { ...m, status: 'read' }
+      return m.status === 'read' ? m : { ...m, status: 'delivered' }
+    }),
+  })
+}
+
+/* Subscribe a pane's thread state to delivery/read receipts for its own kind
+   of thread ('direct' or 'group'). */
+function useReceipts(socket, kind, setThreads) {
+  useEffect(() => {
+    if (!socket) return
+    const onRead      = ({ threadId, type }) => { if (type === kind) setThreads(prev => applyReceipt(prev, threadId, 'read')) }
+    const onDelivered = ({ threadId, type }) => { if (type === kind) setThreads(prev => applyReceipt(prev, threadId, 'delivered')) }
+    socket.on('messages-read', onRead)
+    socket.on('messages-delivered', onDelivered)
+    return () => {
+      socket.off('messages-read', onRead)
+      socket.off('messages-delivered', onDelivered)
+    }
+  }, [socket, kind, setThreads])
+}
+
+/* ─────────────────────────────────────────────
    PART 1 — INBOX
 ───────────────────────────────────────────── */
 function PartInbox({ setSearchConfig, setConversationActions }) {
   const userId = currentUserId()
   const { socket, refetchUnreadCount } = useSocket() || {}
   const [activeId, setActiveId] = useState(null)
-  const [draft, setDraft] = useState('')
   const [threads, setThreads] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showNewChat, setShowNewChat] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [pendingAttachment, setPendingAttachment] = useState(null)
-  const [attachError, setAttachError] = useState('')
   const [mobileView, setMobileView] = useState('list')
-  const bottomRef = useRef(null)
-  const inputRef  = useRef(null)
-  const fileInputRef = useRef(null)
+  const [replyTo, setReplyTo] = useState(null)
+  const [lightbox, setLightbox] = useState(null)
   const activeIdRef = useRef(activeId)
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
+  useEffect(() => { setReplyTo(null) }, [activeId])
 
   useEffect(() => {
     if (!userId) { setLoading(false); return }
@@ -194,10 +240,8 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
   }, [userId])
 
   const active = threads.find(t => t.id === activeId)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeId, active?.messages?.length])
+  const typingNamesFor = usePeerTyping(socket)
+  useReceipts(socket, 'direct', setThreads)
 
   // Live-append incoming direct messages; keep unread counts in sync
   useEffect(() => {
@@ -210,7 +254,7 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
         if (!exists) return prev
         return prev.map(t => t.id !== threadId ? t : {
           ...t,
-          lastMsg: message.text || '📎 Attachment',
+          lastMsg: previewOf(message),
           time: message.time,
           unread: isActive ? t.unread : t.unread + 1,
           messages: [...t.messages, message],
@@ -276,47 +320,44 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
 
   const filteredThreads = threads.filter(t => t.name.toLowerCase().includes(searchQuery))
 
-  const handleAttachClick = () => fileInputRef.current?.click()
+  const emitTyping = useCallback(isTyping => {
+    if (activeIdRef.current) socket?.emit('typing', { threadId: activeIdRef.current, isTyping })
+  }, [socket])
 
-  const handleFileChange = e => {
-    const file = e.target.files[0]
-    e.target.value = ''
-    if (!file) return
-    setUploading(true)
-    setAttachError('')
-    const form = new FormData()
-    form.append('file', file)
-    fetch(`${API}/api/media/upload/chat-attachments`, { method: 'POST', body: form })
-      .then(async r => {
-        const data = await r.json()
-        if (!r.ok) throw new Error(data.error || 'Upload failed')
-        setPendingAttachment({ url: data.url, name: file.name, type: 'image' })
-      })
-      .catch(err => setAttachError(err.message))
-      .finally(() => setUploading(false))
-  }
+  const send = useCallback(({ text, attachments, replyTo: quoted }) => {
+    if (!activeIdRef.current) return
+    const threadId = activeIdRef.current
+    const tempId = `local-${Date.now()}`
+    const now = new Date().toISOString()
+    const optimistic = {
+      id: tempId, from: 'me', text, time: now, date: now,
+      attachments, replyTo: quoted || null, status: 'pending',
+    }
 
-  const send = () => {
-    const text = draft.trim()
-    if ((!text && !pendingAttachment) || !active || uploading) return
-    const attachments = pendingAttachment ? [pendingAttachment] : []
-    const optimistic = { id: `local-${Date.now()}`, from: 'me', text, time: new Date().toISOString(), date: new Date().toISOString(), attachments }
-    setThreads(prev => prev.map(t =>
-      t.id === activeId
-        ? { ...t, lastMsg: text || '📎 Attachment', time: optimistic.time, messages: [...t.messages, optimistic] }
-        : t
-    ))
-    setDraft('')
-    setPendingAttachment(null)
-    inputRef.current?.focus()
-    fetch(`${API}/api/messages/${activeId}/send`, {
+    setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+      ...t, lastMsg: previewOf(optimistic), time: now, messages: [...t.messages, optimistic],
+    }))
+
+    fetch(`${API}/api/messages/${threadId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senderId: userId, text, attachments }),
-    }).catch(() => {})
-  }
-
-  const handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
+      body: JSON.stringify({
+        senderId: userId, text, attachments,
+        replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('send failed')))
+      // Swap the optimistic bubble for the stored one: it carries the real id
+      // (needed to reply to it) and the server's tick state.
+      .then(saved => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+        ...t,
+        messages: t.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
+      })))
+      .catch(() => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+        ...t,
+        messages: t.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
+      })))
+  }, [userId])
 
   const handleCreated = thread => {
     setThreads(prev => prev.some(t => t.id === thread.id) ? prev : [thread, ...prev])
@@ -329,33 +370,37 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
 
   return (
     <div className="ch-split" data-mobile-view={mobileView}>
-      {/* Thread list */}
+      {/* Thread list — the header stays put, only the threads scroll */}
       <div className="ch-list">
         <div className="ch-list-head">
           <button className="ch-new-btn" onClick={() => setShowNewChat(true)}><FiPlus size={14} /> New Message</button>
         </div>
-        {filteredThreads.length === 0 ? (
-          <p className="ch-empty">No messages yet.</p>
-        ) : filteredThreads.map(t => (
-          <button
-            key={t.id}
-            className={`ch-thread${activeId === t.id ? ' ch-thread--active' : ''}`}
-            onClick={() => { setActiveId(t.id); enterConversation() }}
-          >
-            <Avatar initials={t.initials} src={t.photo ? `${API}${t.photo}` : null} online={t.online} />
-            <div className="ch-thread-body">
-              <div className="ch-thread-top">
-                <span className="ch-thread-name">{t.name}</span>
-                <span className="ch-thread-time">{fmtListTime(t.time)}</span>
+        <div className="ch-list-scroll">
+          {filteredThreads.length === 0 ? (
+            <p className="ch-empty">No messages yet.</p>
+          ) : filteredThreads.map(t => (
+            <button
+              key={t.id}
+              className={`ch-thread${activeId === t.id ? ' ch-thread--active' : ''}`}
+              onClick={() => { setActiveId(t.id); enterConversation() }}
+            >
+              <Avatar initials={t.initials} src={t.photo ? `${API}${t.photo}` : null} online={t.online} />
+              <div className="ch-thread-body">
+                <div className="ch-thread-top">
+                  <span className="ch-thread-name">{t.name}</span>
+                  <span className="ch-thread-time">{fmtListTime(t.time)}</span>
+                </div>
+                <div className="ch-thread-bottom">
+                  <span className="ch-thread-preview">
+                    {typingNamesFor(t.id).length ? <em className="ch-thread-typing">typing…</em> : t.lastMsg}
+                  </span>
+                  {t.unread > 0 && <span className="ch-badge">{t.unread}</span>}
+                </div>
+                <span className="ch-thread-role">{t.role}</span>
               </div>
-              <div className="ch-thread-bottom">
-                <span className="ch-thread-preview">{t.lastMsg}</span>
-                {t.unread > 0 && <span className="ch-badge">{t.unread}</span>}
-              </div>
-              <span className="ch-thread-role">{t.role}</span>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Conversation */}
@@ -368,59 +413,25 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
           <button className="ch-back-btn" onClick={returnToList} aria-label="Back to conversations">
             <FiArrowLeft size={18} />
           </button>
-          <div className="ch-messages">
-            {active.messages.map((m, i) => {
-              const isMe = m.from === 'me'
-              const showDate = i === 0 || fmtDate(active.messages[i - 1].date) !== fmtDate(m.date)
-              return (
-                <React.Fragment key={m.id}>
-                  {showDate && <div className="ch-date-divider">{fmtDate(m.date)}</div>}
-                  <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
-                    {!isMe && <Avatar initials={active.initials} size={28} />}
-                    <div className="ch-msg-bubble">
-                      {m.attachments?.[0] && (
-                        <img className="ch-msg-attachment-img" src={`${API}${m.attachments[0].url}`} alt={m.attachments[0].name || 'attachment'} />
-                      )}
-                      {m.text && <p className="ch-msg-text">{m.text}</p>}
-                      <span className="ch-msg-time">
-                        {fmtTime(m.time)}
-                        {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
-                      </span>
-                    </div>
-                  </div>
-                </React.Fragment>
-              )
-            })}
-            <div ref={bottomRef} />
-          </div>
 
-          {pendingAttachment && (
-            <div className="ch-attachment-chip">
-              <img src={`${API}${pendingAttachment.url}`} alt={pendingAttachment.name} />
-              <span>{pendingAttachment.name}</span>
-              <button className="ch-attachment-chip__remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment"><FiX size={12} /></button>
-            </div>
-          )}
-          {uploading && <div className="ch-attachment-chip ch-attachment-chip--loading">Uploading…</div>}
-          {attachError && <span className="ch-modal-err"><FiAlertCircle size={12} /> {attachError}</span>}
+          <MessageList
+            messages={active.messages}
+            renderAvatar={() => <Avatar initials={active.initials} size={28} />}
+            typingNames={typingNamesFor(active.id)}
+            onReply={setReplyTo}
+            onOpenImage={setLightbox}
+          />
 
-          <div className="ch-composer">
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-            <button className="ch-icon-btn" onClick={handleAttachClick} aria-label="Add attachment"><FiPaperclip size={16} /></button>
-            <textarea
-              ref={inputRef}
-              className="ch-composer-input"
-              placeholder="Type a message…"
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={handleKey}
-              rows={1}
-            />
-            <button className="ch-icon-btn"><FiSmile size={16} /></button>
-            <button className={`ch-send-btn${draft.trim() || pendingAttachment ? ' ch-send-btn--active' : ''}`} onClick={send} disabled={uploading}>
-              <FiSend size={15} />
-            </button>
-          </div>
+          <MessageComposer
+            threadId={active.id}
+            placeholder="Type a message…"
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={send}
+            onTyping={emitTyping}
+          />
+
+          {lightbox && <AttachmentLightbox attachment={lightbox} onClose={() => setLightbox(null)} />}
         </div>
       )}
 
@@ -436,20 +447,17 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
   const userId = currentUserId()
   const { socket, refetchUnreadCount } = useSocket() || {}
   const [activeId, setActiveId] = useState(null)
-  const [draft, setDraft] = useState('')
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
   const [myName, setMyName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [pendingAttachment, setPendingAttachment] = useState(null)
-  const [attachError, setAttachError] = useState('')
   const [mobileView, setMobileView] = useState('list')
-  const bottomRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const [replyTo, setReplyTo] = useState(null)
+  const [lightbox, setLightbox] = useState(null)
   const activeIdRef = useRef(activeId)
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
+  useEffect(() => { setReplyTo(null) }, [activeId])
 
   useEffect(() => {
     try {
@@ -464,10 +472,8 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
   }, [userId])
 
   const active = groups.find(g => g.id === activeId)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeId, active?.messages?.length])
+  const typingNamesFor = usePeerTyping(socket)
+  useReceipts(socket, 'group', setGroups)
 
   // Live-append incoming group messages; keep unread counts in sync
   useEffect(() => {
@@ -480,7 +486,7 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
         if (!exists) return prev
         return prev.map(g => g.id !== threadId ? g : {
           ...g,
-          lastMsg: `${message.name}: ${message.text || '📎 Attachment'}`,
+          lastMsg: `${message.name}: ${previewOf(message)}`,
           time: message.time,
           unread: isActive ? g.unread : g.unread + 1,
           messages: [...g.messages, message],
@@ -543,46 +549,42 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
 
   const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchQuery))
 
-  const handleAttachClick = () => fileInputRef.current?.click()
+  const emitTyping = useCallback(isTyping => {
+    if (activeIdRef.current) socket?.emit('typing', { threadId: activeIdRef.current, isTyping })
+  }, [socket])
 
-  const handleFileChange = e => {
-    const file = e.target.files[0]
-    e.target.value = ''
-    if (!file) return
-    setUploading(true)
-    setAttachError('')
-    const form = new FormData()
-    form.append('file', file)
-    fetch(`${API}/api/media/upload/chat-attachments`, { method: 'POST', body: form })
-      .then(async r => {
-        const data = await r.json()
-        if (!r.ok) throw new Error(data.error || 'Upload failed')
-        setPendingAttachment({ url: data.url, name: file.name, type: 'image' })
-      })
-      .catch(err => setAttachError(err.message))
-      .finally(() => setUploading(false))
-  }
+  const send = useCallback(({ text, attachments, replyTo: quoted }) => {
+    const threadId = activeIdRef.current
+    if (!threadId) return
+    const tempId = `local-${Date.now()}`
+    const now = new Date().toISOString()
+    const optimistic = {
+      id: tempId, from: 'me', name: myName, text, time: now, date: now,
+      attachments, replyTo: quoted || null, status: 'pending',
+    }
 
-  const send = () => {
-    const text = draft.trim()
-    if ((!text && !pendingAttachment) || !active || active.locked || uploading) return
-    const attachments = pendingAttachment ? [pendingAttachment] : []
-    const optimistic = { id: `local-${Date.now()}`, from: 'me', name: myName, text, time: new Date().toISOString(), date: new Date().toISOString(), attachments }
-    setGroups(prev => prev.map(g =>
-      g.id === activeId
-        ? { ...g, lastMsg: `You: ${text || '📎 Attachment'}`, time: optimistic.time, messages: [...g.messages, optimistic] }
-        : g
-    ))
-    setDraft('')
-    setPendingAttachment(null)
-    fetch(`${API}/api/messages/${activeId}/send`, {
+    setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+      ...g, lastMsg: `You: ${previewOf(optimistic)}`, time: now, messages: [...g.messages, optimistic],
+    }))
+
+    fetch(`${API}/api/messages/${threadId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senderId: userId, senderName: myName, text, attachments }),
-    }).catch(() => {})
-  }
-
-  const handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }
+      body: JSON.stringify({
+        senderId: userId, senderName: myName, text, attachments,
+        replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('send failed')))
+      .then(saved => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+        ...g,
+        messages: g.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
+      })))
+      .catch(() => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+        ...g,
+        messages: g.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
+      })))
+  }, [userId, myName])
 
   if (loading) return <div className="ch-split"><p className="ch-empty">Loading groups…</p></div>
 
@@ -593,31 +595,37 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
         <div className="ch-list-head">
           <button className="ch-new-btn"><FiPlus size={14} /> New Group</button>
         </div>
-        {filteredGroups.length === 0 ? (
-          <p className="ch-empty">No messages yet.</p>
-        ) : filteredGroups.map(g => (
-          <button
-            key={g.id}
-            className={`ch-thread${activeId === g.id ? ' ch-thread--active' : ''}`}
-            onClick={() => { setActiveId(g.id); enterConversation() }}
-          >
-            <Avatar initials={g.initials} color={GROUP_COLORS[g.type]} />
-            <div className="ch-thread-body">
-              <div className="ch-thread-top">
-                <span className="ch-thread-name">
-                  {g.locked && <FiLock size={10} style={{ marginRight: 4, opacity: 0.6 }} />}
-                  {g.name}
-                </span>
-                <span className="ch-thread-time">{fmtListTime(g.time)}</span>
+        <div className="ch-list-scroll">
+          {filteredGroups.length === 0 ? (
+            <p className="ch-empty">No messages yet.</p>
+          ) : filteredGroups.map(g => (
+            <button
+              key={g.id}
+              className={`ch-thread${activeId === g.id ? ' ch-thread--active' : ''}`}
+              onClick={() => { setActiveId(g.id); enterConversation() }}
+            >
+              <Avatar initials={g.initials} color={GROUP_COLORS[g.type]} />
+              <div className="ch-thread-body">
+                <div className="ch-thread-top">
+                  <span className="ch-thread-name">
+                    {g.locked && <FiLock size={10} style={{ marginRight: 4, opacity: 0.6 }} />}
+                    {g.name}
+                  </span>
+                  <span className="ch-thread-time">{fmtListTime(g.time)}</span>
+                </div>
+                <div className="ch-thread-bottom">
+                  <span className="ch-thread-preview">
+                    {typingNamesFor(g.id).length
+                      ? <em className="ch-thread-typing">{typingNamesFor(g.id)[0]} is typing…</em>
+                      : g.lastMsg}
+                  </span>
+                  {g.unread > 0 && <span className="ch-badge">{g.unread}</span>}
+                </div>
+                <span className="ch-thread-role"><FiUsers size={10} /> {g.members} members</span>
               </div>
-              <div className="ch-thread-bottom">
-                <span className="ch-thread-preview">{g.lastMsg}</span>
-                {g.unread > 0 && <span className="ch-badge">{g.unread}</span>}
-              </div>
-              <span className="ch-thread-role"><FiUsers size={10} /> {g.members} members</span>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Group conversation */}
@@ -630,60 +638,29 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
           <button className="ch-back-btn" onClick={returnToList} aria-label="Back to conversations">
             <FiArrowLeft size={18} />
           </button>
-          <div className="ch-messages">
-            {active.messages.map((m, i) => {
-              const isMe = m.from === 'me'
-              const showDate = i === 0 || fmtDate(active.messages[i - 1].date) !== fmtDate(m.date)
-              return (
-                <React.Fragment key={m.id}>
-                  {showDate && <div className="ch-date-divider">{fmtDate(m.date)}</div>}
-                  <div className={`ch-msg${isMe ? ' ch-msg--me' : ''}`}>
-                    {!isMe && <Avatar initials={m.name?.split(' ').map(w => w[0]).join('').slice(0,2)} size={28} />}
-                    <div className="ch-msg-bubble">
-                      {!isMe && <span className="ch-msg-sender">{m.name}</span>}
-                      {m.attachments?.[0] && (
-                        <img className="ch-msg-attachment-img" src={`${API}${m.attachments[0].url}`} alt={m.attachments[0].name || 'attachment'} />
-                      )}
-                      {m.text && <p className="ch-msg-text">{m.text}</p>}
-                      <span className="ch-msg-time">
-                        {fmtTime(m.time)}
-                        {isMe && <FiCheck size={11} style={{ marginLeft: 3 }} />}
-                      </span>
-                    </div>
-                  </div>
-                </React.Fragment>
-              )
-            })}
-            <div ref={bottomRef} />
-          </div>
 
-          {pendingAttachment && (
-            <div className="ch-attachment-chip">
-              <img src={`${API}${pendingAttachment.url}`} alt={pendingAttachment.name} />
-              <span>{pendingAttachment.name}</span>
-              <button className="ch-attachment-chip__remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment"><FiX size={12} /></button>
-            </div>
-          )}
-          {uploading && <div className="ch-attachment-chip ch-attachment-chip--loading">Uploading…</div>}
-          {attachError && <span className="ch-modal-err"><FiAlertCircle size={12} /> {attachError}</span>}
+          <MessageList
+            messages={active.messages}
+            isGroup
+            renderAvatar={m => (
+              <Avatar initials={(m.name || '').split(' ').map(w => w[0]).join('').slice(0, 2)} size={28} />
+            )}
+            typingNames={typingNamesFor(active.id)}
+            onReply={setReplyTo}
+            onOpenImage={setLightbox}
+          />
 
-          <div className="ch-composer">
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-            <button className="ch-icon-btn" onClick={handleAttachClick} aria-label="Add attachment" disabled={active.locked}><FiPaperclip size={16} /></button>
-            <textarea
-              className="ch-composer-input"
-              placeholder={active.locked ? 'This group is read-only…' : 'Message the group…'}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={handleKey}
-              rows={1}
-              disabled={active.locked}
-            />
-            <button className="ch-icon-btn"><FiSmile size={16} /></button>
-            <button className={`ch-send-btn${(draft.trim() || pendingAttachment) && !active.locked ? ' ch-send-btn--active' : ''}`} onClick={send} disabled={active.locked || uploading}>
-              <FiSend size={15} />
-            </button>
-          </div>
+          <MessageComposer
+            threadId={active.id}
+            disabled={active.locked}
+            placeholder={active.locked ? 'This group is read-only…' : 'Message the group…'}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={send}
+            onTyping={emitTyping}
+          />
+
+          {lightbox && <AttachmentLightbox attachment={lightbox} onClose={() => setLightbox(null)} />}
         </div>
       )}
     </div>

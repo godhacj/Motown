@@ -4,13 +4,25 @@
 .ch-main {
   position: fixed;
   inset: 0;
+  /* 100dvh tracks the collapsing mobile browser chrome; `inset: 0` alone
+     leaves the composer under the address bar on iOS Safari. */
+  height: 100dvh;
+  /* There is no global border-box reset in this project, so the topbar
+     allowance below must be declared as part of the height, not added to it. */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   background: var(--background-page);
   padding-top: calc(4.5em + 10px);
 }
 
 .ch-body {
+  flex: 1 1 auto;
   width: 100%;
-  height: 100%;
+  /* Without min-height:0 a flex child refuses to shrink below its content,
+     which is what pushed the composer out of the viewport once a thread grew
+     past one screen. Every ancestor of a scroller needs this. */
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -21,6 +33,8 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .ch-empty {
@@ -38,8 +52,21 @@
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
   background: var(--background-elevated);
+}
+
+/* The "New Message" header is pinned by .ch-list-head's flex-shrink: 0;
+   this is the part that scrolls. */
+.ch-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Stop a flick at the end of the list from scrolling the page behind it. */
+  overscroll-behavior: contain;
 }
 
 .ch-list-head {
@@ -189,6 +216,9 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
 }
 
 .ch-convo-head {
@@ -334,49 +364,33 @@
 /* ═══════════════════════════════════════════
    ATTACHMENTS
 ═══════════════════════════════════════════ */
-.ch-attachment-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 14px 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: var(--background-subtle);
-  font-size: 0.78rem;
-  color: var(--color-text-secondary);
-  width: fit-content;
-}
-
-.ch-attachment-chip img {
-  width: 28px;
-  height: 28px;
-  object-fit: cover;
-  border-radius: 6px;
-}
-
-.ch-attachment-chip--loading { color: var(--color-text-muted); font-style: italic; }
-
-.ch-attachment-chip__remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+.ch-msg-attachment {
+  position: relative;
+  display: block;
+  padding: 0;
   border: none;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 10px;
+  overflow: hidden;
+  line-height: 0;
 }
-.ch-attachment-chip__remove:hover { background: var(--background-hover); color: var(--color-text-primary); }
 
 .ch-msg-attachment-img {
-  max-width: 220px;
+  max-width: min(220px, 60vw);
   max-height: 220px;
   border-radius: 10px;
   display: block;
   object-fit: cover;
+}
+
+.ch-msg-attachment__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .ch-icon-btn {
@@ -394,17 +408,47 @@
   flex-shrink: 0;
 }
 
-.ch-icon-btn:hover { background: var(--background-hover); color: var(--color-text-primary); }
+.ch-icon-btn:hover:not(:disabled) { background: var(--background-hover); color: var(--color-text-primary); }
+.ch-icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.ch-icon-btn--active {
+  background: var(--color-accent);
+  border-color: transparent;
+  color: var(--color-accent-fg);
+}
+
+.ch-icon-btn--danger { color: var(--color-danger, #dc2626); }
 
 /* ── Messages ── */
+/* Wrapper exists so the "jump to latest" button can sit over the scroller
+   without scrolling with it. */
+.ch-messages-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  background: var(--background-page);
+}
+
 .ch-messages {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 20px 24px;
+  background: var(--background-page);
+}
+
+/* The rows live in their own element so a ResizeObserver can watch the
+   content height and keep the view pinned to the newest message. */
+.ch-messages-inner {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--background-page);
+  min-height: 100%;
 }
 
 .ch-date-divider {
@@ -420,7 +464,21 @@
   margin: 8px 0;
 }
 
+/* Each message sits in a full-width slot so the reply affordance and the
+   highlight flash have somewhere to anchor without disturbing the bubble. */
+.ch-msg-slot {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  transition: background 0.3s ease;
+}
+
+.ch-msg-slot--highlight {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
 .ch-msg {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -480,18 +538,37 @@
 .ch-msg--me .ch-msg-time { color: rgba(255,255,255,0.65); }
 
 /* ── Composer ── */
+/* Everything below the message list — reply banner, attachment preview, emoji
+   panel, message bar. flex-shrink: 0 keeps the whole dock on screen however
+   tall it grows; the message list above it absorbs the difference. */
+.ch-composer-dock {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .ch-composer {
   display: flex;
   align-items: flex-end;
   gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
   background: var(--background-elevated);
   flex-shrink: 0;
 }
 
 .ch-composer-input {
   flex: 1;
+  min-width: 0;
+  /* Autosizing assigns scrollHeight to height, and scrollHeight includes the
+     padding — without border-box every keystroke would add another 20px.
+     min-height keeps a single empty line looking right before the first
+     measurement lands (the pane can be display:none on mount). */
+  box-sizing: border-box;
+  min-height: 42px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background: var(--background-subtle);
@@ -1754,6 +1831,690 @@
 }
 
 /* ═══════════════════════════════════════════
+   RECEIPT TICKS
+═══════════════════════════════════════════ */
+.ch-ticks {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: currentColor;
+  opacity: 0.75;
+}
+
+.ch-ticks--pending { opacity: 0.55; }
+
+/* Read is the one state that must be unmistakable at a glance, so it breaks
+   out of the bubble's text colour. */
+.ch-msg--me .ch-ticks--read {
+  color: #7fd4ff;
+  opacity: 1;
+}
+
+.ch-ticks--failed {
+  color: var(--color-danger);
+  opacity: 1;
+  font-weight: 800;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════
+   REPLIES
+═══════════════════════════════════════════ */
+.ch-msg-reply-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+  /* Hidden from the pointer as well as the eye, so it can't swallow a tap
+     meant for the bubble. */
+  pointer-events: none;
+}
+
+.ch-msg:hover .ch-msg-reply-btn,
+.ch-msg--actions .ch-msg-reply-btn,
+.ch-msg-reply-btn:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.ch-msg-reply-btn:hover { color: var(--color-accent); }
+
+/* Quoted message inside a bubble */
+.ch-msg-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  border: none;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  cursor: pointer;
+  font-family: var(--font-name);
+}
+
+.ch-msg--me .ch-msg-quote {
+  border-left-color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ch-msg-quote__name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.ch-msg--me .ch-msg-quote__name { color: var(--color-accent-fg); }
+
+.ch-msg-quote__text {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ch-msg--me .ch-msg-quote__text { color: rgba(255, 255, 255, 0.8); }
+
+/* Reply banner above the composer */
+.ch-reply-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  animation: ch-slide-up 0.15s ease;
+}
+
+.ch-reply-banner__icon { color: var(--color-accent); flex-shrink: 0; }
+
+.ch-reply-banner__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid var(--color-accent);
+  padding-left: 8px;
+}
+
+.ch-reply-banner__name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.ch-reply-banner__text {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-reply-banner__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.ch-reply-banner__close:hover { background: var(--background-hover); color: var(--color-text-primary); }
+
+/* ═══════════════════════════════════════════
+   ATTACHMENT PREVIEW (pre-send)
+═══════════════════════════════════════════ */
+.ch-attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  animation: ch-slide-up 0.15s ease;
+}
+
+.ch-attach-preview__media {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ch-attach-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ch-attach-preview__audio-icon { color: var(--color-accent); }
+
+/* Uploading state: the thumbnail stays visible and dims behind a progress
+   ring — the same read as WhatsApp's upload affordance. */
+.ch-attach-preview__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.ch-attach-preview__ring {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  /* Determinate arc up to --progress, indeterminate sweep on top of it. */
+  background: conic-gradient(#fff var(--progress, 0%), rgba(255, 255, 255, 0.25) 0);
+  -webkit-mask: radial-gradient(circle, transparent 8px, #000 9px);
+  mask: radial-gradient(circle, transparent 8px, #000 9px);
+  animation: ch-spin 1.4s linear infinite;
+}
+
+.ch-attach-preview__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ch-attach-preview__name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-attach-preview__meta {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ch-attach-preview__meta--error { color: var(--color-danger); }
+
+.ch-attach-preview__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--background-elevated);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.ch-attach-preview__action:hover { background: var(--background-hover); color: var(--color-text-primary); }
+
+.ch-composer-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+.ch-composer-error button {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+}
+
+/* ═══════════════════════════════════════════
+   VOICE NOTES
+═══════════════════════════════════════════ */
+.ch-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 190px;
+  max-width: 260px;
+}
+
+.ch-voice--preview { min-width: 0; width: 100%; }
+
+.ch-voice-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  cursor: pointer;
+}
+
+.ch-voice--bubble-me .ch-voice-play {
+  background: var(--color-accent-fg);
+  color: var(--color-accent);
+}
+
+.ch-voice-track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.ch-voice-bar {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+  opacity: 0.45;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.ch-voice-bar--played {
+  background: var(--color-accent);
+  opacity: 1;
+}
+
+.ch-voice--bubble-me .ch-voice-bar { background: rgba(255, 255, 255, 0.55); }
+.ch-voice--bubble-me .ch-voice-bar--played { background: #fff; opacity: 1; }
+
+.ch-voice-time {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-msg--me .ch-voice-time { color: rgba(255, 255, 255, 0.75); }
+
+/* Recording bar — replaces the message bar while the mic is live */
+.ch-recording-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--background-elevated);
+}
+
+.ch-recording-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  flex-shrink: 0;
+  animation: ch-pulse 1.1s ease-in-out infinite;
+}
+
+.ch-recording-time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.ch-recording-wave {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+}
+
+.ch-recording-wave span {
+  flex: 1;
+  min-width: 2px;
+  height: 30%;
+  border-radius: 999px;
+  background: var(--color-accent);
+  opacity: 0.6;
+  animation: ch-wave 0.9s ease-in-out infinite;
+}
+
+.ch-recording-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   EMOJI PANEL
+═══════════════════════════════════════════ */
+.ch-emoji-panel {
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  animation: ch-slide-up 0.16s ease;
+}
+
+.ch-emoji-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.ch-emoji-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-name);
+  font-size: 0.82rem;
+  color: var(--color-text-primary);
+}
+
+.ch-emoji-close {
+  display: flex;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.ch-emoji-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 2px;
+  padding: 8px 10px;
+}
+
+.ch-emoji-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.ch-emoji-btn {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.ch-emoji-btn:hover { background: var(--background-hover); transform: scale(1.12); }
+
+.ch-emoji-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border-color);
+  background: var(--background-subtle);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.ch-emoji-tabs::-webkit-scrollbar { display: none; }
+
+.ch-emoji-tab {
+  flex: 1 0 auto;
+  min-width: 34px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ch-emoji-tab--active {
+  background: var(--background-elevated);
+  color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+/* ═══════════════════════════════════════════
+   TYPING INDICATOR
+═══════════════════════════════════════════ */
+.ch-typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  box-shadow: var(--card-shadow);
+}
+
+.ch-typing-dots { display: flex; gap: 3px; }
+
+.ch-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: ch-bounce 1.2s ease-in-out infinite;
+}
+
+.ch-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.ch-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+.ch-typing-label {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
+
+.ch-thread-typing {
+  color: var(--color-accent);
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════
+   JUMP TO LATEST
+═══════════════════════════════════════════ */
+.ch-scroll-bottom {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--background-elevated);
+  color: var(--color-text-secondary);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ch-slide-up 0.15s ease;
+  z-index: 3;
+}
+
+.ch-scroll-bottom:hover { background: var(--background-hover); color: var(--color-text-primary); }
+
+/* ═══════════════════════════════════════════
+   ATTACHMENT LIGHTBOX
+═══════════════════════════════════════════ */
+.ch-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px 24px;
+  animation: ch-fade-in 0.15s ease;
+}
+
+.ch-lightbox-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent);
+  color: #fff;
+}
+
+.ch-lightbox-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-lightbox-actions { display: flex; gap: 6px; }
+
+.ch-lightbox-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ch-lightbox-btn:hover { background: rgba(255, 255, 255, 0.26); }
+
+.ch-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* ═══════════════════════════════════════════
+   SEND BUTTON STATES
+═══════════════════════════════════════════ */
+.ch-send-btn--mic {
+  background: var(--background-subtle);
+  color: var(--color-text-secondary);
+}
+
+.ch-send-btn--mic:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+
+.ch-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ch-send-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: ch-spin 0.7s linear infinite;
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════ */
+@keyframes ch-spin  { to { transform: rotate(360deg); } }
+@keyframes ch-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes ch-slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ch-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.82); }
+}
+
+@keyframes ch-wave {
+  0%, 100% { height: 25%; }
+  50%      { height: 90%; }
+}
+
+@keyframes ch-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-recording-wave span,
+  .ch-typing-dots span,
+  .ch-attach-preview__ring,
+  .ch-recording-dot {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════ */
 @media (max-width: 860px) {
@@ -1784,4 +2545,48 @@
   .ch-conf-grid { grid-template-columns: 1fr; }
 
   .ch-report-type-grid { grid-template-columns: 1fr; }
+
+  /* Narrow screens: tighter gutters, wider bubbles, and an emoji panel that is
+     capped as a share of the viewport so it can never squeeze the message list
+     out of existence. */
+  .ch-messages { padding: 14px 12px; }
+
+  .ch-msg { max-width: 86%; }
+
+  .ch-composer { padding: 10px 10px; gap: 6px; }
+
+  .ch-reply-banner,
+  .ch-attach-preview { padding-left: 10px; padding-right: 10px; }
+
+  .ch-emoji-panel { height: min(280px, 42vh); }
+
+  .ch-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); }
+
+  .ch-voice { min-width: 150px; max-width: 62vw; }
+
+  .ch-recording-hint { display: none; }
+
+  .ch-scroll-bottom { right: 12px; bottom: 12px; }
+}
+
+/* Touch devices have no hover, so the reply affordance is revealed by the
+   long-press handler (which adds .ch-msg--actions) instead. */
+@media (hover: none) {
+  .ch-msg-reply-btn { opacity: 0; pointer-events: none; }
+
+  .ch-msg--actions .ch-msg-reply-btn {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 400px) {
+  .ch-msg { max-width: 92%; }
+
+  .ch-attach-preview__media { width: 44px; height: 44px; }
+
+  .ch-recording-bar { gap: 6px; padding: 10px; }
+
+  .ch-voice { min-width: 130px; }
 }
