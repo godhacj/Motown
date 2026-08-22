@@ -8,7 +8,7 @@ import { fmtDate, fmtTime, previewOf } from './format'
 
 const NEAR_BOTTOM_PX = 120
 
-function MessageRow({ message, isGroup, renderAvatar, onReply, onOpenImage, onJumpToQuote, registerNode }) {
+function MessageRow({ message, isGroup, renderAvatar, onReply, onOpenImage, onJumpToQuote, onRetry, registerNode }) {
   const isMe = message.from === 'me'
   const attachment = message.attachments?.[0]
   const [showActions, setShowActions] = useState(false)
@@ -80,7 +80,14 @@ function MessageRow({ message, isGroup, renderAvatar, onReply, onOpenImage, onJu
 
         <span className="ch-msg-time">
           {fmtTime(message.time)}
-          {isMe && <MessageTicks status={message.status} />}
+          {isMe && (
+            <MessageTicks
+              status={message.status}
+              onRetry={() => onRetry?.(message)}
+              readCount={message.readCount}
+              totalRecipients={message.totalRecipients}
+            />
+          )}
         </span>
       </div>
 
@@ -111,6 +118,7 @@ export default function MessageList({
   typingNames = [],
   onReply,
   onOpenImage,
+  onRetry,
 }) {
   const scrollRef  = useRef(null)
   const contentRef = useRef(null)
@@ -205,6 +213,7 @@ export default function MessageList({
                   })}
                   onOpenImage={onOpenImage}
                   onJumpToQuote={jumpToQuote}
+                  onRetry={onRetry}
                   registerNode={registerNode}
                 />
               </div>

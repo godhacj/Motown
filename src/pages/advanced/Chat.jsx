@@ -190,10 +190,30 @@ function applyReceipt(threads, threadId, status) {
     ...t,
     messages: t.messages.map(m => {
       if (m.from !== 'me' || m.status === 'pending' || m.status === 'failed') return m
-      if (status === 'read') return { ...m, status: 'read' }
-      return m.status === 'read' ? m : { ...m, status: 'delivered' }
+      if (status !== 'read') return m.status === 'read' ? m : { ...m, status: 'delivered' }
+      if (m.status === 'read') return m
+
+      // Group messages track how many of the other participants have read
+      // this one; a read event marks the whole thread read for that reader
+      // (see the /read route), so every message's count moves in lockstep —
+      // safe to bump by one here rather than refetch the full thread.
+      const hasCount = typeof m.totalRecipients === 'number'
+      const readCount = hasCount ? Math.min((m.readCount ?? 0) + 1, m.totalRecipients) : undefined
+      const allRead = !hasCount || readCount >= m.totalRecipients
+      return { ...m, ...(hasCount ? { readCount } : {}), status: allRead ? 'read' : m.status }
     }),
   })
+}
+
+/* POST a message body to a thread. Shared by the initial send and by retrying
+   a failed one — a retry is just the same request fired again with the same
+   text/attachments/replyTo the optimistic bubble already carries. */
+function postMessage(threadId, body) {
+  return fetch(`${API}/api/messages/${threadId}/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.ok ? r.json() : Promise.reject(new Error('send failed')))
 }
 
 /* Subscribe a pane's thread state to delivery/read receipts for its own kind
@@ -324,6 +344,27 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
     if (activeIdRef.current) socket?.emit('typing', { threadId: activeIdRef.current, isTyping })
   }, [socket])
 
+  // Shared by a fresh send and a retry: builds the request body, applies the
+  // optimistic/settled/failed state transitions to whichever thread holds
+  // tempId. A retry passes the same tempId back in so it updates the
+  // existing bubble in place instead of appending a second one.
+  const sendToThread = useCallback((threadId, tempId, { text, attachments, replyTo: quoted }) => {
+    postMessage(threadId, {
+      senderId: userId, text, attachments,
+      replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
+    })
+      // Swap the optimistic bubble for the stored one: it carries the real id
+      // (needed to reply to it) and the server's tick state.
+      .then(saved => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+        ...t,
+        messages: t.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
+      })))
+      .catch(() => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+        ...t,
+        messages: t.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
+      })))
+  }, [userId])
+
   const send = useCallback(({ text, attachments, replyTo: quoted }) => {
     if (!activeIdRef.current) return
     const threadId = activeIdRef.current
@@ -338,26 +379,21 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
       ...t, lastMsg: previewOf(optimistic), time: now, messages: [...t.messages, optimistic],
     }))
 
-    fetch(`${API}/api/messages/${threadId}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        senderId: userId, text, attachments,
-        replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
-      }),
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('send failed')))
-      // Swap the optimistic bubble for the stored one: it carries the real id
-      // (needed to reply to it) and the server's tick state.
-      .then(saved => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
-        ...t,
-        messages: t.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
-      })))
-      .catch(() => setThreads(prev => prev.map(t => t.id !== threadId ? t : {
-        ...t,
-        messages: t.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
-      })))
-  }, [userId])
+    sendToThread(threadId, tempId, { text, attachments, replyTo: quoted })
+  }, [sendToThread])
+
+  // Re-send a message that previously failed. It still has its original
+  // text/attachments/replyTo from the optimistic bubble — just flip it back
+  // to pending and fire the same request again.
+  const retry = useCallback((message) => {
+    const threadId = threads.find(t => t.messages.some(m => m.id === message.id))?.id
+    if (!threadId) return
+    setThreads(prev => prev.map(t => t.id !== threadId ? t : {
+      ...t,
+      messages: t.messages.map(m => m.id === message.id ? { ...m, status: 'pending' } : m),
+    }))
+    sendToThread(threadId, message.id, { text: message.text, attachments: message.attachments, replyTo: message.replyTo })
+  }, [threads, sendToThread])
 
   const handleCreated = thread => {
     setThreads(prev => prev.some(t => t.id === thread.id) ? prev : [thread, ...prev])
@@ -420,6 +456,7 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
             typingNames={typingNamesFor(active.id)}
             onReply={setReplyTo}
             onOpenImage={setLightbox}
+            onRetry={retry}
           />
 
           <MessageComposer
@@ -553,6 +590,22 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
     if (activeIdRef.current) socket?.emit('typing', { threadId: activeIdRef.current, isTyping })
   }, [socket])
 
+  // Shared by a fresh send and a retry — see PartInbox's sendToThread for why.
+  const sendToThread = useCallback((threadId, tempId, { text, attachments, replyTo: quoted }) => {
+    postMessage(threadId, {
+      senderId: userId, senderName: myName, text, attachments,
+      replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
+    })
+      .then(saved => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+        ...g,
+        messages: g.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
+      })))
+      .catch(() => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+        ...g,
+        messages: g.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
+      })))
+  }, [userId, myName])
+
   const send = useCallback(({ text, attachments, replyTo: quoted }) => {
     const threadId = activeIdRef.current
     if (!threadId) return
@@ -567,24 +620,18 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
       ...g, lastMsg: `You: ${previewOf(optimistic)}`, time: now, messages: [...g.messages, optimistic],
     }))
 
-    fetch(`${API}/api/messages/${threadId}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        senderId: userId, senderName: myName, text, attachments,
-        replyTo: quoted ? { id: quoted.id, name: quoted.name, text: quoted.text, type: quoted.type } : null,
-      }),
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('send failed')))
-      .then(saved => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
-        ...g,
-        messages: g.messages.map(m => m.id === tempId ? { ...saved, status: saved.status || 'sent' } : m),
-      })))
-      .catch(() => setGroups(prev => prev.map(g => g.id !== threadId ? g : {
-        ...g,
-        messages: g.messages.map(m => m.id === tempId ? { ...m, status: 'failed' } : m),
-      })))
-  }, [userId, myName])
+    sendToThread(threadId, tempId, { text, attachments, replyTo: quoted })
+  }, [myName, sendToThread])
+
+  const retry = useCallback((message) => {
+    const threadId = groups.find(g => g.messages.some(m => m.id === message.id))?.id
+    if (!threadId) return
+    setGroups(prev => prev.map(g => g.id !== threadId ? g : {
+      ...g,
+      messages: g.messages.map(m => m.id === message.id ? { ...m, status: 'pending' } : m),
+    }))
+    sendToThread(threadId, message.id, { text: message.text, attachments: message.attachments, replyTo: message.replyTo })
+  }, [groups, sendToThread])
 
   if (loading) return <div className="ch-split"><p className="ch-empty">Loading groups…</p></div>
 
@@ -648,6 +695,7 @@ function PartGroups({ setSearchConfig, setConversationActions }) {
             typingNames={typingNamesFor(active.id)}
             onReply={setReplyTo}
             onOpenImage={setLightbox}
+            onRetry={retry}
           />
 
           <MessageComposer

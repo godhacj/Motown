@@ -41,8 +41,18 @@ function receiptStatus(m, otherIds) {
 
 // One shape for every message the client receives — from the initial thread
 // fetch and from the live socket event alike, so the UI never has to branch.
+//
+// `status` keeps the strict all-recipients-read rule as its source of truth
+// (matches direct messages, stays truthful — no fuzzy "some read" state).
+// In a large group that makes the blue tick rare in practice, so messages
+// with more than one other participant also carry readCount/totalRecipients
+// — the UI shows "Read by 12/40" well before the last straggler catches up,
+// instead of leaving the sender staring at grey ticks indefinitely.
 function serializeMessage(m, uid, otherIds) {
   const isMine = String(m.senderId) === String(uid)
+  const readCount = otherIds.length
+    ? otherIds.filter(o => (m.readBy || []).some(r => String(r) === String(o))).length
+    : 0
   return {
     id: m._id,
     from: isMine ? 'me' : String(m.senderId),
@@ -55,6 +65,7 @@ function serializeMessage(m, uid, otherIds) {
       ? { id: String(m.replyTo.messageId), name: m.replyTo.senderName, text: m.replyTo.text, type: m.replyTo.type }
       : null,
     status: isMine ? receiptStatus(m, otherIds) : null,
+    ...(isMine && otherIds.length > 1 ? { readCount, totalRecipients: otherIds.length } : {}),
   }
 }
 
@@ -246,6 +257,11 @@ router.post('/direct', async (req, res) => {
 router.post('/:threadId/send', async (req, res) => {
   try {
     const { senderId: rawSenderId, senderName, text, attachments, replyTo } = req.body
+    // One attachment per message by design — the composer only ever uploads
+    // a single image or voice note at a time (one preview slot, no multi-
+    // select), so this just enforces what the client already guarantees.
+    // Supporting more than one would need multi-file selection, a preview
+    // list, and per-item upload progress on the frontend too.
     const cleanAttachments = Array.isArray(attachments) ? attachments.slice(0, 1) : []
     if (!rawSenderId || (!text?.trim() && !cleanAttachments.length))
       return res.status(400).json({ error: 'senderId and (text or an attachment) are required' })

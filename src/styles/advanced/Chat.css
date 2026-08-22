@@ -1856,7 +1856,25 @@
   font-weight: 800;
   font-size: 0.72rem;
   line-height: 1;
+  /* Rendered as a <button> so tap-to-retry is real, not just the tooltip text */
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
+
+/* Group read progress ("Read by 12/40") — shown while status hasn't reached
+   the strict all-read state yet, so large groups get visible feedback long
+   before the last member catches up. */
+.ch-ticks__count {
+  margin-left: 3px;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.ch-ticks--failed:hover { text-decoration: underline; }
 
 /* ═══════════════════════════════════════════
    REPLIES

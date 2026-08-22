@@ -17,26 +17,52 @@ function DoubleCheck({ size = 13 }) {
  *   pending   — still in flight to the server (optimistic bubble)
  *   sent      — stored, recipient not connected yet
  *   delivered — reached the recipient's device
- *   read      — opened by the recipient
+ *   read      — opened by every other participant (strict, same rule as a
+ *               direct message — the blue tick keeps its literal meaning)
+ *   failed    — the send request never landed; onRetry re-sends it
+ *
+ * readCount/totalRecipients (present on group messages with 2+ other
+ * participants) show read progress well before that last-straggler "read"
+ * state is reached — a 40-member class group would otherwise sit on grey
+ * ticks indefinitely.
  */
-export default function MessageTicks({ status }) {
+export default function MessageTicks({ status, onRetry, readCount, totalRecipients }) {
   if (!status) return null
 
   if (status === 'pending') {
     return <span className="ch-ticks ch-ticks--pending" title="Sending"><FiClock size={11} /></span>
   }
   if (status === 'failed') {
-    return <span className="ch-ticks ch-ticks--failed" title="Not sent — tap to retry">!</span>
+    return (
+      <button
+        type="button"
+        className="ch-ticks ch-ticks--failed"
+        title="Not sent — tap to retry"
+        onClick={onRetry}
+      >
+        !
+      </button>
+    )
   }
+
+  const hasCount = typeof totalRecipients === 'number' && totalRecipients > 1
+  const countLabel = hasCount ? `Read by ${readCount}/${totalRecipients}` : null
+
   if (status === 'sent') {
-    return <span className="ch-ticks" title="Sent"><FiCheck size={12} /></span>
+    return (
+      <span className="ch-ticks" title={countLabel ? `Sent · ${countLabel}` : 'Sent'}>
+        <FiCheck size={12} />
+        {hasCount && readCount > 0 && <span className="ch-ticks__count">{readCount}/{totalRecipients}</span>}
+      </span>
+    )
   }
   return (
     <span
       className={`ch-ticks${status === 'read' ? ' ch-ticks--read' : ''}`}
-      title={status === 'read' ? 'Read' : 'Delivered'}
+      title={countLabel || (status === 'read' ? 'Read' : 'Delivered')}
     >
       <DoubleCheck />
+      {hasCount && status !== 'read' && <span className="ch-ticks__count">{readCount}/{totalRecipients}</span>}
     </span>
   )
 }
