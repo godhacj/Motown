@@ -2597,6 +2597,19 @@
     transform: scale(1);
     pointer-events: auto;
   }
+
+  /* A long-press on a message is meant to open the reply action, not iOS's
+     native Copy/Look Up/Share callout — preventDefault() on contextmenu in
+     useLongPress doesn't reliably suppress that callout by itself on
+     WebKit, since it can be triggered by text selection starting rather
+     than strictly by the contextmenu event. -webkit-touch-callout is the
+     WebKit-specific switch for the callout itself; user-select stops the
+     selection handles from appearing mid-press on any touch browser. */
+  .ch-msg-bubble {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 @media (max-width: 400px) {
