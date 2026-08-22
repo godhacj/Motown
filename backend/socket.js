@@ -44,8 +44,22 @@ async function findOrCreateConference(roomKey, host) {
 // Participant lists for typing relays. Membership changes rarely and a stale
 // entry only costs a missed/extra "typing…", so a short TTL cache is plenty —
 // it keeps a per-keystroke event from becoming a per-keystroke query.
+//
+// Nothing removed expired entries, so the Map grew for the process lifetime —
+// one entry per thread anyone had ever typed in. A periodic sweep keeps it
+// bounded to roughly "threads active within the last TTL window" instead.
 const participantCache = new Map()   // threadId -> { ids: [String], expires: number }
 const PARTICIPANT_TTL = 60_000
+const PARTICIPANT_SWEEP_INTERVAL = 5 * 60_000
+
+function sweepParticipantCache() {
+  const now = Date.now()
+  for (const [key, entry] of participantCache) {
+    if (entry.expires <= now) participantCache.delete(key)
+  }
+}
+const participantSweepTimer = setInterval(sweepParticipantCache, PARTICIPANT_SWEEP_INTERVAL)
+participantSweepTimer.unref?.() // don't hold the process open just for this
 
 async function threadParticipants(threadId) {
   if (!mongoose.isValidObjectId(threadId)) return []
@@ -70,8 +84,12 @@ async function markPendingAsDelivered(userId) {
   }).select('type messages.senderId messages.deliveredTo').lean()
   if (!threads.length) return
 
+  // Scoped to just the threads the first query already found undelivered
+  // messages in, rather than every thread the user belongs to — most
+  // threads on a given connect have nothing pending, and re-scanning their
+  // full message history via arrayFilters against them is pure waste.
   await Message.updateMany(
-    { participants: uid },
+    { _id: { $in: threads.map(t => t._id) } },
     { $addToSet: { 'messages.$[m].deliveredTo': uid } },
     { arrayFilters: [{ 'm.senderId': { $ne: uid }, 'm.deliveredTo': { $ne: uid } }] }
   )
