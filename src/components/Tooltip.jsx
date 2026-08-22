@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import ReactDOM from 'react-dom'
+import useLongPress from '../hooks/useLongPress'
 import '../styles/components/Tooltip.css'
 
 const LONG_PRESS_MS = 500
@@ -44,14 +45,8 @@ export default function Tooltip({ children, text, position = 'top' }) {
   const [anchorRect, setAnchorRect] = useState(null)
 
   const wrapperRef = useRef(null)
-  const timerRef = useRef(null)
-  const startPointRef = useRef(null)
-  const suppressClickRef = useRef(false)
   const dismissTimerRef = useRef(null)
 
-  const clearLongPressTimer = () => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
-  }
   const clearDismissTimer = () => {
     if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null }
   }
@@ -61,60 +56,14 @@ export default function Tooltip({ children, text, position = 'top' }) {
     clearDismissTimer()
   }, [])
 
-  const handlePointerDown = (e) => {
-    // Gated to coarse/no-hover pointers by CSS media query at the call
-    // site is not possible for JS logic, so gate here: only touch/pen
-    // long-presses trigger this — mouse users get plain hover.
-    if (e.pointerType === 'mouse') return
-    startPointRef.current = { x: e.clientX, y: e.clientY }
-    suppressClickRef.current = false
-    clearLongPressTimer()
-    timerRef.current = setTimeout(() => {
-      if (wrapperRef.current) setAnchorRect(wrapperRef.current.getBoundingClientRect())
-      setLongPressVisible(true)
-      suppressClickRef.current = true
-      clearDismissTimer()
-      dismissTimerRef.current = setTimeout(dismiss, AUTO_DISMISS_MS)
-    }, LONG_PRESS_MS)
-  }
-
-  const handlePointerMove = (e) => {
-    if (!startPointRef.current) return
-    const dx = e.clientX - startPointRef.current.x
-    const dy = e.clientY - startPointRef.current.y
-    if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
-      clearLongPressTimer()
-      dismiss()
-    }
-  }
-
-  const handlePointerUp = () => {
-    clearLongPressTimer()
-    startPointRef.current = null
-  }
-
-  const handlePointerCancel = () => {
-    clearLongPressTimer()
-    startPointRef.current = null
-    dismiss()
-  }
-
-  // Suppress the click that follows a long-press so the tab doesn't also
-  // navigate/activate — capture phase so it runs before the child's own
-  // onClick handler.
-  const handleClickCapture = (e) => {
-    if (suppressClickRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      suppressClickRef.current = false
-    }
-  }
-
-  const handleContextMenu = (e) => {
-    // Prevent the OS text-selection/context-menu callout that long-pressing
-    // a touch target normally triggers.
-    if (timerRef.current || longPressVisible) e.preventDefault()
-  }
+  // Gesture detection itself lives in the shared hook; excludeMouse keeps
+  // mouse users on plain hover, matching the previous behaviour here.
+  const longPress = useLongPress(() => {
+    if (wrapperRef.current) setAnchorRect(wrapperRef.current.getBoundingClientRect())
+    setLongPressVisible(true)
+    clearDismissTimer()
+    dismissTimerRef.current = setTimeout(dismiss, AUTO_DISMISS_MS)
+  }, { delay: LONG_PRESS_MS, moveTolerance: MOVE_CANCEL_PX, excludeMouse: true })
 
   // Auto-dismiss on scroll (position would otherwise go stale) and on tap
   // elsewhere on the page.
@@ -132,7 +81,7 @@ export default function Tooltip({ children, text, position = 'top' }) {
     }
   }, [longPressVisible, dismiss])
 
-  useEffect(() => () => { clearLongPressTimer(); clearDismissTimer() }, [])
+  useEffect(() => () => clearDismissTimer(), [])
 
   return (
     <div
@@ -140,12 +89,7 @@ export default function Tooltip({ children, text, position = 'top' }) {
       className="tooltip-wrapper"
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onClickCapture={handleClickCapture}
-      onContextMenu={handleContextMenu}
+      {...longPress}
     >
       {children}
       {hovering && !longPressVisible && (
