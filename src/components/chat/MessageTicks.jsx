@@ -6,8 +6,8 @@ import { FiCheck, FiClock } from 'react-icons/fi'
 function DoubleCheck({ size = 13 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 14" fill="none" aria-hidden="true">
-      <path d="M1 7.5 L5 11.5 L12.5 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7.5 11.5 L19 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M1 7.5 L5 11.5 L13 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 7.5 L12 11.5 L20 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
