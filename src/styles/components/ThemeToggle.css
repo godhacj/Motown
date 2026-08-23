@@ -37,8 +37,13 @@
   border-radius: 20px;
   justify-content: flex-start;
   /* Restore the pill background when expanded — it now needs to show
-     behind the full row of option buttons */
-  background: rgba(255, 255, 255, 0.5);
+     behind the full row of option buttons. --background-elevated tracks
+     each theme's actual surface tone (a fixed white pill trended toward
+     white in every theme, which put dark/ocean/forest/sunset's light
+     --color-text-primary icons on a background nearly as light as they
+     are — the same contrast bug the sidebar's active item had, and
+     maximally visible here since this IS the theme-switcher). */
+  background: color-mix(in srgb, var(--background-elevated) 55%, transparent);
   box-shadow: inset var(--card-shadow);
   /* Only clip when expanded so options don't spill outside the pill */
   overflow: hidden;
@@ -69,8 +74,9 @@
 
 .theme-toggle-trigger.active {
   /* Match the glass-pill style of the search wrapper and notch so the
-     collapsed toggle looks consistent with the other topbar elements */
-  background: rgba(255, 255, 255, 0.5);
+     collapsed toggle looks consistent with the other topbar elements —
+     same theme-aware fix as the container's expanded background above. */
+  background: color-mix(in srgb, var(--background-elevated) 55%, transparent);
   box-shadow: inset var(--card-shadow);
 }
 

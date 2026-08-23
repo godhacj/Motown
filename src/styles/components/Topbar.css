@@ -218,7 +218,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: rgba(255, 255, 255, 0.5);
+  /* Was a fixed rgba(255,255,255,X) glass pill, which trended toward white
+     regardless of theme — fine in light theme (dark text on light glass)
+     but produced light text on a still-near-white pill in dark/ocean/
+     forest/sunset, the same inversion as the sidebar's active-item bug.
+     --background-elevated tracks each theme's actual surface tone, so the
+     pill darkens/lightens along with everything else instead of always
+     trending white. */
+  background: color-mix(in srgb, var(--background-elevated) 55%, transparent);
   border-radius: 1.5em;
   box-shadow: inset var(--card-shadow);
   cursor: pointer;
@@ -230,7 +237,7 @@
 }
 
 .notch:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--background-elevated) 75%, transparent);
 }
 
 .notch-icon,
@@ -347,7 +354,10 @@
 
 .notch-tab:hover:not(.notch-tab--active) {
   color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.35);
+  /* Same fixed-white-glass issue as .notch above: trended toward white on
+     hover regardless of theme, which put the light --color-text-primary
+     used in dark/ocean/forest/sunset on a background nearly as light. */
+  background: color-mix(in srgb, var(--background-elevated) 35%, transparent);
 }
 
 /* Active tab */
@@ -546,7 +556,7 @@
   height: var(--icon-btn-size);
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--background-elevated) 55%, transparent);
   box-shadow: inset var(--card-shadow);
   cursor: pointer;
   color: var(--color-text-primary);
@@ -615,7 +625,7 @@
   width: var(--icon-btn-size);
   min-width: var(--icon-btn-size);
   border-radius: 100px;
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--background-elevated) 55%, transparent);
   box-shadow: inset var(--card-shadow);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -1271,9 +1281,10 @@
     box-shadow: none;
   }
 
-  /* Inactive tab hover */
+  /* Inactive tab hover — see the base .notch-tab:hover rule above for why
+     this needs to track the theme's surface tone instead of a fixed white. */
   .topbar--sp-active .notch--sp .notch-tab:hover:not(.notch-tab--active) {
-    background: rgba(255, 255, 255, 0.35);
+    background: color-mix(in srgb, var(--background-elevated) 35%, transparent);
     color: var(--color-text-primary);
   }
 
