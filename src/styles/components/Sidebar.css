@@ -178,8 +178,21 @@
   transition: color 0.18s ease;
 }
 
-/* The "piano key" fill — a dark block that slides in from the left
-   and has a triangular notch cut out of its right edge (like badge keys) */
+/* The "piano key" fill — a block that slides in from the left and has a
+   triangular notch cut out of its right edge (like badge keys). Hover uses
+   --color-text-primary at low opacity purely as a tint (readable against
+   either polarity at 7%), but the active fill needs to be an opaque color
+   with guaranteed-contrasting text — --color-text-primary flips from dark
+   in light theme to light in dark/ocean/forest/sunset, which previously
+   left the hardcoded white active text unreadable against it in every
+   theme but light.
+   --color-accent-hover (not --color-accent itself) is the fill: measured
+   against --color-accent-fg (white in every theme), --color-accent alone
+   only clears WCAG AA in light theme (5.17:1) — dark/ocean/forest/sunset
+   drop as low as 2.28:1 (forest) since those accents are lighter, more
+   saturated hues meant for text-on-surface use, not fills-behind-white-
+   text. --color-accent-hover is a darker shade of the same hue in every
+   theme and clears 5:1+ across all five. */
 .sidebar nav li a::before {
   content: '';
   position: absolute;
@@ -188,7 +201,7 @@
   opacity: 0;
   /* polygon matches the badge key-hole bottom triangle, pointing right */
   clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
-  transition: opacity 0.18s ease, clip-path 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.18s ease, background 0.18s ease, clip-path 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
 }
 
@@ -197,6 +210,7 @@
 }
 
 .sidebar nav li.active a::before {
+  background: var(--color-accent-hover);
   opacity: 1;
   clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
 }
@@ -216,7 +230,10 @@
   font-weight: 700;
 }
 
-/* The accent stripe on the very left edge — like a key's left border highlight */
+/* The stripe on the very left edge — like a key's left border highlight.
+   Sits on top of the now solid-accent fill, so it needs to read AGAINST
+   --color-accent rather than repeat it (repeating it would be invisible) —
+   --color-accent-fg is the guaranteed-contrasting partner in every theme. */
 .sidebar nav li.active a::after {
   content: '';
   position: absolute;
@@ -225,7 +242,8 @@
   bottom: 20%;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--color-accent);
+  background: var(--color-accent-fg);
+  opacity: 0.55;
   z-index: 2;
 }
 
@@ -246,9 +264,12 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
+/* --color-accent-fg is white in every theme here, so this was equivalent to
+   the hardcoded rgba(255,255,255,...) it replaces — kept theme-driven so it
+   stays correct if a future theme's accent-fg isn't white. */
 .sidebar nav li.active a .sidebar-icon-wrap {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: color-mix(in srgb, var(--color-accent-fg) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent-fg) 25%, transparent);
 }
 
 .sidebar-icon {

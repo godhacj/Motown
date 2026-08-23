@@ -40,8 +40,18 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
     const hasActive = item.children?.some(c => activeMenu === c.to)
     const hasUnread = item.children?.some(c => c.badge > 0)
     const [expanded, setExpanded] = useState(hasActive)
+    const [bodyHeight, setBodyHeight] = useState(0)
     const IconComponent = item.icon
     const bodyRef = useRef(null)
+
+    // bodyRef.current is null on the render that attaches it — reading its
+    // scrollHeight inline during render always yields 0px, so the group's
+    // max-height transition never actually opened past 0. Measure after
+    // mount/update instead, whenever the expanded children could have
+    // changed height (open/close, or badge count changing while open).
+    useEffect(() => {
+      if (bodyRef.current) setBodyHeight(bodyRef.current.scrollHeight)
+    }, [expanded, item.children])
 
     return (
       <li className="sidebar-group">
@@ -64,7 +74,7 @@ function Sidebar({ isOpen, setIsOpen, sideMenu = [], activeMenu }) {
         <div
           ref={bodyRef}
           className={`sidebar-group-body${expanded ? ' sidebar-group-body--open' : ''}`}
-          style={{ '--group-height': bodyRef.current ? `${bodyRef.current.scrollHeight}px` : '0px' }}
+          style={{ '--group-height': `${bodyHeight}px` }}
         >
           <ul className="sidebar-group-list">
             {item.children?.map((child, idx) => <NavItem key={idx} item={child} />)}
