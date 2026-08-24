@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import '../../styles/Login.css'
+import API from '../../config/api'
 
 
 function Spinner() {
@@ -61,22 +62,58 @@ export default function TeacherLogin() {
     return errs
   }
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     const errs = validate()
     if (Object.keys(errs).length) { setFieldErrors(errs); return }
     setFieldErrors({})
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      if (employeeId.toLowerCase() === 'test0000') {
-        setError('Invalid Employee ID or password. Please try again.')
+
+    const saveAndGo = (profile) => {
+      localStorage.setItem('signedInProfile', JSON.stringify(profile))
+      window.dispatchEvent(new Event('profileChanged'))
+      navigate('/teacher')
+    }
+
+    try {
+      const res = await fetch(`${API}/api/teachers/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: employeeId.trim(), password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Invalid Employee ID or password. Please try again.')
+        setLoading(false)
         return
       }
-      localStorage.setItem('signedInProfile', JSON.stringify({ name: 'Teacher', id: employeeId }))
-      navigate('/teacher')
-    }, 1500)
+      saveAndGo({
+        role:           data.role,
+        name:           data.name,
+        username:       data.username,
+        id:             data.teacherId,
+        teacherId:      data.teacherId,
+        staffId:        data.staffId,
+        email:          data.email,
+        phone:          data.phone,
+        photo:          data.photo ? `${API}${data.photo}` : null,
+        gender:         data.gender,
+        nationality:    data.nationality,
+        address:        data.address,
+        qualification:  data.qualification,
+        position:       data.position,
+        yearsOfService: data.yearsOfService,
+        status:         data.status,
+        department:     data.department,
+        yearGroup:      data.yearGroup,
+        classTeacherOf: data.classTeacherOf,
+        subject:        data.subject,
+      })
+    } catch {
+      setError('Could not connect to server. Please try again.')
+      setLoading(false)
+    }
   }
 
   const handleForgot = (e) => {

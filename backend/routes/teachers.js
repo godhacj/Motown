@@ -40,6 +40,7 @@ router.post('/login', async (req, res) => {
       qualification:  teacher.qualification  || null,
       position:       teacher.position       || null,
       yearsOfService: teacher.yearsOfService || 0,
+      status:         teacher.status         || 'Active',
       department:     teacher.department,
       yearGroup:      teacher.yearGroup,
       classTeacherOf: teacher.classTeacherOf || null,
