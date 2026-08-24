@@ -5,6 +5,7 @@ import {
   FiChevronDown, FiChevronLeft, FiChevronRight, FiCheck,
   FiSave, FiPlus, FiEdit2, FiHash, FiAward, FiFileText,
   FiAlertCircle, FiList, FiGrid, FiLock, FiLayout, FiX,
+  FiClock, FiUsers, FiInbox,
 } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import API from '../../config/api'
@@ -531,6 +532,8 @@ function PartAssessment({ profile, classInfo }) {
 // ─── Part 2 — Schedule ───────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
+const TODAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()]
+
 function PartSchedule({ profile }) {
   const teacherId = profile?.teacherId
   const [schedule, setSchedule] = useState(null)
@@ -538,8 +541,9 @@ function PartSchedule({ profile }) {
 
   useEffect(() => {
     if (!teacherId) return
+    setSchedule(null)
     fetch(`${API}/api/portal/teacher/${teacherId}/schedule?term=${encodeURIComponent(term)}`)
-      .then(r => r.json()).then(d => setSchedule(d.schedule || {})).catch(() => {})
+      .then(r => r.json()).then(d => setSchedule(d.schedule || {})).catch(() => setSchedule({}))
   }, [teacherId, term])
 
   const slots = React.useMemo(() => {
@@ -547,6 +551,17 @@ function PartSchedule({ profile }) {
     const set = new Set()
     Object.values(schedule).forEach(ps => ps.forEach(p => set.add(`${p.startTime}–${p.endTime}`)))
     return [...set].sort()
+  }, [schedule])
+
+  // Summary stats for the strip above the grid — total periods this term,
+  // and how many distinct classes/subjects that spans, so a teacher sees
+  // their week's shape at a glance before scanning the grid itself.
+  const stats = React.useMemo(() => {
+    if (!schedule) return null
+    const periods = Object.values(schedule).flat()
+    const classes = new Set(periods.map(p => p.class?.name).filter(Boolean))
+    const subjects = new Set(periods.map(p => p.subject?.name).filter(Boolean))
+    return { periods: periods.length, classes: classes.size, subjects: subjects.size }
   }, [schedule])
 
   return (
@@ -562,16 +577,44 @@ function PartSchedule({ profile }) {
             ))}
           </div>
         </div>
+
+        {stats && stats.periods > 0 && (
+          <div className="tea-schedule-stats">
+            <div className="tea-schedule-stat">
+              <FiClock size={14} />
+              <span><strong>{stats.periods}</strong> periods / week</span>
+            </div>
+            <div className="tea-schedule-stat">
+              <FiUsers size={14} />
+              <span><strong>{stats.classes}</strong> class{stats.classes !== 1 ? 'es' : ''}</span>
+            </div>
+            <div className="tea-schedule-stat">
+              <FiBookOpen size={14} />
+              <span><strong>{stats.subjects}</strong> subject{stats.subjects !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        )}
+
         <div className="tea-card__body" style={{ padding: '14px 20px' }}>
           {!schedule ? (
-            <p className="tea-empty">Loading…</p>
+            <div className="tea-schedule-skeleton" aria-hidden="true">
+              {Array.from({ length: 3 }, (_, i) => <div key={i} className="tea-schedule-skeleton__row" />)}
+            </div>
           ) : slots.length === 0 ? (
-            <p className="tea-empty">No periods assigned for {term}.</p>
+            <div className="tea-empty-state">
+              <FiCalendar size={28} />
+              <p>No periods assigned for {term}.</p>
+              <span>Once the timetable is published, lessons for this term will appear here.</span>
+            </div>
           ) : (
             <div className="tea-schedule-wrap">
               <div className="tea-schedule-grid">
                 <div className="tea-schedule-corner" />
-                {DAYS.map(d => <div key={d} className="tea-schedule-day-head">{d}</div>)}
+                {DAYS.map(d => (
+                  <div key={d} className={`tea-schedule-day-head${d === TODAY_ABBR ? ' tea-schedule-day-head--today' : ''}`}>
+                    {d}
+                  </div>
+                ))}
                 {slots.map(slot => {
                   const [start, end] = slot.split('–')
                   return (
@@ -580,7 +623,10 @@ function PartSchedule({ profile }) {
                       {DAYS.map(day => {
                         const p = schedule[day]?.find(x => x.startTime === start && x.endTime === end)
                         return (
-                          <div key={day} className={`tea-schedule-cell${p ? ' tea-schedule-cell--filled' : ''}`}>
+                          <div
+                            key={day}
+                            className={`tea-schedule-cell${p ? ' tea-schedule-cell--filled' : ''}${day === TODAY_ABBR ? ' tea-schedule-cell--today' : ''}`}
+                          >
                             {p && (
                               <div className="tea-schedule-lesson">
                                 <span className="tea-schedule-subj">{p.subject?.name || '—'}</span>
@@ -608,7 +654,7 @@ function PartLessonNotes({ profile }) {
   const subjectId = profile?.subject?._id
   const classId   = profile?.classTeacherOf?._id
 
-  const [notes,   setNotes]   = useState([])
+  const [notes,   setNotes]   = useState(null)
   const [editing, setEditing] = useState(null)
   const [title,   setTitle]   = useState('')
   const [content, setContent] = useState('')
@@ -619,7 +665,7 @@ function PartLessonNotes({ profile }) {
   const load = useCallback(() => {
     if (!teacherId) return
     fetch(`${API}/api/portal/teacher/${teacherId}/lesson-notes`)
-      .then(r => r.json()).then(setNotes).catch(() => {})
+      .then(r => r.json()).then(setNotes).catch(() => setNotes([]))
   }, [teacherId])
 
   useEffect(() => { load() }, [load])
@@ -654,12 +700,17 @@ function PartLessonNotes({ profile }) {
           <span className="tea-card__title">{editing === 'new' ? 'New Lesson Note' : 'Edit Note'}</span>
           <button className="tea-btn tea-btn--ghost tea-btn--sm" onClick={() => setEditing(null)}>Cancel</button>
         </div>
-        <div className="tea-card__body" style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="tea-card__body tea-card__body--pad tea-note-editor">
           <div className="tea-field">
             <span>Title</span>
-            <input className="tea-input" value={title} onChange={e => setTitle(e.target.value)} />
+            <input
+              className="tea-input"
+              placeholder="e.g. Introduction to Quadratic Equations"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="tea-note-editor__row">
             <div className="tea-field">
               <span>Term</span>
               <select className="tea-select" value={term} onChange={e => setTerm(e.target.value)}>
@@ -670,22 +721,17 @@ function PartLessonNotes({ profile }) {
           <RichEditor value={content} onChange={setContent} minHeight={300} />
 
           {/* Publish options + Save button */}
-          <div style={{ background: 'var(--background-subtle)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Publish to:</span>
+          <div className="tea-note-publish">
+            <div className="tea-note-publish__row">
+              <span className="tea-note-publish__label">Publish to:</span>
               {['syllabus', 'library'].map(v => (
-                <label key={v} className="tea-checkbox" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
-                  <input type="checkbox" checked={visible.includes(v)} onChange={() => toggleVis(v)} style={{ accentColor: 'var(--color-accent)', width: 15, height: 15 }} />
+                <label key={v} className="tea-checkbox tea-note-publish__checkbox">
+                  <input type="checkbox" checked={visible.includes(v)} onChange={() => toggleVis(v)} />
                   {v.charAt(0).toUpperCase() + v.slice(1)}
                 </label>
               ))}
             </div>
-            <button
-              className="tea-btn tea-btn--wide"
-              onClick={save}
-              disabled={saving}
-              style={{ fontSize: '0.92rem', fontWeight: 700, padding: '13px 20px', borderRadius: 10, gap: 8 }}
-            >
+            <button className="tea-btn tea-btn--wide tea-note-publish__save" onClick={save} disabled={saving}>
               <FiSave size={16} />
               {saving ? 'Saving…' : 'Save & Publish'}
             </button>
@@ -697,34 +743,42 @@ function PartLessonNotes({ profile }) {
 
   return (
     <div className="tea-part-content">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>Lesson Notes</span>
+      <div className="tea-note-list-head">
+        <span className="tea-note-list-title">Lesson Notes</span>
         <button className="tea-btn tea-btn--sm" onClick={openNew}><FiPlus size={13} /> New note</button>
       </div>
-      {notes.length === 0 ? <p className="tea-empty">No lesson notes yet.</p> : (
+
+      {notes === null ? (
         <div className="tea-card">
+          <div className="tea-schedule-skeleton" style={{ padding: '14px 20px' }} aria-hidden="true">
+            {Array.from({ length: 3 }, (_, i) => <div key={i} className="tea-schedule-skeleton__row" />)}
+          </div>
+        </div>
+      ) : notes.length === 0 ? (
+        <div className="tea-card">
+          <div className="tea-empty-state">
+            <FiInbox size={28} />
+            <p>No lesson notes yet.</p>
+            <span>Write your first note and choose whether it appears on the syllabus, the library, or both.</span>
+          </div>
+        </div>
+      ) : (
+        <div className="tea-note-list">
           {notes.map(n => (
-            <div key={n._id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.12s' }}
-              onClick={() => openEdit(n)}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--background-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = ''}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.87rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{n.title}</div>
-                <div style={{ fontSize: '0.73rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+            <button key={n._id} type="button" className="tea-note-row" onClick={() => openEdit(n)}>
+              <div className="tea-note-row__body">
+                <div className="tea-note-row__title">{n.title}</div>
+                <div className="tea-note-row__meta">
                   {n.subject?.name || ''}{n.term ? ` · ${n.term}` : ''} · {new Date(n.createdAt).toLocaleDateString()}
                 </div>
-                <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                <div className="tea-note-row__pills">
                   {(n.visibleOn || []).map(v => (
-                    <span key={v} style={{
-                      fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 999,
-                      background: v === 'syllabus' ? '#dbeafe' : '#fef9c3',
-                      color: v === 'syllabus' ? '#1d4ed8' : '#854d0e',
-                    }}>{v}</span>
+                    <span key={v} className={`tea-note-pill tea-note-pill--${v}`}>{v}</span>
                   ))}
                 </div>
               </div>
-              <FiEdit2 size={13} style={{ color: 'var(--color-text-muted)', flexShrink: 0, marginTop: 2 }} />
-            </div>
+              <FiEdit2 size={13} className="tea-note-row__edit" />
+            </button>
           ))}
         </div>
       )}
@@ -799,7 +853,7 @@ function PartProfile({ tab, profile }) {
           <InfoRow label="Position"      value={profile.position} />
           <InfoRow label="Qualification" value={profile.qualification} />
           <InfoRow label="Years of Svc." value={profile.yearsOfService ? `${profile.yearsOfService} yr${profile.yearsOfService !== 1 ? 's' : ''}` : null} />
-          <InfoRow label="Status"        value="Active" accent />
+          <InfoRow label="Status"        value={profile.status || 'Active'} accent />
         </div>
       </div>
 

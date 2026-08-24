@@ -404,6 +404,160 @@
 
 .tea-term-btn--active { background: var(--color-accent); color: var(--color-accent-fg); border-color: var(--color-accent); }
 
+/* ── Schedule summary strip ── */
+.tea-schedule-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-subtle);
+}
+
+.tea-schedule-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.tea-schedule-stat svg { color: var(--color-accent); flex-shrink: 0; }
+.tea-schedule-stat strong { color: var(--color-text-primary); font-weight: 700; }
+
+/* ── Today highlight ── */
+.tea-schedule-day-head--today {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.tea-schedule-cell--today:not(.tea-schedule-cell--filled) {
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--background-hover));
+}
+
+.tea-schedule-cell--filled.tea-schedule-cell--today {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+/* ── Loading skeleton (replaces the plain "Loading…" text) ── */
+.tea-schedule-skeleton { display: flex; flex-direction: column; gap: 8px; }
+
+.tea-schedule-skeleton__row {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(90deg,
+    var(--background-hover) 25%,
+    color-mix(in srgb, var(--background-hover) 55%, var(--background-elevated)) 50%,
+    var(--background-hover) 75%);
+  background-size: 200% 100%;
+  animation: tea-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes tea-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+:root[data-reduced-motion="true"] .tea-schedule-skeleton__row { animation: none; }
+
+/* ── Richer empty state (icon + message + hint) ── */
+.tea-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.tea-empty-state svg { color: var(--color-text-muted); opacity: 0.6; }
+.tea-empty-state p { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--color-text-secondary); }
+.tea-empty-state span { font-size: 0.76rem; max-width: 320px; line-height: 1.4; }
+
+/* ── Lesson notes: list header ── */
+.tea-note-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.tea-note-list-title { font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary); }
+
+/* ── Lesson notes: list of cards (one card per note, not one card total —
+   gives each note its own hover/press affordance instead of a flat list) ── */
+.tea-note-list { display: flex; flex-direction: column; gap: 8px; }
+
+.tea-note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--background-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-name);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.tea-note-row:hover { background: var(--background-hover); border-color: var(--border-color-hover); }
+
+.tea-note-row__body { flex: 1; min-width: 0; }
+.tea-note-row__title { font-size: 0.88rem; font-weight: 700; color: var(--color-text-primary); }
+.tea-note-row__meta { font-size: 0.74rem; color: var(--color-text-muted); margin-top: 2px; }
+.tea-note-row__pills { display: flex; gap: 5px; margin-top: 6px; }
+.tea-note-row__edit { color: var(--color-text-muted); flex-shrink: 0; margin-top: 2px; }
+
+/* Publish-target pills — was hardcoded #dbeafe/#1d4ed8 (syllabus) and
+   #fef9c3/#854d0e (library), which read fine in light theme but stayed
+   just as light in dark/ocean/forest/sunset, the same class of bug as the
+   sidebar active-item and topbar glass pills. color-mix against each
+   theme's own accent/success tracks every theme instead. */
+.tea-note-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.tea-note-pill--syllabus { background: color-mix(in srgb, var(--color-accent) 15%, transparent); color: var(--color-accent); }
+.tea-note-pill--library  { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); }
+
+/* ── Lesson notes: editor ── */
+.tea-note-editor { display: flex; flex-direction: column; gap: 12px; }
+.tea-note-editor__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.tea-note-publish {
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tea-note-publish__row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.tea-note-publish__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tea-note-publish__checkbox { font-size: 0.85rem; font-weight: 600; }
+.tea-note-publish__checkbox input { accent-color: var(--color-accent); width: 15px; height: 15px; }
+.tea-note-publish__save { font-size: 0.92rem; font-weight: 700; padding: 13px 20px; border-radius: 10px; gap: 8px; }
+
 .tea-check-group { display: flex; gap: 14px; margin-top: 4px; }
 
 .tea-checkbox {
