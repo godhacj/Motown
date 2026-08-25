@@ -3,6 +3,8 @@ import { useOutletContext } from 'react-router-dom'
 import { Icons } from '../../assets/icons'
 import { galleryImages as FALLBACK_POSTS } from '../../routes/galleryImages'
 import API from '../../config/api'
+import SignInGateModal from '../../components/SignInGateModal'
+import useIsGuest from '../../hooks/useIsGuest'
 import '../../styles/core/Page.css'
 
 const LIKES_KEY = 'page-likes'
@@ -56,13 +58,14 @@ function Avatar({ src, name, size = 36 }) {
   )
 }
 
-function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike, onSave, onShare }) {
+function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike, onSave, onShare, onGuestComment }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [commentInput, setCommentInput] = useState('')
   const [localComments, setLocalComments] = useState(post.comments || [])
   const inputRef = useRef(null)
 
   const submitComment = () => {
+    if (onGuestComment) { onGuestComment(); return }
     const text = commentInput.trim()
     if (!text) return
     setLocalComments(prev => [
@@ -294,8 +297,10 @@ function loadCounts(key) {
 
 export default function Page() {
   const { setSideMenu, setNotchText } = useOutletContext()
+  const isGuest = useIsGuest()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [gateAction, setGateAction] = useState(null)
   const [likedPosts, setLikedPosts] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY)) || []) } catch { return new Set() }
   })
@@ -376,6 +381,7 @@ export default function Page() {
   }, [shareCounts])
 
   const toggleLike = useCallback((id) => {
+    if (isGuest) { setGateAction('like'); return }
     setLikedPosts(prev => {
       const next = new Set(prev)
       const wasLiked = next.has(id)
@@ -383,9 +389,10 @@ export default function Page() {
       setLikeCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + (wasLiked ? -1 : 1)) }))
       return next
     })
-  }, [])
+  }, [isGuest])
 
   const toggleSave = useCallback((id) => {
+    if (isGuest) { setGateAction('save'); return }
     setSavedPosts(prev => {
       const next = new Set(prev)
       const wasSaved = next.has(id)
@@ -393,12 +400,13 @@ export default function Page() {
       setSaveCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + (wasSaved ? -1 : 1)) }))
       return next
     })
-  }, [])
+  }, [isGuest])
 
   const handleShare = useCallback((post) => {
+    if (isGuest) { setGateAction('share'); return }
     setShareCounts(c => ({ ...c, [post.id]: (c[post.id] || 0) + 1 }))
     setSharePost(post)
-  }, [])
+  }, [isGuest])
 
   return (
     <div className="page-main">
@@ -418,12 +426,14 @@ export default function Page() {
               onLike={() => toggleLike(post.id)}
               onSave={() => toggleSave(post.id)}
               onShare={() => handleShare(post)}
+              onGuestComment={isGuest ? () => setGateAction('comment') : null}
             />
           ))}
         </div>
       </div>
 
       {sharePost && <ShareDialog post={sharePost} onClose={() => setSharePost(null)} />}
+      {gateAction && <SignInGateModal action={gateAction} onClose={() => setGateAction(null)} />}
 
       {savedPanelOpen && (
         <SavedPostsPanel posts={posts} savedPosts={savedPosts} onClose={() => setSavedPanelOpen(false)} />

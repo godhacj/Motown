@@ -5,7 +5,9 @@ import { galleryImages as FALLBACK_IMAGES } from '../../routes/galleryImages'
 import ImageCard from '../../components/ImageCard'
 import GalleryModal from '../../components/GalleryModal'
 import ShareDialog from '../../components/ShareDialog'
+import SignInGateModal from '../../components/SignInGateModal'
 import useColumnCount from '../../components/useColumnCount'
+import useIsGuest from '../../hooks/useIsGuest'
 import '../../styles/core/Gallery.css'
 import API from '../../config/api'
 const LIKES_KEY = 'gallery-likes'
@@ -26,6 +28,7 @@ function normalise(item) {
 export default function Gallery() {
   const { setSideMenu, setNotchText, setSearchConfig } = useOutletContext()
   const columnCount = useColumnCount()
+  const isGuest = useIsGuest()
 
   const [images,         setImages]         = useState([])
   const [loading,        setLoading]        = useState(true)
@@ -34,6 +37,7 @@ export default function Gallery() {
   const [shareImage,     setShareImage]     = useState(null)
   const [activeCategory, setActiveCategory] = useState('All')
   const [searchQuery,    setSearchQuery]    = useState('')
+  const [gateAction,     setGateAction]     = useState(null)
 
   // Fetch gallery from API, fall back to static file if backend is down
   useEffect(() => {
@@ -91,17 +95,22 @@ export default function Gallery() {
   const likedSet  = useMemo(() => new Set(likedImages), [likedImages])
   const isLiked   = useCallback((id) => likedSet.has(id), [likedSet])
   const toggleLike = useCallback((image) => {
+    if (isGuest) { setGateAction('like'); return }
     setLikedImages(prev => {
       const next = new Set(prev)
       next.has(image.id) ? next.delete(image.id) : next.add(image.id)
       return Array.from(next)
     })
-  }, [])
+  }, [isGuest])
 
   const openModal  = useCallback((image) => setModalImage(image), [])
   const closeModal = useCallback(() => setModalImage(null), [])
-  const openShare  = useCallback((image) => setShareImage(image), [])
+  const openShare  = useCallback((image) => {
+    if (isGuest) { setGateAction('share'); return }
+    setShareImage(image)
+  }, [isGuest])
   const closeShare = useCallback(() => setShareImage(null), [])
+  const closeGate  = useCallback(() => setGateAction(null), [])
 
   const filteredImages = useMemo(() => images.filter(img => {
     const matchCat    = activeCategory === 'All' || img.category === activeCategory
@@ -177,10 +186,12 @@ export default function Gallery() {
           liked={isLiked(modalImage.id)}
           onLike={() => toggleLike(modalImage)}
           onShare={() => { closeModal(); openShare(modalImage) }}
+          onGuestComment={isGuest ? () => setGateAction('comment') : null}
         />
       )}
 
       {shareImage && <ShareDialog image={shareImage} onClose={closeShare} />}
+      {gateAction && <SignInGateModal action={gateAction} onClose={closeGate} />}
     </div>
   )
 }

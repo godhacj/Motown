@@ -37,7 +37,7 @@ function Avatar({ src, name, size = 40, className = '' }) {
 const PANEL_HEIGHTS = { default: 45, peek: 65, expanded: 88 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function GalleryModal({ image, images, onClose, onNavigate, liked = false, onLike, onShare }) {
+export function GalleryModal({ image, images, onClose, onNavigate, liked = false, onLike, onShare, onGuestComment }) {
   const [comments,    setComments]    = useState(image.comments || [])
   const [inputValue,  setInputValue]  = useState('')
   const [isLiked,     setIsLiked]     = useState(liked)
@@ -169,6 +169,7 @@ export function GalleryModal({ image, images, onClose, onNavigate, liked = false
   }
 
   const handlePostComment = () => {
+    if (onGuestComment) { onGuestComment(); return }
     const text = inputValue.trim()
     if (!text) return
     setComments(prev => [...prev, {
