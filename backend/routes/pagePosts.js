@@ -23,7 +23,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', upload.single('cover'), async (req, res) => {
   try {
     const data = { ...req.body }
-    if (req.file) data.coverImage = `/media/page/${req.file.filename}`
+    if (req.file) data.coverImage = req.file.path
     const post = await PagePost.create(data)
     res.status(201).json(post)
   } catch (err) { res.status(400).json({ error: err.message }) }

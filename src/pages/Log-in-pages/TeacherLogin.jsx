@@ -97,7 +97,7 @@ export default function TeacherLogin() {
         staffId:        data.staffId,
         email:          data.email,
         phone:          data.phone,
-        photo:          data.photo ? `${API}${data.photo}` : null,
+        photo:          data.photo ? (data.photo.startsWith('/media/') ? `${API}${data.photo}` : data.photo) : null,
         gender:         data.gender,
         nationality:    data.nationality,
         address:        data.address,

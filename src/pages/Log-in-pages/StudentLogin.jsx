@@ -93,7 +93,7 @@ export default function StudentLogin() {
         username: data.username,
         id:       data.studentId,
         email:    data.email,
-        photo:    data.photo ? `${API}${data.photo}` : null,
+        photo:    data.photo ? (data.photo.startsWith('/media/') ? `${API}${data.photo}` : data.photo) : null,
         program:  data.program,
       })
     } catch {

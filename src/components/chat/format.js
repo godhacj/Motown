@@ -1,5 +1,12 @@
 /* Time/date formatting shared by the chat panes and the message list. */
 
+/* Stored media paths are either a legacy '/media/...' path (needs the API
+   origin prefixed) or an absolute Cloudinary URL (already fetchable as-is). */
+export function resolveMediaUrl(apiBase, value) {
+  if (!value) return value
+  return value.startsWith('/media/') ? `${apiBase}${value}` : value
+}
+
 export function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
