@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', upload.single('file'), async (req, res) => {
   try {
     const { title, description, category, aspectRatio, date, publisher, location } = req.body
-    const src = req.file ? `/media/gallery/${req.file.filename}` : req.body.src
+    const src = req.file ? req.file.path : req.body.src
     const item = await GalleryItem.create({
       src, title, description, category,
       aspectRatio: Number(aspectRatio) || 1,

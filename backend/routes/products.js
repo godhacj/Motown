@@ -31,7 +31,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', upload.single('file'), async (req, res) => {
   try {
     const { name, category, price, description, stock } = req.body;
-    const image = req.file ? `/media/products/${req.file.filename}` : req.body.image;
+    const image = req.file ? req.file.path : req.body.image;
 
     const product = await Product.create({
       name, category,
@@ -49,7 +49,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 router.patch('/:id', upload.single('file'), async (req, res) => {
   try {
     const updates = { ...req.body };
-    if (req.file) updates.image = `/media/products/${req.file.filename}`;
+    if (req.file) updates.image = req.file.path;
     const product = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
     res.json(product);
   } catch (err) {

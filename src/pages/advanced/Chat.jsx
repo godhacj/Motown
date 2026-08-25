@@ -420,7 +420,7 @@ function PartInbox({ setSearchConfig, setConversationActions }) {
               className={`ch-thread${activeId === t.id ? ' ch-thread--active' : ''}`}
               onClick={() => { setActiveId(t.id); enterConversation() }}
             >
-              <Avatar initials={t.initials} src={t.photo ? `${API}${t.photo}` : null} online={t.online} />
+              <Avatar initials={t.initials} src={t.photo ? (t.photo.startsWith('/media/') ? `${API}${t.photo}` : t.photo) : null} online={t.online} />
               <div className="ch-thread-body">
                 <div className="ch-thread-top">
                   <span className="ch-thread-name">{t.name}</span>

@@ -6,7 +6,7 @@ import {
 import API from '../../config/api'
 import EmojiPanel from './EmojiPanel'
 import VoiceNotePlayer from './VoiceNotePlayer'
-import { fmtDuration } from './format'
+import { fmtDuration, resolveMediaUrl } from './format'
 import uploadAttachment from './uploadAttachment'
 
 const TYPING_IDLE_MS   = 2500   // silence after which we declare the user stopped
@@ -337,7 +337,7 @@ export default function MessageComposer({
               </span>
             )}
             {attachment.status === 'ready' && attachment.kind === 'audio' && (
-              <VoiceNotePlayer src={`${API}${attachment.url}`} duration={attachment.duration} variant="preview" />
+              <VoiceNotePlayer src={resolveMediaUrl(API, attachment.url)} duration={attachment.duration} variant="preview" />
             )}
             {attachment.status === 'ready' && attachment.kind === 'image' && (
               <span className="ch-attach-preview__meta">Ready to send</span>

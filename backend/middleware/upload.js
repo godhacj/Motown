@@ -1,23 +1,33 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const cloudinary = require('../config/cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-const MEDIA_DIR = process.env.MEDIA_DIR || 'C:\\Users\\HP\\Downloads\\Motown_Media';
+// Routes mounted with a :folder param (currently just media.js's
+// POST /upload/:folder) pass the folder explicitly. Routes that don't have
+// that param resolve it from their own mount path instead, so each keeps
+// landing in the Cloudinary folder its constructed URL always claimed —
+// gallery.js, pagePosts.js and products.js each call upload.single(...)
+// with no :folder param, so previously they all silently fell back to one
+// hardcoded default on disk regardless of what the saved URL said.
+const BASE_URL_FOLDER = {
+  '/api/gallery':  'gallery',
+  '/api/posts':    'page',
+  '/api/products': 'products',
+};
 
-// Ensure sub-folders exist at startup
-['gallery', 'products', 'page', 'avatars', 'chat-attachments'].forEach(sub => {
-  fs.mkdirSync(path.join(MEDIA_DIR, sub), { recursive: true });
-});
+function resolveFolder(req) {
+  return req.params.folder || BASE_URL_FOLDER[req.baseUrl] || 'gallery';
+}
 
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    const folder = req.params.folder || 'gallery';
-    cb(null, path.join(MEDIA_DIR, folder));
-  },
-  filename(req, file, cb) {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, unique + path.extname(file.originalname).toLowerCase());
-  },
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: (req, file) => ({
+    folder: `motown/${resolveFolder(req)}`,
+    resource_type: file.mimetype?.startsWith('audio/') ? 'video' : 'image', // Cloudinary files audio under 'video'
+    // Cloudinary appends its own random suffix to public_id when one isn't
+    // given, which is enough for uniqueness — no need to hand-roll one.
+  }),
 });
 
 // Images everywhere; chat attachments may additionally be voice notes, whose
@@ -30,10 +40,10 @@ const fileFilter = (req, file, cb) => {
   const mime = file.mimetype || '';
 
   if (IMAGE_EXT.test(ext) && mime.startsWith('image/')) return cb(null, true);
-  if (req.params.folder === 'chat-attachments' && AUDIO_EXT.test(ext) && mime.startsWith('audio/'))
+  if (resolveFolder(req) === 'chat-attachments' && AUDIO_EXT.test(ext) && mime.startsWith('audio/'))
     return cb(null, true);
 
-  cb(new Error(req.params.folder === 'chat-attachments' ? 'Images and voice notes only' : 'Images only'));
+  cb(new Error(resolveFolder(req) === 'chat-attachments' ? 'Images and voice notes only' : 'Images only'));
 };
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });

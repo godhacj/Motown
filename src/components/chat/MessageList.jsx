@@ -4,7 +4,7 @@ import API from '../../config/api'
 import useLongPress from '../../hooks/useLongPress'
 import MessageTicks from './MessageTicks'
 import VoiceNotePlayer from './VoiceNotePlayer'
-import { fmtDate, fmtTime, previewOf } from './format'
+import { fmtDate, fmtTime, previewOf, resolveMediaUrl } from './format'
 
 const NEAR_BOTTOM_PX = 120
 
@@ -49,7 +49,7 @@ function MessageRow({ message, isGroup, renderAvatar, onReply, onOpenImage, onJu
 
         {attachment?.type === 'audio' && (
           <VoiceNotePlayer
-            src={`${API}${attachment.url}`}
+            src={resolveMediaUrl(API, attachment.url)}
             duration={attachment.duration}
             variant={isMe ? 'bubble-me' : 'bubble'}
           />
@@ -59,12 +59,12 @@ function MessageRow({ message, isGroup, renderAvatar, onReply, onOpenImage, onJu
           <button
             type="button"
             className="ch-msg-attachment"
-            onClick={() => onOpenImage({ src: `${API}${attachment.url}`, name: attachment.name })}
+            onClick={() => onOpenImage({ src: resolveMediaUrl(API, attachment.url), name: attachment.name })}
             aria-label={`Open ${attachment.name || 'attachment'}`}
           >
             <img
               className="ch-msg-attachment-img"
-              src={`${API}${attachment.url}`}
+              src={resolveMediaUrl(API, attachment.url)}
               alt={attachment.name || 'attachment'}
               loading="lazy"
             />
