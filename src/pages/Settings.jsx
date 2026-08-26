@@ -3,9 +3,11 @@ import { useOutletContext } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import {
   FiSun, FiMoon, FiDroplet, FiFeather, FiCloud,
-  FiChevronDown, FiCheck, FiInfo
+  FiChevronDown, FiCheck, FiInfo, FiLock, FiAlertCircle,
 } from 'react-icons/fi'
 import { Icons } from '../assets/icons'
+import API from '../config/api'
+import useCurrentSession from '../hooks/useCurrentSession'
 import '../styles/Settings.css'
 
 // ── localStorage key ──────────────────────────────────────────────────────
@@ -165,11 +167,112 @@ function SavedBadge({ show }) {
   )
 }
 
+// One endpoint per role — each keeps its own auth shape (URL param vs
+// bearer token), so this just picks the right request rather than trying
+// to force them into one signature.
+function changePasswordRequest(session, currentPassword, newPassword) {
+  const body = JSON.stringify({ currentPassword, newPassword })
+
+  if (session.role === 'admin') {
+    return fetch(`${API}/api/admin/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
+      body,
+    })
+  }
+  const path = session.role === 'teacher'
+    ? `/api/teachers/${session.id}/password`
+    : `/api/students/${session.id}/password`
+  return fetch(`${API}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+}
+
+function ChangePasswordForm({ session }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword]         = useState('')
+  const [confirm, setConfirm]                 = useState('')
+  const [saving, setSaving]                   = useState(false)
+  const [error, setError]                     = useState('')
+  const [done, setDone]                       = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!currentPassword) { setError('Enter your current password'); return }
+    if (newPassword.length < 6) { setError('New password must be at least 6 characters'); return }
+    if (newPassword !== confirm) { setError('New passwords do not match'); return }
+
+    setSaving(true)
+    try {
+      const res = await changePasswordRequest(session, currentPassword, newPassword)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'Could not update password'); setSaving(false); return }
+      setDone(true)
+      setCurrentPassword(''); setNewPassword(''); setConfirm('')
+      setSaving(false)
+      setTimeout(() => setDone(false), 3000)
+    } catch {
+      setError('Could not connect to server. Please try again.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="sett-pw-form" onSubmit={submit}>
+      <div className="sett-pw-field">
+        <label htmlFor="sett-pw-current">Current password</label>
+        <input
+          id="sett-pw-current"
+          type="password"
+          className="sett-input"
+          value={currentPassword}
+          onChange={e => setCurrentPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+      </div>
+      <div className="sett-pw-field">
+        <label htmlFor="sett-pw-new">New password</label>
+        <input
+          id="sett-pw-new"
+          type="password"
+          className="sett-input"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          placeholder="At least 6 characters"
+          autoComplete="new-password"
+        />
+      </div>
+      <div className="sett-pw-field">
+        <label htmlFor="sett-pw-confirm">Confirm new password</label>
+        <input
+          id="sett-pw-confirm"
+          type="password"
+          className="sett-input"
+          value={confirm}
+          onChange={e => setConfirm(e.target.value)}
+          autoComplete="new-password"
+        />
+      </div>
+
+      {error && <span className="sett-pw-error"><FiAlertCircle size={13} /> {error}</span>}
+      {done && <span className="sett-pw-success"><FiCheck size={13} /> Password updated</span>}
+
+      <button type="submit" className="sett-pw-submit" disabled={saving}>
+        {saving ? 'Saving…' : 'Update Password'}
+      </button>
+    </form>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export default function Settings() {
   const { setSideMenu, setSearchConfig, setNotchText, setNotchIcon } = useOutletContext()
   const { theme: activeTheme, setTheme } = useTheme()
+  const session = useCurrentSession()
   const [cfg, setCfg] = useState(loadSettings)
 
   // Keep the theme control in sync with next-themes (e.g. changed via topbar ThemeToggle)
@@ -359,6 +462,29 @@ export default function Settings() {
           </Row>
 
         </Section>
+
+        {/* ═══════════════ ACCOUNT SETTINGS (real backend account) ═══════════════ */}
+        {session && (
+          <Section title="Account Privacy" icon={FiLock} defaultOpen>
+
+            <Row label={session.role === 'admin' ? 'Username' : 'ID'} hint="Assigned when your account was created — cannot be changed here">
+              <span className="sett-readonly-value">{session.id || session.displayName}</span>
+            </Row>
+
+            <Row label="Role">
+              <span className="sett-readonly-value sett-readonly-value--capitalize">{session.role}</span>
+            </Row>
+
+            <div className="sett-row sett-row--stacked">
+              <div className="sett-row__label-group">
+                <span className="sett-row__label">Password</span>
+                <span className="sett-row__hint">Change the password you sign in with</span>
+              </div>
+              <ChangePasswordForm session={session} />
+            </div>
+
+          </Section>
+        )}
 
         {/* ═══════════════ ACCOUNT ═══════════════ */}
         <Section title="Account" icon={Icons.profile}>

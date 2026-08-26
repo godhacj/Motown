@@ -56,6 +56,12 @@ const additionalRecordSchema = new mongoose.Schema({
   year:        { type: String },
 }, { _id: false })
 
+const applicantDocumentSchema = new mongoose.Schema({
+  name: { type: String },
+  url:  { type: String },
+  type: { type: String },
+}, { _id: false })
+
 const studentSchema = new mongoose.Schema({
   // Auth
   username: { type: String, required: true, unique: true, trim: true },
@@ -76,7 +82,7 @@ const studentSchema = new mongoose.Schema({
   placeOfBirth:   { type: String },
   nationality:    { type: String, default: 'Ghanaian' },
   ethnicGroup:    { type: String },
-  denomination:   { type: String, enum: ['Christian','Islamic','Traditional','None','Other'] },
+  denomination:   { type: String },   // free text on the application form, not a fixed enum
   disability:     { type: Boolean, default: false },
   disabilityNote: { type: String },
   homeAddress:    { type: String },
@@ -100,7 +106,8 @@ const studentSchema = new mongoose.Schema({
   campus: { type: String, enum: ['Boarding','Day'] },
 
   // Stage 7 — Additional records
-  records: [additionalRecordSchema],
+  records:   [additionalRecordSchema],
+  documents: [applicantDocumentSchema],   // applicant-supplied attachments (certs, medical reports, etc.)
 
   // Stage 8 — Essays
   essayWhy:         { type: String },

@@ -189,6 +189,87 @@
   flex-shrink: 0;
 }
 
+.sett-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.sett-readonly-value {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.sett-readonly-value--capitalize {
+  font-family: var(--font-name);
+  text-transform: capitalize;
+}
+
+/* ═══════════════════════════════════════════
+   ACCOUNT SETTINGS — change password form
+═══════════════════════════════════════════ */
+.sett-pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+}
+
+.sett-pw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sett-pw-field label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.sett-pw-field .sett-input {
+  width: 100%;
+}
+
+.sett-pw-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-danger);
+}
+
+.sett-pw-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-success);
+}
+
+.sett-pw-submit {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  font-family: var(--font-name);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.sett-pw-submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.sett-pw-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ═══════════════════════════════════════════
    TOGGLE (switch)
 ═══════════════════════════════════════════ */

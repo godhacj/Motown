@@ -419,6 +419,27 @@
 .ps-photo-overlay svg { stroke: currentColor; fill: none; }
 .ps-photo-drop:hover .ps-photo-overlay { opacity: 1; }
 
+.ps-bio-upload-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.ps-bio-upload-status--error {
+  color: var(--color-danger);
+}
+
+.ps-spin {
+  animation: ps-spin 0.8s linear infinite;
+}
+
+@keyframes ps-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 .ps-bio-remove {
   display: inline-flex;
   align-items: center;
@@ -798,6 +819,7 @@
 }
 
 .ps-file-icon { flex-shrink: 0; color: var(--color-accent); stroke: currentColor; fill: none; }
+.ps-file-err-icon { flex-shrink: 0; color: var(--color-danger); stroke: currentColor; fill: none; }
 
 .ps-file-name {
   flex: 1;
@@ -882,6 +904,32 @@
   gap: 10px;
   justify-content: flex-end;
   border-top: 1px solid var(--border-color);
+}
+
+/* ── House assignment popup ── */
+.ps-house-modal-body {
+  align-items: center;
+  text-align: center;
+}
+
+.ps-house-modal-icon {
+  color: var(--color-accent);
+  stroke: currentColor;
+  fill: none;
+}
+
+.ps-house-modal-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.ps-house-modal-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -1014,6 +1062,34 @@
 
 .ps-submitted-ref strong { color: var(--color-text-primary); font-family: monospace; }
 
+.ps-pw-panel {
+  max-width: 340px;
+  margin: 0 auto 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--background-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.ps-pw-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ps-pw-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-success);
+  margin: 0 0 20px;
+}
+
 /* ═══════════════════════════════════════════
    BUTTONS
 ═══════════════════════════════════════════ */
@@ -1053,6 +1129,7 @@
 .ps-btn--ghost:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .ps-btn--lg { padding: 13px 32px; font-size: 0.95rem; }
+.ps-btn--sm { padding: 7px 14px; font-size: 0.8rem; }
 
 .ps-btn--submit {
   box-shadow: 0 4px 20px rgba(37, 99, 235, 0.36);

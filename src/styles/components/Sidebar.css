@@ -230,6 +230,37 @@
   font-weight: 700;
 }
 
+/* Light/dark get an explicit black-on-white / white-on-black active fill
+   instead of the accent color — ocean/forest/sunset keep the accent fill
+   above untouched. */
+:root[data-theme="light"] .sidebar nav li.active a::before {
+  background: #000;
+}
+:root[data-theme="light"] .sidebar nav li.active a {
+  color: #fff;
+}
+:root[data-theme="light"] .sidebar nav li.active a::after {
+  background: #fff;
+}
+:root[data-theme="light"] .sidebar nav li.active a .sidebar-icon-wrap {
+  background: color-mix(in srgb, #fff 15%, transparent);
+  border-color: color-mix(in srgb, #fff 25%, transparent);
+}
+
+:root[data-theme="dark"] .sidebar nav li.active a::before {
+  background: #fff;
+}
+:root[data-theme="dark"] .sidebar nav li.active a {
+  color: #000;
+}
+:root[data-theme="dark"] .sidebar nav li.active a::after {
+  background: #000;
+}
+:root[data-theme="dark"] .sidebar nav li.active a .sidebar-icon-wrap {
+  background: color-mix(in srgb, #000 15%, transparent);
+  border-color: color-mix(in srgb, #000 25%, transparent);
+}
+
 /* The stripe on the very left edge — like a key's left border highlight.
    Sits on top of the now solid-accent fill, so it needs to read AGAINST
    --color-accent rather than repeat it (repeating it would be invisible) —

@@ -11,6 +11,32 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// ── PATCH /api/teachers/:username/password ───────────────────────────────────
+router.patch('/:username/password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {}
+
+  if (!currentPassword || !newPassword)
+    return res.status(400).json({ error: 'Current and new password are required' })
+  if (newPassword.length < 6)
+    return res.status(400).json({ error: 'New password must be at least 6 characters' })
+
+  try {
+    const teacher = await Teacher.findOne({ username: req.params.username })
+    if (!teacher) return res.status(404).json({ error: 'Teacher not found' })
+
+    const match = await bcrypt.compare(currentPassword, teacher.password)
+    if (!match) return res.status(401).json({ error: 'Current password is incorrect' })
+
+    teacher.password = await bcrypt.hash(newPassword, 10)
+    await teacher.save()
+
+    res.json({ message: 'Password updated' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── POST /api/teachers/login ──────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   const { username, password } = req.body

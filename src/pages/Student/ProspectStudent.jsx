@@ -4,8 +4,10 @@ import {
   FiUser, FiUsers, FiBookOpen, FiLayers, FiHome, FiFileText,
   FiEdit3, FiCheckCircle, FiCamera, FiDisc, FiPlus,
   FiTrash2, FiUpload, FiX, FiAlertCircle, FiCheck, FiChevronDown,
-  FiFile, FiAward, FiEye,
+  FiFile, FiAward, FiEye, FiLoader,
 } from 'react-icons/fi'
+import API from '../../config/api'
+import uploadMedia from '../../components/uploadMedia'
 import '../../styles/Student/ProspectStudent.css'
 
 /* ─────────────────────────────────────────────
@@ -41,7 +43,9 @@ const RELATIONS = ['Father', 'Mother', 'Uncle', 'Aunt', 'Sibling', 'Grandparent'
 ───────────────────────────────────────────── */
 const INIT = {
   // Biometric
-  passportPhoto: null,
+  passportPhoto: null,       // local data-URL preview
+  passportPhotoUrl: null,    // Cloudinary URL once uploaded — this is what gets submitted
+  passportPhotoStatus: 'idle', // 'idle' | 'uploading' | 'done' | 'error'
   fingerprint: null,
   // Personal
   firstName: '', lastName: '', middleName: '',
@@ -58,9 +62,10 @@ const INIT = {
   program: '',
   // Campus
   campus: '',
+  housingGenderOverride: '',  // only used when gender === 'Prefer not to say' and campus === 'Boarding'
   // Additional
   records: [],   // [{ title, description, year }]
-  files: [],     // [{ name, dataUrl, type }]
+  files: [],     // [{ name, url, status: 'uploading'|'done'|'error', type }]
   // Essay
   essayWhy: '', essayPersonality: '',
 }
@@ -144,9 +149,15 @@ function StageбиометрBiometric({ form, setForm }) {
   const handlePhoto = (e) => {
     const file = e.target.files[0]
     if (!file) return
+
     const reader = new FileReader()
     reader.onload = () => setForm(p => ({ ...p, passportPhoto: reader.result }))
     reader.readAsDataURL(file)
+
+    setForm(p => ({ ...p, passportPhotoStatus: 'uploading', passportPhotoUrl: null }))
+    uploadMedia(file, 'avatars')
+      .then(({ url }) => setForm(p => ({ ...p, passportPhotoUrl: url, passportPhotoStatus: 'done' })))
+      .catch(() => setForm(p => ({ ...p, passportPhotoStatus: 'error' })))
   }
 
   const toggleFingerprint = () => {
@@ -190,10 +201,20 @@ function StageбиометрBiometric({ form, setForm }) {
             style={{ display: 'none' }}
             onChange={handlePhoto}
           />
+          {form.passportPhotoStatus === 'uploading' && (
+            <span className="ps-bio-upload-status">
+              <FiLoader size={13} className="ps-spin" /> Uploading…
+            </span>
+          )}
+          {form.passportPhotoStatus === 'error' && (
+            <span className="ps-bio-upload-status ps-bio-upload-status--error">
+              <FiAlertCircle size={13} /> Upload failed — try again
+            </span>
+          )}
           {form.passportPhoto && (
             <button
               className="ps-bio-remove"
-              onClick={() => setForm(p => ({ ...p, passportPhoto: null }))}
+              onClick={() => setForm(p => ({ ...p, passportPhoto: null, passportPhotoUrl: null, passportPhotoStatus: 'idle' }))}
             >
               <FiX size={14} /> Remove
             </button>
@@ -542,6 +563,21 @@ function StageCampus({ form, setForm, errors }) {
           )
         })}
       </div>
+
+      {form.campus === 'Boarding' && form.gender === 'Prefer not to say' && (
+        <Field
+          label="Housing Pool *"
+          error={errors.housingGenderOverride}
+          hint="Boarding houses are currently organised into male and female pools only. Choose which pool should be used for your room assignment."
+        >
+          <Select
+            value={form.housingGenderOverride}
+            onChange={e => setForm(p => ({ ...p, housingGenderOverride: e.target.value }))}
+            options={['Male', 'Female']}
+            placeholder="Select housing pool"
+          />
+        </Field>
+      )}
     </div>
   )
 }
@@ -597,14 +633,20 @@ function StageAdditional({ form, setForm }) {
   const handleFiles = (e) => {
     const files = Array.from(e.target.files)
     files.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setForm(p => ({
+      const localIdx = Date.now() + Math.random()
+      setForm(p => ({
+        ...p,
+        files: [...p.files, { localIdx, name: file.name, url: null, status: 'uploading', type: file.type }]
+      }))
+      uploadMedia(file, 'avatars')
+        .then(({ url }) => setForm(p => ({
           ...p,
-          files: [...p.files, { name: file.name, dataUrl: reader.result, type: file.type }]
-        }))
-      }
-      reader.readAsDataURL(file)
+          files: p.files.map(f => f.localIdx === localIdx ? { ...f, url, status: 'done' } : f)
+        })))
+        .catch(() => setForm(p => ({
+          ...p,
+          files: p.files.map(f => f.localIdx === localIdx ? { ...f, status: 'error' } : f)
+        })))
     })
     e.target.value = ''
   }
@@ -672,6 +714,8 @@ function StageAdditional({ form, setForm }) {
               <div key={idx} className="ps-file-item">
                 <FiFile size={15} className="ps-file-icon" />
                 <span className="ps-file-name">{f.name}</span>
+                {f.status === 'uploading' && <FiLoader size={13} className="ps-spin" />}
+                {f.status === 'error' && <FiAlertCircle size={13} className="ps-file-err-icon" />}
                 <button className="ps-file-del" onClick={() => removeFile(idx)} aria-label="Remove file">
                   <FiX size={13} />
                 </button>
@@ -733,21 +777,125 @@ function StageEssay({ form, setForm, errors }) {
 }
 
 /* ─────────────────────────────────────────────
+   HOUSE ASSIGNMENT POPUP — shown once after a boarding submission
+───────────────────────────────────────────── */
+function HouseAssignedModal({ houseName, onClose }) {
+  return (
+    <div className="ps-modal-backdrop" onClick={onClose}>
+      <div className="ps-modal ps-house-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="ps-modal-header">
+          <h3>Boarding House Assigned</h3>
+          <button className="ps-modal-close" onClick={onClose}><FiX size={18} /></button>
+        </div>
+        <div className="ps-modal-body ps-house-modal-body">
+          <FiHome size={40} className="ps-house-modal-icon" />
+          <p className="ps-house-modal-name">{houseName}</p>
+          <p className="ps-house-modal-note">
+            You've been randomly assigned to <strong>{houseName}</strong> as your boarding house.
+            This placement is provisional — final house assignment will be confirmed when the
+            full placement process is deployed ahead of the school year.
+          </p>
+        </div>
+        <div className="ps-modal-footer">
+          <button className="ps-btn ps-btn--primary" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    STAGE 9 — REVIEW & SUBMIT
 ───────────────────────────────────────────── */
-function StageReview({ form, goTo, submitted, onSubmit }) {
-  if (submitted) {
+function ChangePasswordPanel({ studentId, currentPassword, onChanged }) {
+  const [open, setOpen]           = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirm, setConfirm]     = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState('')
+  const [done, setDone]           = useState(false)
+
+  if (done) {
+    return (
+      <p className="ps-pw-done"><FiCheck size={14} /> Password updated — use your new password next time you sign in.</p>
+    )
+  }
+
+  if (!open) {
+    return (
+      <button className="ps-btn ps-btn--ghost ps-btn--sm" onClick={() => setOpen(true)}>
+        <FiEdit3 size={13} /> Change Password
+      </button>
+    )
+  }
+
+  const submit = async () => {
+    setError('')
+    if (newPassword.length < 6) { setError('New password must be at least 6 characters'); return }
+    if (newPassword !== confirm) { setError('Passwords do not match'); return }
+
+    setSaving(true)
+    try {
+      const res = await fetch(`${API}/api/students/${studentId}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'Could not update password'); setSaving(false); return }
+      setDone(true)
+      onChanged?.(newPassword)
+    } catch {
+      setError('Could not connect to server. Please try again.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="ps-pw-panel">
+      <Field label="New Password" error={error && error.toLowerCase().includes('new') ? error : undefined}>
+        <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 6 characters" />
+      </Field>
+      <Field label="Confirm New Password">
+        <Input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-enter new password" />
+      </Field>
+      {error && !error.toLowerCase().includes('new') && (
+        <span className="ps-field-err"><FiAlertCircle size={12} /> {error}</span>
+      )}
+      <div className="ps-pw-panel-actions">
+        <button className="ps-btn ps-btn--ghost ps-btn--sm" onClick={() => setOpen(false)} disabled={saving}>Cancel</button>
+        <button className="ps-btn ps-btn--primary ps-btn--sm" onClick={submit} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Password'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function StageReview({ form, goTo, submitted, submitting, submitError, submitResult, onSubmit }) {
+  const [displayPassword, setDisplayPassword] = useState(null)
+
+  if (submitted && submitResult) {
     return (
       <div className="ps-stage ps-stage--submitted">
         <div className="ps-submitted-icon"><FiCheckCircle size={56} /></div>
         <h2 className="ps-stage-title">Application Submitted!</h2>
         <p className="ps-stage-sub">
-          Your application to Achimota School has been received. You will be notified via email and SMS regarding the next steps.
+          Your application to Achimota School has been received. Keep the login details below — you'll need them to check your application status.
         </p>
         <div className="ps-submitted-ref">
-          <span>Reference:</span>
-          <strong>ACHO-{Date.now().toString().slice(-8).toUpperCase()}</strong>
+          <span>Applicant ID:</span>
+          <strong>{submitResult.studentId}</strong>
         </div>
+        <div className="ps-submitted-ref">
+          <span>Password:</span>
+          <strong>{displayPassword || submitResult.password}</strong>
+        </div>
+        <ChangePasswordPanel
+          studentId={submitResult.studentId}
+          currentPassword={displayPassword || submitResult.password}
+          onChanged={setDisplayPassword}
+        />
         <button className="ps-btn ps-btn--primary ps-btn--lg" onClick={() => window.location.reload()}>
           Start New Application
         </button>
@@ -759,7 +907,7 @@ function StageReview({ form, goTo, submitted, onSubmit }) {
     {
       label: 'Biometric', stage: 'biometric',
       rows: [
-        ['Passport Photo', form.passportPhoto ? '✓ Uploaded' : '— Missing'],
+        ['Passport Photo', form.passportPhotoUrl ? '✓ Uploaded' : form.passportPhotoStatus === 'uploading' ? '⏳ Uploading…' : '— Missing'],
         ['Fingerprint', form.fingerprint ? '✓ Captured' : '— Not captured'],
       ]
     },
@@ -793,7 +941,12 @@ function StageReview({ form, goTo, submitted, onSubmit }) {
     },
     {
       label: 'Campus', stage: 'campus',
-      rows: [['Type', form.campus || '— Not selected']]
+      rows: [
+        ['Type', form.campus || '— Not selected'],
+        ...(form.campus === 'Boarding' && form.gender === 'Prefer not to say'
+          ? [['Housing Pool', form.housingGenderOverride || '— Not selected']]
+          : []),
+      ]
     },
     {
       label: 'Additional', stage: 'additional',
@@ -842,8 +995,13 @@ function StageReview({ form, goTo, submitted, onSubmit }) {
           By submitting this application, you confirm that all information provided is true and accurate to the best of your knowledge.
           Falsification of any information will lead to automatic disqualification.
         </p>
-        <button className="ps-btn ps-btn--primary ps-btn--lg ps-btn--submit" onClick={onSubmit}>
-          <FiCheckCircle size={18} /> Submit Application
+        {submitError && (
+          <div className="ps-stage-err"><FiAlertCircle size={14} /> {submitError}</div>
+        )}
+        <button className="ps-btn ps-btn--primary ps-btn--lg ps-btn--submit" onClick={onSubmit} disabled={submitting}>
+          {submitting
+            ? <><FiLoader size={18} className="ps-spin" /> Submitting…</>
+            : <><FiCheckCircle size={18} /> Submit Application</>}
         </button>
       </div>
     </div>
@@ -860,6 +1018,10 @@ export default function ProspectStudent() {
   const [form, setForm]               = useState(INIT)
   const [errors, setErrors]           = useState({})
   const [submitted, setSubmitted]     = useState(false)
+  const [submitting, setSubmitting]   = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submitResult, setSubmitResult] = useState(null)
+  const [houseModalOpen, setHouseModalOpen] = useState(false)
   const scrollRef = useRef(null)
 
   /* Wire up the notch tab-nav on mount */
@@ -913,6 +1075,9 @@ export default function ProspectStudent() {
   /* Basic per-stage validation */
   function validateStage(stage) {
     const errs = {}
+    if (stage === 'biometric') {
+      if (!form.passportPhotoUrl) errs.passportPhoto = 'Please upload and wait for your passport photo to finish uploading'
+    }
     if (stage === 'personal') {
       if (!form.firstName.trim()) errs.firstName = 'Required'
       if (!form.lastName.trim())  errs.lastName  = 'Required'
@@ -941,6 +1106,9 @@ export default function ProspectStudent() {
     }
     if (stage === 'campus') {
       if (!form.campus) errs.campus = 'Please select Day or Boarding'
+      if (form.campus === 'Boarding' && form.gender === 'Prefer not to say' && !form.housingGenderOverride) {
+        errs.housingGenderOverride = 'Please choose a housing pool'
+      }
     }
     if (stage === 'essay') {
       const wc1 = form.essayWhy.trim().split(/\s+/).filter(Boolean).length
@@ -965,9 +1133,51 @@ export default function ProspectStudent() {
     if (currentIdx > 0) goTo(STAGES[currentIdx - 1].value)
   }
 
-  const handleSubmit = () => {
-    setSubmitted(true)
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  const handleSubmit = async () => {
+    // Sweep every stage, not just the ones already visited — closes the gap
+    // where jumping straight to Review via the stage-dots nav could submit
+    // without ever validating earlier required fields.
+    for (const s of STAGES) {
+      if (s.value === 'review') continue
+      const errs = validateStage(s.value)
+      if (Object.keys(errs).length) {
+        setErrors(errs)
+        goTo(s.value)
+        return
+      }
+    }
+    setErrors({})
+    setSubmitError('')
+    setSubmitting(true)
+
+    try {
+      const res = await fetch(`${API}/api/students/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          passportPhoto: form.passportPhotoUrl,
+          files: undefined,
+          documents: form.files.filter(f => f.status === 'done').map(f => ({ name: f.name, url: f.url, type: f.type })),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setSubmitError(data.error || 'Submission failed — please try again.')
+        setSubmitting(false)
+        return
+      }
+
+      setSubmitResult(data)
+      setSubmitted(true)
+      setSubmitting(false)
+      if (data.assignedHouse) setHouseModalOpen(true)
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch {
+      setSubmitError('Could not connect to server. Please try again.')
+      setSubmitting(false)
+    }
   }
 
   const completedStages = STAGES.filter(s => {
@@ -1002,6 +1212,9 @@ export default function ProspectStudent() {
               form={form}
               goTo={goTo}
               submitted={submitted}
+              submitting={submitting}
+              submitError={submitError}
+              submitResult={submitResult}
               onSubmit={handleSubmit}
             />
           )}
@@ -1042,6 +1255,13 @@ export default function ProspectStudent() {
           </div>
         )}
       </div>
+
+      {houseModalOpen && (
+        <HouseAssignedModal
+          houseName={submitResult?.assignedHouse}
+          onClose={() => setHouseModalOpen(false)}
+        />
+      )}
     </div>
   )
 }
