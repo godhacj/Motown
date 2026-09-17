@@ -55,6 +55,7 @@ export default function About() {
     setSideMenu([
       { title: 'Home',     to: '/',         icon: Icons.home },
       { title: 'Gallery',  to: '/gallery',  icon: Icons.gallery },
+      { title: 'Library',  to: '/library',  icon: Icons.library },
       { title: 'Shop',     to: '/pta-shop', icon: Icons.shopping },
       { title: 'Map',      to: '/map',      icon: Icons.map },
       { title: 'Page',     to: '/page',     icon: Icons.page },

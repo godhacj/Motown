@@ -459,15 +459,17 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
               <>
                 {expandedSide === 'right' && (
                   <>
-                    <div className="search-wrapper">
-                      <button
-                        className="search-btn"
-                        onClick={toggleSearch}
-                        aria-label="Search"
-                      >
-                        <Icons.search />
-                      </button>
-                    </div>
+                    {searchConfig?.visible && (
+                      <div className="search-wrapper">
+                        <button
+                          className="search-btn"
+                          onClick={toggleSearch}
+                          aria-label="Search"
+                        >
+                          <Icons.search />
+                        </button>
+                      </div>
+                    )}
                     <button
                       ref={profileBtnRef}
                       className={`profile-btn${showProfile ? ' profile-btn--active' : ''}${account.kind === 'admin' ? ' profile-btn--admin' : ''}`}
@@ -533,6 +535,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                     {trayToast && <div className="conv-tray-toast">{trayToast}</div>}
                   </div>
                 )}
+                {searchConfig?.visible && (
                 <div className="search-wrapper" data-open={!isTight && searchOpen}>
                   {!isTight && (
                     <input
@@ -554,6 +557,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                     {!isTight && searchOpen ? <Icons.close /> : <Icons.search />}
                   </button>
                 </div>
+                )}
                 <button
                   ref={profileBtnRef}
                   className={`profile-btn${showProfile ? ' profile-btn--active' : ''}${account.kind === 'admin' ? ' profile-btn--admin' : ''}`}

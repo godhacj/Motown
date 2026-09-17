@@ -211,22 +211,17 @@ export default function Announcement() {
   const [items,        setItems]        = useState([])
   const [loading,      setLoading]      = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
-  const [searchQuery,  setSearchQuery]  = useState('')
   const [composing,    setComposing]    = useState(false)
   const [showPinned,   setShowPinned]   = useState(false)
   const [annFields,    setAnnFields]    = useState({ priority: 'medium', audience: 'all' })
 
   useEffect(() => {
     setNotchText('Announcements')
-    setSearchConfig({
-      visible: true,
-      placeholder: 'Search announcements…',
-      Icon: FiBell,
-      handler: (q) => setSearchQuery(q.toLowerCase()),
-    })
+    setSearchConfig({ visible: false })
     setSideMenu([
       { title: 'Home',     to: '/',         icon: Icons.home     },
       { title: 'Gallery',  to: '/gallery',  icon: Icons.gallery  },
+      { title: 'Library',  to: '/library',  icon: Icons.library  },
       { title: 'Page',     to: '/page',     icon: Icons.page     },
       { title: 'Map',      to: '/map',      icon: Icons.map      },
       { title: 'Shop',     to: '/pta-shop', icon: Icons.shopping },
@@ -304,13 +299,8 @@ export default function Announcement() {
 
   /* ── Filter ── */
   const filtered = useMemo(() => items.filter(i => {
-    const matchFilter = activeFilter === 'All' || i.priority === activeFilter.toLowerCase()
-    const matchSearch = !searchQuery
-      || i.title?.toLowerCase().includes(searchQuery)
-      || i.content?.toLowerCase().includes(searchQuery)
-      || i.author?.toLowerCase().includes(searchQuery)
-    return matchFilter && matchSearch
-  }), [items, activeFilter, searchQuery])
+    return activeFilter === 'All' || i.priority === activeFilter.toLowerCase()
+  }), [items, activeFilter])
 
   const pinnedFiltered  = useMemo(() => filtered.filter(i => i.pinned),  [filtered])
   const regularFiltered = useMemo(() => filtered.filter(i => !i.pinned), [filtered])
@@ -360,7 +350,6 @@ export default function Announcement() {
             <div className="ann-empty">
               <FiBell size={40} />
               <p>No announcements found.</p>
-              {searchQuery && <span>Try a different search term.</span>}
             </div>
           ) : (
             <>

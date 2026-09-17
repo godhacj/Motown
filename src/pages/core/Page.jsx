@@ -296,7 +296,7 @@ function loadCounts(key) {
 }
 
 export default function Page() {
-  const { setSideMenu, setNotchText } = useOutletContext()
+  const { setSideMenu, setNotchText, setSearchConfig } = useOutletContext()
   const isGuest = useIsGuest()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -312,19 +312,27 @@ export default function Page() {
   const [shareCounts, setShareCounts] = useState(() => loadCounts(SHARE_COUNTS_KEY))
   const [sharePost, setSharePost] = useState(null)
   const [savedPanelOpen, setSavedPanelOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     setNotchText('Page')
+    setSearchConfig({
+      visible: true,
+      placeholder: 'Search posts…',
+      Icon: Icons.search,
+      handler: (q) => setSearchQuery(q.toLowerCase()),
+    })
     setSideMenu([
       { title: 'Home', to: '/', icon: Icons.home },
       { title: 'Gallery', to: '/gallery', icon: Icons.gallery },
+      { title: 'Library', to: '/library', icon: Icons.library },
       { title: 'Shop', to: '/pta-shop', icon: Icons.shopping },
       { title: 'Map', to: '/map', icon: Icons.map },
       { title: 'Page', to: '/page', icon: Icons.page },
       { title: 'About', to: '/about', icon: Icons.about },
       { title: 'Settings', to: '/settings', icon: Icons.settings },
     ])
-  }, [setSideMenu, setNotchText])
+  }, [setSideMenu, setNotchText, setSearchConfig])
 
   // Fetch posts from API, fall back to static file if backend is down
   useEffect(() => {
@@ -408,13 +416,20 @@ export default function Page() {
     setSharePost(post)
   }, [isGuest])
 
+  const visiblePosts = searchQuery
+    ? posts.filter(p =>
+        p.title?.toLowerCase().includes(searchQuery)
+        || p.publisher?.toLowerCase().includes(searchQuery)
+      )
+    : posts
+
   return (
     <div className="page-main">
       <div className="page-scroll">
         <div className="page-feed">
           {loading ? (
             <p style={{ textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : posts.map((post) => (
+          ) : visiblePosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}

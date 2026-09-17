@@ -32,13 +32,14 @@ const Syllabus = () => {
   useEffect(() => {
     setNotchText('Syllabus');
     setSideMenu([
-      {label: "Home", path: "/", icon: Icons.home},
-      {label: "Gallery", path: "/gallery", icon: Icons.gallery},
-      {label: "Page", path: "/page", icon: Icons.page},
-      {label: "Map", path: "/map", icon: Icons.map},
-      {label: "PTA Shop", path: "/pta-shop", icon: Icons.shopping},
-      {label: "About", path: "/about", icon: Icons.about},
-      {label: "Settings", path: "/settings", icon: Icons.settings}
+      { title: "Home", to: "/", icon: Icons.home },
+      { title: "Gallery", to: "/gallery", icon: Icons.gallery },
+      { title: "Library", to: "/library", icon: Icons.library },
+      { title: "Page", to: "/page", icon: Icons.page },
+      { title: "Map", to: "/map", icon: Icons.map },
+      { title: "PTA Shop", to: "/pta-shop", icon: Icons.shopping },
+      { title: "About", to: "/about", icon: Icons.about },
+      { title: "Settings", to: "/settings", icon: Icons.settings }
     ])
     setSearchConfig({
       visible: true,

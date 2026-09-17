@@ -818,6 +818,7 @@ export default function Student() {
     setSideMenu([
       { title: 'Home',        to: '/',              icon: Icons.home },
       { title: 'Gallery',     to: '/gallery',        icon: Icons.gallery },
+      { title: 'Library',     to: '/library',        icon: Icons.library },
       { title: 'About',       to: '/about',          icon: Icons.about },
       { title: 'Map',         to: '/map',            icon: Icons.map },
       { title: 'Page',        to: '/page',           icon: Icons.page },
