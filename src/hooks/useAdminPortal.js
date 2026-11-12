@@ -13,7 +13,9 @@ const ADMIN_SIDE_MENU = [
   { title: 'Settings', to: '/settings', icon: Icons.settings },
 ]
 
-export function useAdminPortal(notchTitle, searchPlaceholder) {
+// onSearch (optional) receives the topbar search text. Pass a stable
+// function (e.g. a useState setter) so the effect doesn't re-run each render.
+export function useAdminPortal(notchTitle, searchPlaceholder, onSearch) {
   const { setSideMenu, setSearchConfig, setNotchText } = useOutletContext()
   const { session } = useAdminAuth()
   const navigate = useNavigate()
@@ -28,10 +30,10 @@ export function useAdminPortal(notchTitle, searchPlaceholder) {
       visible: !!searchPlaceholder,
       placeholder: searchPlaceholder || '',
       Icon: Icons.search,
-      handler: () => {},
+      handler: onSearch || (() => {}),
     })
     setSideMenu(ADMIN_SIDE_MENU)
-  }, [session, notchTitle, searchPlaceholder, setNotchText, setSearchConfig, setSideMenu, navigate])
+  }, [session, notchTitle, searchPlaceholder, onSearch, setNotchText, setSearchConfig, setSideMenu, navigate])
 
   return session
 }

@@ -28,7 +28,6 @@ import Accounts from '../pages/admin/Accounts'
 // Advanced
 import Announcement from '../pages/advanced/Announcement'
 import Chat from '../pages/advanced/Chat'
-import LibraryUsers from '../pages/advanced/Library-Users'
 import Syllabus from '../pages/advanced/Syllabus'
 
 // Core
@@ -78,7 +77,6 @@ export {
   // Advanced
   Announcement,
   Chat,
-  LibraryUsers,
   Syllabus,
 
   // Core

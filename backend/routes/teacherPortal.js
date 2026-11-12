@@ -9,8 +9,8 @@
  * HOD routes accept any class in their department.
  */
 
-const express = require('express')
-const router  = express.Router()
+const express = require('express');
+const router  = express.Router();
 
 const {
   Teacher, Student,

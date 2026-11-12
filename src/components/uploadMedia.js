@@ -4,13 +4,14 @@ import API from '../config/api'
  * POST a file to Cloudinary via the generic media route.
  * Returns { url, filename } from the media route.
  */
-export default async function uploadMedia(file, folder) {
+export default async function uploadMedia(file, folder, options = {}) {
   const form = new FormData()
   form.append('file', file)
 
   const res = await fetch(`${API}/api/media/upload/${folder}`, {
     method: 'POST',
     body: form,
+    headers: options.headers || {},
   })
 
   const data = await res.json().catch(() => ({}))

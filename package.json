@@ -4,7 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "start": "node backend/index.js",
+    "server": "node backend/index.js",
+    "server:dev": "nodemon backend/index.js",
+    "seed": "node backend/seedAll.js",
+    "seed:library": "node backend/seedLibrary.js",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

@@ -11,7 +11,7 @@ import {
   Academics, Club, Domestic, House, AggreyChapel, Catholic,
   Infrastructure, Records, StaffData, StudentData,
   AdminLibrary, Media, Accounts,
-  Announcement, Chat, LibraryUsers, Syllabus,
+  Announcement, Chat, Syllabus,
   About, Gallery, Map, Page, PtaShop, Checkout,
   AdminLogin, StudentLogin, TeacherLogin,
   Student, ProspectStudent, Teacher,
@@ -88,7 +88,7 @@ function App() {
             <Route path="">
               <Route path="announcement" element={<Announcement />} />
               <Route path="chat" element={<Chat />} />
-              <Route path="library-users" element={<LibraryUsers />} />
+              <Route path="library-users" element={<Navigate to="/library" replace />} />
               <Route path="syllabus" element={<Syllabus />} />
             </Route>
 

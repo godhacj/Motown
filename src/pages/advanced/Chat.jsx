@@ -1389,7 +1389,7 @@ export default function Chat() {
         children: [
           { title: 'Announcements', to: '/announcement',  icon: Icons.bell },
           { title: 'Chat',          to: '/chat',           icon: Icons.chat, badge: unreadCount },
-          { title: 'Library',       to: '/library-users',  icon: Icons.library },
+          { title: 'Library',       to: '/library',        icon: Icons.library },
           { title: 'Syllabus',      to: '/syllabus',       icon: Icons.syllabus },
         ],
       },

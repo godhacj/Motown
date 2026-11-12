@@ -581,6 +581,8 @@ const libraryResourceSchema = new mongoose.Schema({
   publisher:       { type: String },
   yearPublished:   { type: Number },
   edition:         { type: String },
+  description:     { type: String },  // short synopsis shown on the detail sheet
+  pages:           { type: Number },
   totalCopies:     { type: Number, default: 1, min: 0 },
   availableCopies: { type: Number, default: 1, min: 0 },
   coverImage:      { type: String },  // /media/library/<file>
@@ -598,8 +600,66 @@ const libraryResourceSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 libraryResourceSchema.index({ category: 1, subject: 1, isAvailable: 1 })
+libraryResourceSchema.index({ isDigital: 1, isAvailable: 1 })
 
 const LibraryResource = mongoose.models.LibraryResource || mongoose.model('LibraryResource', libraryResourceSchema)
+
+const libraryBorrowRequestSchema = new mongoose.Schema({
+  resourceId: { type: mongoose.Schema.Types.ObjectId, ref: 'LibraryResource', required: true },
+  studentId: { type: String, required: true },
+  studentObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  studentName: { type: String },
+  studentNumber: { type: String },
+  dueDate: { type: Date },
+  note: { type: String },
+  // pending → issued (approved + handed over) → returned
+  // pending → rejected | cancelled (by the student)
+  // 'approved' is kept for records created before 'issued' existed.
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'issued', 'returned', 'cancelled'],
+    default: 'pending',
+  },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' },
+  approvedAt: { type: Date },
+  loanId:     { type: mongoose.Schema.Types.ObjectId },  // LibraryResource.borrowHistory[]._id
+  returnedAt: { type: Date },
+  rejectedReason: { type: String },
+}, { timestamps: true })
+
+libraryBorrowRequestSchema.index({ studentId: 1, status: 1, createdAt: -1 })
+libraryBorrowRequestSchema.index({ resourceId: 1, status: 1 })
+
+const LibraryBorrowRequest = mongoose.models.LibraryBorrowRequest || mongoose.model('LibraryBorrowRequest', libraryBorrowRequestSchema)
+
+const digitalResourceSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true },
+  category: {
+    type: String,
+    enum: ['Textbook', 'Reference', 'Research', 'Study Notes', 'Essay', 'Past Paper', 'Other'],
+    default: 'Reference',
+  },
+  fileUrl: { type: String },
+  uploadedBy: { type: String },
+  uploadedByObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  uploaderName: { type: String },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
+  adminNote: { type: String },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' },
+  approvedAt: { type: Date },
+  tags: [{ type: String }],
+}, { timestamps: true })
+
+digitalResourceSchema.index({ status: 1, createdAt: -1 })
+
+digitalResourceSchema.index({ category: 1, status: 1 })
+
+const DigitalResource = mongoose.models.DigitalResource || mongoose.model('DigitalResource', digitalResourceSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 17. SYLLABUSES
@@ -1104,7 +1164,7 @@ const models = {
   Product, Order,
   Assessment, Attendance, Achievement, Clearance,
   House, Club, Announcement, Message, Report,
-  LibraryResource, Syllabus, Chapel,
+  LibraryResource, LibraryBorrowRequest, DigitalResource, Syllabus, Chapel,
   Infrastructure, MapLocation,
   SchoolProfile, Conference,
   // Teacher Portal models

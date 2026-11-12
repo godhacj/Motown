@@ -17,17 +17,35 @@ const BASE_URL_FOLDER = {
 };
 
 function resolveFolder(req) {
-  return req.params.folder || BASE_URL_FOLDER[req.baseUrl] || 'gallery';
+  return req.uploadFolder || req.params.folder || BASE_URL_FOLDER[req.baseUrl] || 'gallery';
 }
+
+// Library folders may also take PDFs (books, notes, past papers).
+const DOCUMENT_FOLDERS = new Set(['library', 'library-uploads']);
+const isPdf = (file) => file.mimetype === 'application/pdf';
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: (req, file) => ({
-    folder: `motown/${resolveFolder(req)}`,
-    resource_type: file.mimetype?.startsWith('audio/') ? 'video' : 'image', // Cloudinary files audio under 'video'
-    // Cloudinary appends its own random suffix to public_id when one isn't
-    // given, which is enough for uniqueness — no need to hand-roll one.
-  }),
+  params: (req, file) => {
+    // PDFs go up as 'raw' so Cloudinary serves them as-is. Raw assets keep
+    // no format of their own, so the extension has to be in public_id for
+    // the URL to end in .pdf and open in the browser's viewer.
+    if (isPdf(file)) {
+      const base = path.basename(file.originalname, path.extname(file.originalname))
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'document';
+      return {
+        folder: `motown/${resolveFolder(req)}`,
+        resource_type: 'raw',
+        public_id: `${base}-${Date.now()}.pdf`,
+      };
+    }
+    return {
+      folder: `motown/${resolveFolder(req)}`,
+      resource_type: file.mimetype?.startsWith('audio/') ? 'video' : 'image', // Cloudinary files audio under 'video'
+      // Cloudinary appends its own random suffix to public_id when one isn't
+      // given, which is enough for uniqueness — no need to hand-roll one.
+    };
+  },
 });
 
 // Images everywhere; chat attachments may additionally be voice notes, whose
@@ -42,8 +60,15 @@ const fileFilter = (req, file, cb) => {
   if (IMAGE_EXT.test(ext) && mime.startsWith('image/')) return cb(null, true);
   if (resolveFolder(req) === 'chat-attachments' && AUDIO_EXT.test(ext) && mime.startsWith('audio/'))
     return cb(null, true);
+  if (DOCUMENT_FOLDERS.has(resolveFolder(req)) && ext === '.pdf' && isPdf(file))
+    return cb(null, true);
 
-  cb(new Error(resolveFolder(req) === 'chat-attachments' ? 'Images and voice notes only' : 'Images only'));
+  const folder = resolveFolder(req);
+  cb(new Error(
+    folder === 'chat-attachments' ? 'Images and voice notes only'
+      : DOCUMENT_FOLDERS.has(folder) ? 'Images or PDF files only'
+      : 'Images only'
+  ));
 };
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });

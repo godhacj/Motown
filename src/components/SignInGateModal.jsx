@@ -14,6 +14,8 @@ const ACTION_COPY = {
   save:    'save',
   share:   'share',
   comment: 'comment',
+  borrow:  'borrow books',
+  upload:  'share resources',
 }
 
 export default function SignInGateModal({ action = 'like', onClose }) {
