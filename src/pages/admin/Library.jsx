@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FiInbox, FiRepeat, FiAlertTriangle, FiUploadCloud, FiBook, FiPlus, FiX,
-  FiCheckCircle, FiAlertCircle, FiInfo, FiExternalLink, FiImage, FiFileText,
+  FiCheckCircle, FiAlertCircle, FiInfo, FiExternalLink, FiImage, FiFileText, FiTablet, FiSearch,
 } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import uploadMedia from '../../components/uploadMedia'
 import BookCover from '../../components/BookCover'
+import LibraryDialog from '../../components/LibraryDialog'
 import '../../styles/PageContent.css'
 import '../../styles/Library.css'
 
@@ -26,6 +27,36 @@ const isoDay = (date) => {
 }
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 const matches = (query, ...fields) => !query || fields.filter(Boolean).join(' ').toLowerCase().includes(query)
+const DUE_SOON_DAYS = 3
+
+const daysUntil = (date) => {
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  const end = new Date(date); end.setHours(0, 0, 0, 0)
+  return Math.round((end - start) / DAY_MS)
+}
+
+// "in 4 days", "tomorrow", "today", "2 days ago"
+function relativeDue(date) {
+  const d = daysUntil(date)
+  if (d === 0) return 'today'
+  if (d === 1) return 'tomorrow'
+  if (d === -1) return 'yesterday'
+  return d > 0 ? `in ${d} days` : `${-d} days ago`
+}
+
+const REQUEST_REJECT_REASONS = ['No copies can be spared right now', 'Reserved for class use', 'Please collect at the desk', 'Return your current loan first']
+const UPLOAD_REJECT_REASONS = ['Please upload a clearer copy', 'Copyrighted material', 'Duplicate of an existing resource', 'Not relevant to school work']
+
+function StockMeter({ available = 0, total = 0 }) {
+  const pct = total > 0 ? Math.round((available / total) * 100) : 0
+  const tone = available <= 0 ? 'danger' : pct <= 34 ? 'warning' : 'ok'
+  return (
+    <div className={`library-stock is-${tone}`} title={`${available} of ${total} copies on the shelf`}>
+      <strong>{available} / {total}</strong>
+      <span className="library-stock__track"><span style={{ width: `${pct}%` }} /></span>
+    </div>
+  )
+}
 
 function Notice({ notice, onClose }) {
   if (!notice) return null
@@ -51,17 +82,32 @@ function BookCell({ book, sub }) {
   )
 }
 
-function StudentCell({ name, id }) {
+function StudentCell({ name, id, onLoan = 0 }) {
+  const initials = (name || 'S').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase()
   return (
-    <div style={{ display: 'grid', gap: '0.1rem' }}>
-      <strong style={{ fontSize: '0.86rem' }}>{name || 'Student'}</strong>
-      {id && <span className="library-muted" style={{ fontSize: '0.75rem' }}>{id}</span>}
+    <div className="library-student">
+      <span className="library-student__avatar" aria-hidden="true">{initials}</span>
+      <div>
+        <strong>{name || 'Student'}</strong>
+        <span>
+          {id}
+          {onLoan > 0 && <em className="library-student__loans">{onLoan} on loan</em>}
+        </span>
+      </div>
     </div>
   )
 }
 
-function EmptyRow({ cols, text }) {
-  return <tr><td colSpan={cols} className="library-table-empty">{text}</td></tr>
+function EmptyRow({ cols, text, icon = FiCheckCircle }) {
+  const Icon = icon
+  return (
+    <tr>
+      <td colSpan={cols} className="library-table-empty">
+        <Icon aria-hidden="true" />
+        <span>{text}</span>
+      </td>
+    </tr>
+  )
 }
 
 function Modal({ title, onClose, children, width = 640 }) {
@@ -117,6 +163,8 @@ export default function AdminLibrary() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [uploadingField, setUploadingField] = useState(null)
   const [deskLoan, setDeskLoan] = useState(null)
+  const [dialog, setDialog] = useState(null)
+  const closeDialog = useCallback(() => setDialog(null), [])
 
   const query = search.trim().toLowerCase()
 
@@ -172,6 +220,18 @@ export default function AdminLibrary() {
   const copiesOnShelf = physical.reduce((sum, r) => sum + (r.availableCopies || 0), 0)
   const activeLoanCount = loans.filter((l) => l.status !== 'Returned').length
   const pendingUploads = uploads.filter((u) => u.status === 'pending')
+  const dueSoonCount = loans.filter((l) => l.status === 'Active' && l.returnDue && daysUntil(l.returnDue) <= DUE_SOON_DAYS).length
+
+  // How many books each student already has out — shown next to their requests.
+  const loansByStudent = useMemo(() => {
+    const counts = {}
+    for (const l of loans) {
+      if (l.status === 'Returned') continue
+      const key = l.student?.studentId
+      if (key) counts[key] = (counts[key] || 0) + 1
+    }
+    return counts
+  }, [loans])
 
   const visibleRequests = useMemo(() => requests.filter((r) =>
     matches(query, r.studentName, r.studentId, r.resourceId?.title, r.note)), [requests, query])
@@ -180,10 +240,15 @@ export default function AdminLibrary() {
     .filter((l) => loanFilter === 'all'
       || (loanFilter === 'open' && l.status !== 'Returned')
       || (loanFilter === 'returned' && l.status === 'Returned'))
-    .filter((l) => matches(query, l.title, l.student?.name, l.student?.studentId)), [loans, loanFilter, query])
+    .filter((l) => matches(query, l.title, l.student?.name, l.student?.studentId))
+    // Open loans: soonest due first. Returned ones keep the newest-first order from the server.
+    .sort((a, b) => (a.status === 'Returned' || b.status === 'Returned'
+      ? (a.status === 'Returned') - (b.status === 'Returned')
+      : new Date(a.returnDue || 8.64e15) - new Date(b.returnDue || 8.64e15))), [loans, loanFilter, query])
 
   const visibleOverdue = useMemo(() => overdue.filter((o) =>
-    matches(query, o.title, o.student?.name, o.student?.studentId)), [overdue, query])
+    matches(query, o.title, o.student?.name, o.student?.studentId))
+    .sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0)), [overdue, query])
 
   const visibleUploads = useMemo(() => uploads
     .filter((u) => uploadFilter === 'all' || u.status === uploadFilter)
@@ -203,31 +268,43 @@ export default function AdminLibrary() {
     }), `Issued “${request.resourceId?.title}” to ${request.studentName}.`)
   }
 
-  const reject = (request) => {
-    const reason = window.prompt(`Reason for rejecting ${request.studentName}'s request (shown to the student):`, 'No copies can be spared right now')
-    if (reason === null) return undefined
-    return run(request._id, () => apiFetch(`/api/admin/library/borrow-requests/${request._id}/reject`, {
+  const reject = (request) => setDialog({
+    title: 'Reject this request?',
+    message: `${request.studentName} asked to borrow “${request.resourceId?.title || 'a book'}”. They'll see the reason you give.`,
+    confirmLabel: 'Reject request',
+    tone: 'danger',
+    reason: { label: 'Reason for the student', placeholder: 'Explain briefly…', suggestions: REQUEST_REJECT_REASONS, initial: REQUEST_REJECT_REASONS[0] },
+    onConfirm: (reason) => run(request._id, () => apiFetch(`/api/admin/library/borrow-requests/${request._id}/reject`, {
       method: 'PATCH',
       body: JSON.stringify({ rejectedReason: reason }),
-    }), 'Request rejected.')
-  }
+    }), 'Request rejected.'),
+  })
 
   const markReturned = (loan) => run(`${loan.resourceId}-${loan.loanIndex}`, () =>
     apiFetch(`/api/admin/library/resources/${loan.resourceId}/return/${loan.loanIndex}`, { method: 'PATCH' }),
   `“${loan.title}” checked back in and clearance updated.`)
 
+  const sendReview = (doc, decision, adminNote = '') => run(doc._id, () => apiFetch(`/api/admin/library/digital/${doc._id}/${decision}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ adminNote }),
+  }), decision === 'approve' ? `“${doc.title}” is now on the digital shelf.` : 'Upload rejected.')
+
   const reviewUpload = (doc, decision) => {
-    let adminNote = ''
-    if (decision === 'reject') {
-      const reason = window.prompt('Reason for rejecting (shown to the uploader):', 'Please upload a clearer copy')
-      if (reason === null) return undefined
-      adminNote = reason
-    }
-    return run(doc._id, () => apiFetch(`/api/admin/library/digital/${doc._id}/${decision}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ adminNote }),
-    }), decision === 'approve' ? `“${doc.title}” is now on the digital shelf.` : 'Upload rejected.')
+    if (decision === 'approve') return sendReview(doc, 'approve')
+    return setDialog({
+      title: 'Reject this upload?',
+      message: `“${doc.title}” from ${doc.uploaderName || 'a member'} won't be published. They'll see the reason you give.`,
+      confirmLabel: 'Reject upload',
+      tone: 'danger',
+      reason: { label: 'Reason for the uploader', placeholder: 'Explain briefly…', suggestions: UPLOAD_REJECT_REASONS, initial: UPLOAD_REJECT_REASONS[0] },
+      onConfirm: (reason) => sendReview(doc, 'reject', reason),
+    })
   }
+
+  const toggleVisible = (resource) => run(`vis-${resource._id}`, () => apiFetch(`/api/admin/library/resources/${resource._id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isAvailable: resource.isAvailable === false }),
+  }), resource.isAvailable === false ? `“${resource.title}” is visible to students again.` : `“${resource.title}” hidden from the catalogue.`)
 
   // ── Catalogue form ────────────────────────────────────────────────────────
   const openForm = (resource) => {
@@ -281,11 +358,16 @@ export default function AdminLibrary() {
     if (ok) setEditing(null)
   }
 
-  const deleteResource = (resource) => {
-    if (!window.confirm(`Delete “${resource.title}” from the catalogue? This can't be undone.`)) return undefined
-    return run(resource._id, () => apiFetch(`/api/admin/library/resources/${resource._id}`, { method: 'DELETE' }),
-      `“${resource.title}” deleted.`)
-  }
+  const deleteResource = (resource) => setDialog({
+    title: 'Delete this title?',
+    message: resource.activeLoans > 0
+      ? `“${resource.title}” has ${resource.activeLoans} ${resource.activeLoans === 1 ? 'copy' : 'copies'} out on loan. Check them back in first, or hide the title instead.`
+      : `“${resource.title}” will be removed from the catalogue for good. To take it off the shelf for now, hide it instead.`,
+    confirmLabel: 'Delete title',
+    tone: 'danger',
+    onConfirm: () => run(resource._id, () => apiFetch(`/api/admin/library/resources/${resource._id}`, { method: 'DELETE' }),
+      `“${resource.title}” deleted.`),
+  })
 
   const submitDeskLoan = async (event) => {
     event.preventDefault()
@@ -314,11 +396,24 @@ export default function AdminLibrary() {
       </div>
 
       <div className="stats-section">
-        <div className="stat-box"><div className="stat-value">{resources.length}</div><div className="stat-label">Titles</div></div>
-        <div className="stat-box"><div className="stat-value">{copiesOnShelf}</div><div className="stat-label">Copies on shelf</div></div>
-        <div className="stat-box"><div className="stat-value">{activeLoanCount}</div><div className="stat-label">On loan</div></div>
-        <div className="stat-box"><div className="stat-value" style={{ color: overdue.length ? 'var(--color-danger)' : undefined }}>{overdue.length}</div><div className="stat-label">Overdue</div></div>
-        <div className="stat-box"><div className="stat-value">{requests.length}</div><div className="stat-label">Pending requests</div></div>
+        {[
+          { label: 'Titles', value: resources.length, to: 'catalogue', hint: `${physical.length} physical · ${resources.length - physical.length} digital` },
+          { label: 'Copies on shelf', value: copiesOnShelf, to: 'catalogue', hint: `${physical.filter((r) => r.availableCopies <= 0).length} titles fully out` },
+          { label: 'On loan', value: activeLoanCount, to: 'loans', hint: dueSoonCount ? `${dueSoonCount} due within ${DUE_SOON_DAYS} days` : 'None due soon' },
+          { label: 'Overdue', value: overdue.length, to: 'overdue', tone: overdue.length ? 'danger' : '', hint: overdue.length ? 'Needs follow-up' : 'All on time' },
+          { label: 'Pending requests', value: requests.length, to: 'requests', tone: requests.length ? 'warning' : '', hint: pendingUploads.length ? `+ ${pendingUploads.length} uploads to review` : 'Inbox clear' },
+        ].map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            className={`stat-box library-stat${tab === s.to ? ' is-current' : ''}${s.tone ? ` is-${s.tone}` : ''}`}
+            onClick={() => setTab(s.to)}
+          >
+            <span className="stat-value">{loading ? '–' : s.value}</span>
+            <span className="stat-label">{s.label}</span>
+            {!loading && <small>{s.hint}</small>}
+          </button>
+        ))}
       </div>
 
       <div className="library-admin-toolbar">
@@ -346,17 +441,17 @@ export default function AdminLibrary() {
       {!loading && !loadError && tab === 'requests' && (
         <div className="table-container">
           <h2>Pending borrow requests ({visibleRequests.length})</h2>
-          <table>
+          <div className="library-table-scroll"><table>
             <thead><tr><th>Student</th><th>Book</th><th>Requested</th><th>Return by</th><th>Note</th><th>Action</th></tr></thead>
             <tbody>
-              {visibleRequests.length === 0 && <EmptyRow cols={6} text={query ? 'No requests match your search.' : 'No pending requests — all caught up.'} />}
+              {visibleRequests.length === 0 && <EmptyRow cols={6} icon={query ? FiSearch : FiInbox} text={query ? 'No requests match your search.' : 'No pending requests — all caught up.'} />}
               {visibleRequests.map((r) => {
                 const stock = r.resourceId?.availableCopies ?? 0
                 return (
                   <tr key={r._id}>
-                    <td><StudentCell name={r.studentName} id={r.studentNumber || r.studentId} /></td>
-                    <td><BookCell book={r.resourceId} sub={stock > 0 ? `${stock} of ${r.resourceId?.totalCopies} on shelf` : 'No copies on shelf'} /></td>
-                    <td>{formatDate(r.createdAt)}</td>
+                    <td><StudentCell name={r.studentName} id={r.studentNumber || r.studentId} onLoan={loansByStudent[r.studentNumber] || loansByStudent[r.studentId] || 0} /></td>
+                    <td><BookCell book={r.resourceId} sub={stock > 0 ? `${stock} of ${r.resourceId?.totalCopies} on shelf` : <span className="library-text-danger">No copies on shelf</span>} /></td>
+                    <td>{formatDate(r.createdAt)}<div className="library-muted library-sub">{relativeDue(r.createdAt)}</div></td>
                     <td>
                       <input
                         type="date"
@@ -379,13 +474,13 @@ export default function AdminLibrary() {
                 )
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
       {!loading && !loadError && tab === 'loans' && (
         <div className="table-container">
-          <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <h2 className="library-table-head">
             Loans ({visibleLoans.length})
             <select className="library-select" value={loanFilter} onChange={(e) => setLoanFilter(e.target.value)} aria-label="Filter loans">
               <option value="open">On loan</option>
@@ -393,17 +488,25 @@ export default function AdminLibrary() {
               <option value="all">All loans</option>
             </select>
           </h2>
-          <table>
+          <div className="library-table-scroll"><table>
             <thead><tr><th>Student</th><th>Book</th><th>Borrowed</th><th>Due</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
-              {visibleLoans.length === 0 && <EmptyRow cols={6} text="No loans to show." />}
+              {visibleLoans.length === 0 && <EmptyRow cols={6} icon={FiRepeat} text={query ? "No loans match your search." : "No loans to show."} />}
               {visibleLoans.map((l) => (
                 <tr key={`${l.resourceId}-${l.loanIndex}`}>
                   <td><StudentCell name={l.student?.name} id={l.student?.studentId} /></td>
                   <td><BookCell book={{ title: l.title, category: l.category }} sub={l.category} /></td>
                   <td>{formatDate(l.borrowedAt)}</td>
-                  <td>{l.status === 'Returned' ? <span className="library-muted">Returned {formatDate(l.returnedAt)}</span> : formatDate(l.returnDue)}</td>
-                  <td><span className={`library-status is-${l.status.toLowerCase()}`}>{l.status === 'Active' ? 'On loan' : l.status}</span></td>
+                  <td>
+                    {l.status === 'Returned'
+                      ? <span className="library-muted">Returned {formatDate(l.returnedAt)}</span>
+                      : <>{formatDate(l.returnDue)}{l.returnDue && <div className={`library-sub${l.status === 'Overdue' ? ' library-text-danger' : ' library-muted'}`}>{relativeDue(l.returnDue)}</div>}</>}
+                  </td>
+                  <td>
+                    {l.status === 'Active' && l.returnDue && daysUntil(l.returnDue) <= DUE_SOON_DAYS
+                      ? <span className="library-status is-pending">Due soon</span>
+                      : <span className={`library-status is-${l.status.toLowerCase()}`}>{l.status === 'Active' ? 'On loan' : l.status}</span>}
+                  </td>
                   <td>
                     {l.status !== 'Returned' && (
                       <button className="library-btn is-ghost is-sm" disabled={busy === `${l.resourceId}-${l.loanIndex}`} onClick={() => markReturned(l)}>Mark returned</button>
@@ -412,14 +515,14 @@ export default function AdminLibrary() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
       {!loading && !loadError && tab === 'overdue' && (
         <div className="table-container">
           <h2>Overdue loans ({visibleOverdue.length})</h2>
-          <table>
+          <div className="library-table-scroll"><table>
             <thead><tr><th>Student</th><th>Book</th><th>Was due</th><th>Days late</th><th>Action</th></tr></thead>
             <tbody>
               {visibleOverdue.length === 0 && <EmptyRow cols={5} text="Nothing overdue." />}
@@ -435,13 +538,13 @@ export default function AdminLibrary() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
       {!loading && !loadError && tab === 'uploads' && (
         <div className="table-container">
-          <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <h2 className="library-table-head">
             Member uploads ({visibleUploads.length})
             <select className="library-select" value={uploadFilter} onChange={(e) => setUploadFilter(e.target.value)} aria-label="Filter uploads">
               <option value="pending">Awaiting review</option>
@@ -450,10 +553,10 @@ export default function AdminLibrary() {
               <option value="all">All uploads</option>
             </select>
           </h2>
-          <table>
+          <div className="library-table-scroll"><table>
             <thead><tr><th>Resource</th><th>Type</th><th>Shared by</th><th>Submitted</th><th>File</th><th>Status</th></tr></thead>
             <tbody>
-              {visibleUploads.length === 0 && <EmptyRow cols={6} text={uploadFilter === 'pending' ? 'No uploads waiting for review.' : 'No uploads to show.'} />}
+              {visibleUploads.length === 0 && <EmptyRow cols={6} icon={FiUploadCloud} text={uploadFilter === 'pending' ? 'No uploads waiting for review.' : 'No uploads to show.'} />}
               {visibleUploads.map((doc) => (
                 <tr key={doc._id}>
                   <td style={{ maxWidth: 320 }}>
@@ -477,13 +580,13 @@ export default function AdminLibrary() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
       {!loading && !loadError && tab === 'catalogue' && (
         <div className="table-container">
-          <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <h2 className="library-table-head">
             Catalogue ({visibleResources.length})
             <span className="ap-filters">
               <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by format">
@@ -497,20 +600,37 @@ export default function AdminLibrary() {
               </select>
             </span>
           </h2>
-          <table>
+          <div className="library-table-scroll"><table>
             <thead><tr><th>Title</th><th>Category</th><th>Format</th><th>On shelf</th><th>On loan</th><th>Visible</th><th>Actions</th></tr></thead>
             <tbody>
-              {visibleResources.length === 0 && <EmptyRow cols={7} text="No titles match." />}
+              {visibleResources.length === 0 && <EmptyRow cols={7} icon={FiSearch} text="No titles match these filters." />}
               {visibleResources.map((r) => (
                 <tr key={r._id}>
                   <td><BookCell book={r} sub={[r.author, r.yearPublished].filter(Boolean).join(' · ')} /></td>
-                  <td>{r.category || '—'}</td>
-                  <td>{r.isDigital ? 'Digital' : 'Physical'}</td>
-                  <td style={{ fontWeight: 600, color: r.isDigital ? undefined : r.availableCopies > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                    {r.isDigital ? <span className="library-muted">—</span> : `${r.availableCopies} / ${r.totalCopies}`}
+                  <td>{r.category || '—'}{r.subject && <div className="library-muted library-sub">{r.subject}</div>}</td>
+                  <td>
+                    <span className={`library-format${r.isDigital ? ' is-digital' : ''}`}>
+                      {r.isDigital ? <FiTablet aria-hidden="true" /> : <FiBook aria-hidden="true" />}
+                      {r.isDigital ? 'Digital' : 'Physical'}
+                    </span>
                   </td>
-                  <td>{r.isDigital ? <span className="library-muted">—</span> : r.activeLoans}</td>
-                  <td>{r.isAvailable === false ? <span className="library-muted">Hidden</span> : 'Yes'}</td>
+                  <td>{r.isDigital ? <span className="library-muted">—</span> : <StockMeter available={r.availableCopies} total={r.totalCopies} />}</td>
+                  <td>
+                    {r.isDigital ? <span className="library-muted">—</span> : r.activeLoans}
+                    {!r.isDigital && r.timesBorrowed > 0 && <div className="library-muted library-sub">{r.timesBorrowed} all-time</div>}
+                  </td>
+                  <td>
+                    <label className="library-switch" title={r.isAvailable === false ? 'Hidden from students' : 'Visible to students'}>
+                      <input
+                        type="checkbox"
+                        checked={r.isAvailable !== false}
+                        disabled={busy === `vis-${r._id}`}
+                        onChange={() => toggleVisible(r)}
+                        aria-label={`Show “${r.title}” to students`}
+                      />
+                      <span aria-hidden="true" />
+                    </label>
+                  </td>
                   <td>
                     <div className="library-row-actions">
                       <button className="library-btn is-ghost is-sm" onClick={() => openForm(r)}>Edit</button>
@@ -521,13 +641,18 @@ export default function AdminLibrary() {
                           onClick={() => setDeskLoan({ resource: r, studentId: '', returnDue: isoDay(Date.now() + 14 * DAY_MS) })}
                         >Issue</button>
                       )}
-                      <button className="library-btn is-danger is-sm" disabled={busy === r._id} onClick={() => deleteResource(r)}>Delete</button>
+                      <button
+                        className="library-btn is-danger is-sm"
+                        disabled={busy === r._id || r.activeLoans > 0}
+                        title={r.activeLoans > 0 ? 'Check all copies back in before deleting' : 'Delete title'}
+                        onClick={() => deleteResource(r)}
+                      >Delete</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -633,6 +758,8 @@ export default function AdminLibrary() {
           </form>
         </Modal>
       )}
+
+      {dialog && <LibraryDialog dialog={dialog} onClose={closeDialog} />}
     </div>
   )
 }

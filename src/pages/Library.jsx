@@ -3,10 +3,12 @@ import { useOutletContext } from 'react-router-dom'
 import {
   FiBookOpen, FiHeart, FiGrid, FiTablet, FiClock, FiExternalLink, FiX,
   FiInfo, FiCheckCircle, FiAlertCircle, FiUploadCloud, FiFileText, FiLogIn, FiSearch,
+  FiImage, FiLink, FiChevronDown, FiStar,
 } from 'react-icons/fi'
 import { Icons } from '../assets/icons'
 import API from '../config/api'
 import BookCover from '../components/BookCover'
+import LibraryDialog from '../components/LibraryDialog'
 import SignInGateModal from '../components/SignInGateModal'
 import uploadMedia from '../components/uploadMedia'
 import useCurrentSession from '../hooks/useCurrentSession'
@@ -56,6 +58,37 @@ const isoDay = (date) => {
 }
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 const isOverdue = (request) => ['issued', 'approved'].includes(request.status) && request.dueDate && new Date(request.dueDate) < new Date()
+const PAGE_SIZE = 24
+const DUE_SOON_DAYS = 3
+
+// Whole days from today until `date` (negative once it has passed).
+const daysUntil = (date) => {
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  const end = new Date(date); end.setHours(0, 0, 0, 0)
+  return Math.round((end - start) / DAY_MS)
+}
+
+// Countdown for a book that is out on loan: label, tone and how far through the loan we are.
+function loanProgress(request) {
+  if (!['issued', 'approved'].includes(request.status) || !request.dueDate) return null
+  const left = daysUntil(request.dueDate)
+  const startedAt = new Date(request.approvedAt || request.createdAt)
+  const total = Math.max(1, (new Date(request.dueDate) - startedAt) / DAY_MS)
+  const pct = Math.min(100, Math.max(4, ((Date.now() - startedAt) / DAY_MS / total) * 100))
+  let label
+  if (left < 0) label = `${-left} ${left === -1 ? 'day' : 'days'} overdue`
+  else if (left === 0) label = 'Due today'
+  else if (left === 1) label = 'Due tomorrow'
+  else label = `${left} days left`
+  const tone = left < 0 ? 'danger' : left <= DUE_SOON_DAYS ? 'warning' : 'ok'
+  return { left, label, tone, pct }
+}
+
+const docKind = (url = '') => {
+  if (/\.pdf($|\?)/i.test(url) || url.includes('/raw/upload/')) return { Icon: FiFileText, label: 'PDF' }
+  if (/\.(png|jpe?g|gif|webp)($|\?)/i.test(url)) return { Icon: FiImage, label: 'Image' }
+  return { Icon: FiLink, label: 'Link' }
+}
 
 function readFavorites(key) {
   try {
@@ -182,7 +215,7 @@ function BookCard({ book, saved, openRequest, onToggleSave, onOpen, onBorrow }) 
 
 // ── Detail sheet with borrow form ────────────────────────────────────────────
 
-function BookSheet({ book, session, openRequest, onClose, onGate, onSubmitBorrow }) {
+function BookSheet({ book, session, openRequest, saved, related, onToggleSave, onOpenRelated, onClose, onGate, onSubmitBorrow }) {
   const tomorrow = isoDay(Date.now() + DAY_MS)
   const maxDate = isoDay(Date.now() + MAX_LOAN_DAYS * DAY_MS)
   const [dueDate, setDueDate] = useState(() => isoDay(Date.now() + 14 * DAY_MS))
@@ -291,6 +324,28 @@ function BookSheet({ book, session, openRequest, onClose, onGate, onSubmitBorrow
             </dl>
           )}
           {borrowArea}
+          <button
+            type="button"
+            className={`library-btn is-ghost is-block${saved ? ' is-saved' : ''}`}
+            onClick={() => onToggleSave(book._id)}
+            aria-pressed={saved}
+          >
+            <FiHeart fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved to your list' : 'Save for later'}
+          </button>
+
+          {related.length > 0 && (
+            <div className="library-related">
+              <span className="library-eyebrow">More in {book.subject || book.category}</span>
+              <div className="library-related__row">
+                {related.map((item) => (
+                  <button key={item._id} type="button" className="library-related__item" onClick={() => onOpenRelated(item)} title={item.title}>
+                    <BookCover book={item} />
+                    <span>{item.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -404,7 +459,9 @@ function UploadPanel({ session, myUploads, onGate, onSubmitted, onError }) {
                   <strong>{doc.title}</strong>
                   <span>{doc.status === 'rejected' && doc.adminNote ? doc.adminNote : `${doc.category} · ${formatDate(doc.createdAt)}`}</span>
                 </span>
-                <span className={`library-status is-${doc.status === 'approved' ? 'returned' : doc.status}`}>{doc.status}</span>
+                <span className={`library-status is-${doc.status === 'approved' ? 'returned' : doc.status}`}>
+                  {{ pending: 'In review', approved: 'Published', rejected: 'Not accepted' }[doc.status] || doc.status}
+                </span>
               </div>
             ))}
           </div>
@@ -440,6 +497,9 @@ export default function Library() {
   const [selectedBook, setSelectedBook] = useState(null)
   const [gateAction, setGateAction] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [dialog, setDialog] = useState(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const closeDialog = useCallback(() => setDialog(null), [])
   const [favorites, setFavorites] = useState(() => (favoritesKey ? readFavorites(favoritesKey) : []))
 
   // Page chrome: notch tabs, search, side menu
@@ -536,6 +596,22 @@ export default function Library() {
     .filter((book) => !availableOnly || book.isDigital || book.availableCopies > 0)
     .sort(SORTS[sortBy].fn), [searched, category, availableOnly, sortBy])
 
+  // Start from the first page whenever the filters change
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [searchQuery, category, availableOnly, sortBy])
+
+  const isFiltered = Boolean(searchQuery || category || availableOnly)
+  const newArrivals = useMemo(() => [...catalogue]
+    .sort(SORTS.newest.fn)
+    .slice(0, 8), [catalogue])
+
+  const relatedTo = useCallback((book) => {
+    if (!book) return []
+    const key = book.subject || book.category
+    return catalogue
+      .filter((b) => b._id !== book._id && (b.subject || b.category) === key)
+      .slice(0, 4)
+  }, [catalogue])
+
   const digitalBooks = useMemo(() => searched.filter((b) => b.isDigital).sort(SORTS.title.fn), [searched])
   const savedBooks = useMemo(() => catalogue.filter((b) => favorites.includes(b._id)), [catalogue, favorites])
 
@@ -553,7 +629,13 @@ export default function Library() {
     return map
   }, [myRequests])
 
-  const currentRequests = myRequests.filter((r) => OPEN_STATUSES.includes(r.status))
+  const currentRequests = myRequests
+    .filter((r) => OPEN_STATUSES.includes(r.status))
+    .sort((a, b) => new Date(a.dueDate || 8.64e15) - new Date(b.dueDate || 8.64e15))
+  const dueSoon = currentRequests.filter((r) => {
+    const p = loanProgress(r)
+    return p && p.left <= DUE_SOON_DAYS
+  })
   const pastRequests = myRequests.filter((r) => !OPEN_STATUSES.includes(r.status))
   const physicalCount = catalogue.filter((b) => !b.isDigital).length
   const onShelfCount = catalogue.filter((b) => !b.isDigital && b.availableCopies > 0).length
@@ -588,16 +670,21 @@ export default function Library() {
     }
   }
 
-  const cancelRequest = async (request) => {
-    if (!window.confirm(`Cancel your request for “${request.resourceId?.title || 'this book'}”?`)) return
-    try {
-      await sendJson(`${API}/api/library/requests/${request._id}/cancel`, 'PATCH', { studentId: memberId })
-      setNotice({ type: 'info', text: 'Request cancelled.' })
-      reload()
-    } catch (err) {
-      setNotice({ type: 'error', text: err.message })
-    }
-  }
+  const cancelRequest = (request) => setDialog({
+    title: 'Cancel this request?',
+    message: `Your request for “${request.resourceId?.title || 'this book'}” will be withdrawn. You can request it again later.`,
+    confirmLabel: 'Cancel request',
+    tone: 'danger',
+    onConfirm: async () => {
+      try {
+        await sendJson(`${API}/api/library/requests/${request._id}/cancel`, 'PATCH', { studentId: memberId })
+        setNotice({ type: 'info', text: 'Request cancelled.' })
+        reload()
+      } catch (err) {
+        setNotice({ type: 'error', text: err.message })
+      }
+    },
+  })
 
   const cardProps = (book) => ({
     book,
@@ -638,16 +725,38 @@ export default function Library() {
         </div>
       </div>
 
+      {!isFiltered && newArrivals.length >= 4 && (
+        <div className="library-shelf">
+          <div className="library-section__heading">
+            <div><span className="library-eyebrow"><FiStar /> Just in</span><h2>Recently added</h2></div>
+          </div>
+          <div className="library-shelf__row">
+            {newArrivals.map((book) => (
+              <button key={book._id} type="button" className="library-shelf__item" onClick={() => setSelectedBook(book)}>
+                <BookCover book={book}>
+                  {book.isDigital && <span className="library-badge is-digital"><FiTablet /></span>}
+                </BookCover>
+                <strong>{book.title}</strong>
+                <span>{book.author || 'Unknown author'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="library-section__heading">
         <div>
           <span className="library-eyebrow">Catalogue</span>
           <h2>{searchQuery ? `Results for “${searchQuery}”` : category || 'Everything on the shelves'}</h2>
         </div>
-        <p>{browseList.length} {browseList.length === 1 ? 'title' : 'titles'}</p>
+        <p>
+          {browseList.length > visibleCount ? `Showing ${visibleCount} of ` : ''}
+          {browseList.length} {browseList.length === 1 ? 'title' : 'titles'}
+        </p>
       </div>
 
       <div className="library-book-grid">
-        {browseList.map((book) => <BookCard key={book._id} {...cardProps(book)} />)}
+        {browseList.slice(0, visibleCount).map((book) => <BookCard key={book._id} {...cardProps(book)} />)}
         {browseList.length === 0 && (
           <EmptyState
             icon={FiSearch}
@@ -659,6 +768,11 @@ export default function Library() {
           />
         )}
       </div>
+      {browseList.length > visibleCount && (
+        <button type="button" className="library-btn is-ghost library-more" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+          Show more <FiChevronDown />
+        </button>
+      )}
     </section>
   )
 
@@ -683,16 +797,23 @@ export default function Library() {
             <p className="library-muted" style={{ margin: 0, fontSize: '0.84rem' }}>Nothing shared yet{searchQuery ? ' for this search' : ''}.</p>
           ) : (
             <div className="library-doc-list">
-              {filteredDocs.map((doc) => (
-                <div key={doc._id} className="library-doc">
-                  <span className="library-doc__icon"><FiFileText /></span>
-                  <span className="library-doc__text">
-                    <strong>{doc.title}</strong>
-                    <span>{doc.category} · {doc.uploaderName || 'Member'} — {doc.description}</span>
-                  </span>
-                  {doc.fileUrl && <a className="library-btn is-ghost is-sm" href={doc.fileUrl} target="_blank" rel="noreferrer">Open <FiExternalLink /></a>}
-                </div>
-              ))}
+              {filteredDocs.map((doc) => {
+                const { Icon: KindIcon, label: kindLabel } = docKind(doc.fileUrl)
+                return (
+                  <div key={doc._id} className="library-doc">
+                    <span className="library-doc__icon" title={kindLabel}><KindIcon /></span>
+                    <span className="library-doc__text">
+                      <strong>{doc.title}</strong>
+                      <span>
+                        <em className="library-doc__tag">{doc.category}</em>
+                        {doc.uploaderName || 'Member'} · {formatDate(doc.approvedAt || doc.createdAt)}
+                        {doc.description ? ` — ${doc.description}` : ''}
+                      </span>
+                    </span>
+                    {doc.fileUrl && <a className="library-btn is-ghost is-sm" href={doc.fileUrl} target="_blank" rel="noreferrer">Open <FiExternalLink /></a>}
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>
@@ -734,8 +855,9 @@ export default function Library() {
 
   const renderRequest = (request) => {
     const book = request.resourceId || {}
+    const progress = loanProgress(request)
     return (
-      <div key={request._id} className="library-request">
+      <div key={request._id} className={`library-request${progress ? ` is-${progress.tone}` : ''}`}>
         <BookCover book={book} />
         <div className="library-request__info">
           <strong>{book.title || 'Book removed from catalogue'}</strong>
@@ -750,6 +872,12 @@ export default function Library() {
               )}
           </div>
           {request.status === 'rejected' && request.rejectedReason && <span className="library-request__reason">“{request.rejectedReason}”</span>}
+          {progress && (
+            <div className="library-progress" title={`Due ${formatDate(request.dueDate)}`}>
+              <div className="library-progress__track"><span style={{ width: `${progress.pct}%` }} /></div>
+              <small>{progress.label}</small>
+            </div>
+          )}
         </div>
         <div className="library-request__side">
           <StatusPill request={request} />
@@ -780,6 +908,16 @@ export default function Library() {
     }
     return (
       <div style={{ display: 'grid', gap: '1.5rem' }}>
+        {dueSoon.length > 0 && (
+          <div className={`library-notice ${dueSoon.some(isOverdue) ? 'is-error' : 'is-warning'}`} role="status">
+            <FiClock aria-hidden="true" />
+            <span>
+              {dueSoon.some(isOverdue)
+                ? `You have ${dueSoon.filter(isOverdue).length === 1 ? 'a book' : `${dueSoon.filter(isOverdue).length} books`} past the return date. Please bring ${dueSoon.filter(isOverdue).length === 1 ? 'it' : 'them'} back to the library — overdue books hold up your clearance.`
+                : `${dueSoon.length === 1 ? `“${dueSoon[0].resourceId?.title || 'A book'}” is` : `${dueSoon.length} books are`} due back within ${DUE_SOON_DAYS} days.`}
+            </span>
+          </div>
+        )}
         <section className="library-section" aria-label="Current requests and loans">
           <div className="library-section__heading">
             <div><span className="library-eyebrow">Now</span><h2>Current requests &amp; loans</h2></div>
@@ -810,10 +948,20 @@ export default function Library() {
           <p>Textbooks, novels, references and past papers — borrow from the shelves or read digital editions online.</p>
         </div>
         <div className="library-overview__stats" aria-label="Library summary">
-          <div><strong>{physicalCount}</strong><span>On shelves</span></div>
-          <div><strong>{onShelfCount}</strong><span>Available</span></div>
-          <div><strong>{catalogue.length - physicalCount}</strong><span>Digital</span></div>
-          {isStudent && <div><strong>{onLoan}</strong><span>Your loans</span></div>}
+          <button type="button" onClick={() => { setCategory(''); setAvailableOnly(false); goToTab('browse') }}>
+            <strong>{physicalCount}</strong><span>On shelves</span>
+          </button>
+          <button type="button" onClick={() => { setCategory(''); setAvailableOnly(true); goToTab('browse') }}>
+            <strong>{onShelfCount}</strong><span>Available</span>
+          </button>
+          <button type="button" onClick={() => goToTab('digital')}>
+            <strong>{catalogue.length - physicalCount}</strong><span>Digital</span>
+          </button>
+          {isStudent && (
+            <button type="button" className={dueSoon.length ? 'is-alert' : undefined} onClick={() => goToTab('loans')}>
+              <strong>{onLoan}</strong><span>Your loans</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -839,6 +987,10 @@ export default function Library() {
           book={selectedBook}
           session={session}
           openRequest={openRequestFor[selectedBook._id]}
+          saved={favorites.includes(selectedBook._id)}
+          related={relatedTo(selectedBook)}
+          onToggleSave={(id) => { if (!favoritesKey) setSelectedBook(null); toggleFavorite(id) }}
+          onOpenRelated={setSelectedBook}
           onClose={() => setSelectedBook(null)}
           onGate={(action) => { setSelectedBook(null); setGateAction(action) }}
           onSubmitBorrow={submitBorrow}
@@ -846,6 +998,7 @@ export default function Library() {
       )}
 
       {gateAction && <SignInGateModal action={gateAction} onClose={() => setGateAction(null)} />}
+      {dialog && <LibraryDialog dialog={dialog} onClose={closeDialog} />}
     </div>
   )
 }
