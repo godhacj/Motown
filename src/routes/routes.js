@@ -23,6 +23,7 @@ import StaffData from '../pages/admin/Data/Staff-data'
 import StudentData from '../pages/admin/Data/Student-data'
 import AdminLibrary from '../pages/admin/Library'
 import Media from '../pages/admin/Media'
+import AdminPtaShop from '../pages/admin/PtaShop'
 import Accounts from '../pages/admin/Accounts'
 
 // Advanced
@@ -72,6 +73,7 @@ export {
   StudentData,
   AdminLibrary,
   Media,
+  AdminPtaShop,
   Accounts,
 
   // Advanced

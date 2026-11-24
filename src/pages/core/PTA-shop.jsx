@@ -7,7 +7,8 @@ import '../../styles/core/PTA-shop.css'
 import API from '../../config/api'
 
 // billboard images stay as-is (Unsplash URLs, no backend needed)
-const BILLBOARD = billboardImages
+// Built-in slides, used until the PTA portal adds real banners.
+const PLACEHOLDER_BANNERS = billboardImages.map((image) => ({ image }))
 
 function normalise(p) {
   return {
@@ -83,11 +84,22 @@ export default function PTAShop() {
   const [products,       setProducts]       = useState([])
   const [loading,        setLoading]        = useState(true)
   const [currentSlide,   setCurrentSlide]   = useState(0)
+  const [banners,        setBanners]        = useState(PLACEHOLDER_BANNERS)
   const [fade,           setFade]           = useState(true)
   const [activeCategory, setActiveCategory] = useState('All')
   const [cart,           setCart]           = useState([])
   const [cartOpen,       setCartOpen]       = useState(false)
   const [searchQuery,    setSearchQuery]    = useState('')
+
+  // Billboard slides managed in Admin → PTA Shop → Banners
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/products/banners`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => { if (!cancelled && Array.isArray(data) && data.length) { setBanners(data); setCurrentSlide(0) } })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   // Fetch products from API, fall back to static list
   useEffect(() => {
@@ -132,15 +144,15 @@ export default function PTAShop() {
     const t = setInterval(() => {
       setFade(false)
       setTimeout(() => {
-        setCurrentSlide(p => (p + 1) % BILLBOARD.length)
+        setCurrentSlide(p => (p + 1) % banners.length)
         setFade(true)
       }, 250)
     }, 3500)
     return () => clearInterval(t)
-  }, [])
+  }, [banners.length])
 
-  const prevSlide = () => setCurrentSlide(p => (p - 1 + BILLBOARD.length) % BILLBOARD.length)
-  const nextSlide = () => setCurrentSlide(p => (p + 1) % BILLBOARD.length)
+  const prevSlide = () => setCurrentSlide(p => (p - 1 + banners.length) % banners.length)
+  const nextSlide = () => setCurrentSlide(p => (p + 1) % banners.length)
 
   // Cart helpers
   const addToCart = useCallback((product) => {
@@ -187,15 +199,15 @@ export default function PTAShop() {
         {/* ── Billboard ── */}
         <div className="shop-billboard">
           <img
-            src={BILLBOARD[currentSlide]}
+            src={banners[currentSlide]?.image}
             alt={`Promotion ${currentSlide + 1}`}
             className={`shop-billboard__img${fade ? '' : ' shop-billboard__img--fade'}`}
           />
           <div className="shop-billboard__overlay" />
           <div className="shop-billboard__text">
             <span className="shop-billboard__eyebrow">Achimota School</span>
-            <h1 className="shop-billboard__title">PTA Shop</h1>
-            <p className="shop-billboard__sub">Official school merchandise &amp; supplies</p>
+            <h1 className="shop-billboard__title">{banners[currentSlide]?.title || 'PTA Shop'}</h1>
+            <p className="shop-billboard__sub">{banners[currentSlide]?.subtitle || 'Official school merchandise & supplies'}</p>
           </div>
           <button className="shop-billboard__nav shop-billboard__nav--prev" onClick={prevSlide} aria-label="Previous">
             <FiChevronLeft />
@@ -204,7 +216,7 @@ export default function PTAShop() {
             <FiChevronRight />
           </button>
           <div className="shop-billboard__dots">
-            {BILLBOARD.map((_, i) => (
+            {banners.map((_, i) => (
               <button
                 key={i}
                 className={`shop-billboard__dot${i === currentSlide ? ' shop-billboard__dot--active' : ''}`}

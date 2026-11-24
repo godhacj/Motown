@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { FiX, FiCheckCircle, FiAlertCircle, FiInfo, FiUploadCloud, FiImage, FiInbox } from 'react-icons/fi'
+import { FiX, FiCheckCircle, FiAlertCircle, FiInfo, FiUploadCloud, FiImage, FiInbox, FiChevronDown, FiPlus } from 'react-icons/fi'
 import uploadMedia from '../uploadMedia'
 import { mediaUrl } from './adminUtils'
 import '../../styles/admin/AdminKit.css'
@@ -259,3 +259,55 @@ export function Toggle({ checked, onChange, label }) {
   )
 }
 
+
+/**
+ * Built-in placeholder content the public page falls back to, shown on the
+ * admin page so admins can see it and turn any item into a real record.
+ *
+ * items:     placeholder entries ({ key, image, title, subtitle })
+ * live:      true when visitors currently see these (no real content yet)
+ * onAdopt:   (item) => void — open the editor pre-filled from the placeholder
+ */
+export function PlaceholderSection({ title = 'Built-in placeholder content', items, live, onAdopt, adoptLabel = 'Save as real item', hint }) {
+  const [open, setOpen] = useState(live)
+  useEffect(() => { if (live) setOpen(true) }, [live])
+  if (!items?.length) return null
+  return (
+    <section className={`ak-panel ak-placeholders${live ? ' is-live' : ''}`}>
+      <button type="button" className="ak-placeholders__head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <div>
+          <h2>{title} <em>{items.length}</em></h2>
+          <p className="ak-muted">
+            {live
+              ? 'Visitors are seeing these right now, because there is no real content yet.'
+              : 'Hidden from visitors while real content exists. Shown again if everything real is removed or the server is unreachable.'}
+            {hint ? ` ${hint}` : ''}
+          </p>
+        </div>
+        <Pill tone={live ? 'warning' : 'neutral'}>{live ? 'Showing on site' : 'Standby'}</Pill>
+        <FiChevronDown className={`ak-placeholders__chev${open ? ' is-open' : ''}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="ak-card-grid">
+          {items.map((it) => (
+            <article key={it.key} className="ak-card is-placeholder">
+              <div className="ak-card__media">
+                {it.image ? <img src={mediaUrl(it.image)} alt="" loading="lazy" /> : null}
+                <Pill tone="warning">Placeholder</Pill>
+              </div>
+              <div className="ak-card__body">
+                <strong title={it.title}>{it.title || 'Untitled'}</strong>
+                {it.subtitle && <span title={it.subtitle}>{it.subtitle}</span>}
+              </div>
+              {onAdopt && (
+                <div className="ak-card__actions">
+                  <Button size="sm" variant="ghost" onClick={() => onAdopt(it)}><FiPlus /> {adoptLabel}</Button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}

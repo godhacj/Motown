@@ -137,6 +137,17 @@ const USERS = [
     scopeLabel:  'all',
   },
 
+  // ── PTA shop ──────────────────────────────────────────────────────────────
+  {
+    username:    'pta-admin',
+    password:    'PTA@Shop2024',
+    portal:      'pta',
+    displayName: 'PTA Shop Administrator',
+    scope:       {},
+    label:       'PTA',
+    scopeLabel:  'all',
+  },
+
   // ── Management (Headmaster) ───────────────────────────────────────────────
   {
     username:    'headmaster',

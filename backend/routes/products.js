@@ -1,69 +1,43 @@
+/**
+ * /api/products — the public PTA shop catalogue (read-only).
+ * Products and banners are managed by the PTA portal at /api/admin/pta.
+ * Supplier details and documents are admin-only and never returned here.
+ *
+ * GET /          — products (?category=)
+ * GET /banners   — active billboard slides, in order
+ * GET /:id       — one product
+ */
 const express = require('express');
+const mongoose = require('mongoose');
+const { Product, ShopBanner } = require('../schema');
 const router = express.Router();
-const Product = require('../models/Product');
-const upload = require('../middleware/upload');
-const { requireAdminPortal } = require('../middleware/adminAuth');
-const shopAdmin = requireAdminPortal('accounts');
 
-// GET all products (optional ?category= filter)
+const PUBLIC_FIELDS = '-supplier -supplierDocuments';
+
 router.get('/', async (req, res) => {
   try {
-    const filter = req.query.category && req.query.category !== 'All'
-      ? { category: req.query.category }
-      : {};
-    const products = await Product.find(filter).sort({ createdAt: -1 });
+    const filter = req.query.category && req.query.category !== 'All' ? { category: req.query.category } : {};
+    const products = await Product.find(filter).select(PUBLIC_FIELDS).sort({ createdAt: -1 }).lean();
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET single product
-router.get('/:id', async (req, res) => {
+router.get('/banners', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ error: 'Not found' });
-    res.json(product);
+    res.json(await ShopBanner.find({ isActive: true }).sort({ order: 1, createdAt: 1 }).lean());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST create product with image upload
-router.post('/', shopAdmin, upload.single('file'), async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const { name, category, price, description, stock } = req.body;
-    const image = req.file ? req.file.path : req.body.image;
-
-    const product = await Product.create({
-      name, category,
-      price: Number(price),
-      image, description,
-      stock: Number(stock) || 0,
-    });
-    res.status(201).json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// PATCH update product
-router.patch('/:id', shopAdmin, upload.single('file'), async (req, res) => {
-  try {
-    const updates = { ...req.body };
-    if (req.file) updates.image = req.file.path;
-    const product = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid ID' });
+    const product = await Product.findById(req.params.id).select(PUBLIC_FIELDS).lean();
+    if (!product) return res.status(404).json({ error: 'Not found' });
     res.json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// DELETE product
-router.delete('/:id', shopAdmin, async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

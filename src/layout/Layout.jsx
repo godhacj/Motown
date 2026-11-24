@@ -8,7 +8,7 @@ import { useSocket } from '../contexts/SocketContext.jsx'
 import { Icons } from '../assets/icons.js'
 import { adminHome } from '../config/adminRoutes'
 import { FiShield, FiUsers, FiBook, FiImage, FiDollarSign,
-         FiHome, FiActivity, FiDatabase, FiHeart, FiSun } from 'react-icons/fi'
+         FiHome, FiActivity, FiDatabase, FiHeart, FiSun, FiShoppingBag } from 'react-icons/fi'
 
 // ── Sidebar groups injected based on session state ─────────────────────────
 
@@ -35,6 +35,7 @@ const ADMIN_GROUP = {
     { title: 'Library',     to: '/admin/library',                 icon: FiBook      },
     { title: 'Club',        to: '/admin/club',                    icon: FiUsers     },
     { title: 'Media',       to: '/admin/media',                   icon: FiImage     },
+    { title: 'PTA Shop',    to: '/admin/pta-shop',                icon: FiShoppingBag },
     { title: 'Management',  to: '/management',                    icon: FiShield    },
     { title: 'Accounts',    to: '/admin/accounts',                icon: FiDollarSign},
   ],

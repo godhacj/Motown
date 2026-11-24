@@ -9,7 +9,7 @@ import { adminHome } from '../config/adminRoutes'
 import '../styles/admin/Management.css'
 import '../styles/PageContent.css'
 
-const PORTALS = ['house', 'academics', 'data', 'domestic', 'chapel', 'library', 'club', 'media', 'management', 'accounts']
+const PORTALS = ['house', 'academics', 'data', 'domestic', 'chapel', 'library', 'club', 'media', 'pta', 'management', 'accounts']
 const DATA_MODES = ['student', 'teacher', 'infrastructure', 'record']
 // Approvals that must be decided on their own review screen, because
 // approving them also publishes content.

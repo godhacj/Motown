@@ -286,9 +286,39 @@ const productSchema = new mongoose.Schema({
   stock:       { type: Number, default: 0, min: 0 },
   sku:         { type: String, sparse: true },
   isAvailable: { type: Boolean, default: true },
+
+  // Admin-only (never sent to the public shop): who supplies the item and the
+  // paperwork for it — invoices, quality certificates, registration documents.
+  supplier: {
+    name:           { type: String, trim: true },
+    contactPerson:  { type: String, trim: true },
+    phone:          { type: String, trim: true },
+    email:          { type: String, trim: true, lowercase: true },
+    address:        { type: String },
+    registrationNo: { type: String, trim: true },  // business / GRA registration
+    notes:          { type: String },
+  },
+  supplierDocuments: [{
+    name:       { type: String },
+    url:        { type: String },
+    type:       { type: String, enum: ['pdf', 'image', 'doc', 'link'] },
+    label:      { type: String },   // e.g. "Invoice", "Quality certificate"
+    uploadedAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true })
 
 productSchema.index({ category: 1, isAvailable: 1 })
+
+// Billboard slides at the top of the PTA shop.
+const shopBannerSchema = new mongoose.Schema({
+  image:    { type: String, required: true },
+  title:    { type: String, trim: true },
+  subtitle: { type: String, trim: true },
+  order:    { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+}, { timestamps: true })
+
+const ShopBanner = mongoose.models.ShopBanner || mongoose.model('ShopBanner', shopBannerSchema)
 
 const Product = mongoose.models.Product || mongoose.model('Product', productSchema)
 
@@ -1048,7 +1078,7 @@ const adminUserSchema = new mongoose.Schema({
   portal: {
     type: String,
     required: true,
-    enum: ['house','academics','data','domestic','chapel','library','club','media','management','accounts'],
+    enum: ['house','academics','data','domestic','chapel','library','club','media','management','accounts','pta'],
   },
 
   // Friendly display name (person or role title)
@@ -1250,7 +1280,7 @@ const Reaction = mongoose.models.Reaction || mongoose.model('Reaction', reaction
 const models = {
   Student, Teacher, Admin,
   GalleryItem, PagePost,
-  Product, Order,
+  Product, Order, ShopBanner,
   Assessment, Attendance, Achievement, Clearance,
   House, Club, Announcement, Message, Report,
   LibraryResource, LibraryBorrowRequest, DigitalResource, Syllabus, Chapel,

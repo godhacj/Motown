@@ -21,7 +21,7 @@ function resolveFolder(req) {
 }
 
 // Library folders may also take PDFs (books, notes, past papers).
-const DOCUMENT_FOLDERS = new Set(['library', 'library-uploads', 'syllabus']);
+const DOCUMENT_FOLDERS = new Set(['library', 'library-uploads', 'syllabus', 'supplier-docs']);
 const isPdf = (file) => file.mimetype === 'application/pdf';
 
 const storage = new CloudinaryStorage({

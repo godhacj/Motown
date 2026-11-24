@@ -11,6 +11,7 @@ const PORTAL_HOME = {
   media:      '/admin/media',
   management: '/management',
   accounts:   '/admin/accounts',
+  pta:        '/admin/pta-shop',
 }
 
 const DATA_MODE_HOME = {

@@ -73,6 +73,7 @@ app.use('/api/admin/chapel',      require('./routes/adminChapel'));
 app.use('/api/admin/library',     require('./routes/adminLibrary'));
 app.use('/api/admin/club',        require('./routes/adminClub'));
 app.use('/api/admin/media',       require('./routes/adminMedia'));
+app.use('/api/admin/pta',         require('./routes/adminPta'));
 app.use('/api/admin/records',     require('./routes/adminRecords'));
 app.use('/api/admin/files',       require('./routes/adminFiles'));
 app.use('/api/admin/management',  require('./routes/adminManagement'));

@@ -28,3 +28,10 @@ export function measureAspect(url) {
     img.src = mediaUrl(url)
   })
 }
+
+// A database record that still carries seeded placeholder content
+// (e.g. a placeholder.png image or "Sample (test data)" tag).
+export function isPlaceholderRecord(r) {
+  const img = String(r?.image || r?.src || r?.coverImage || '')
+  return /placeholder/i.test(img) || /sample \(test data\)/i.test(`${r?.edition || ''} ${r?.description || ''}`)
+}

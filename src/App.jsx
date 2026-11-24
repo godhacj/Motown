@@ -10,7 +10,7 @@ import {
   Layout, Home, Library, Management, Settings, SignOut, NotFound,
   Academics, Club, Domestic, House, AggreyChapel, Catholic,
   Infrastructure, Records, StaffData, StudentData,
-  AdminLibrary, Media, Accounts,
+  AdminLibrary, Media, AdminPtaShop, Accounts,
   Announcement, Chat, Syllabus,
   About, Gallery, Map, Page, PtaShop, Checkout,
   AdminLogin, StudentLogin, TeacherLogin,
@@ -69,6 +69,7 @@ function App() {
               <Route path="house" element={<House />} />
               <Route path="library" element={<AdminLibrary />} />
               <Route path="media" element={<Media />} />
+              <Route path="pta-shop" element={<AdminPtaShop />} />
               <Route path="accounts" element={<Accounts />} />
 
               <Route path="chapel/">

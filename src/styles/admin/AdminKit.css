@@ -331,3 +331,17 @@
 .rk-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 0.9rem; font-size: 0.82rem; }
 .rk-kv dt { color: var(--color-text-muted); }
 .rk-kv dd { margin: 0; word-break: break-all; }
+
+/* ── Placeholder content section ────────────────────────── */
+.ak-placeholders { border-style: dashed; }
+.ak-placeholders.is-live { border-color: color-mix(in srgb, var(--color-warning) 55%, transparent); }
+.ak-placeholders__head {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%;
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.ak-placeholders__head > div { flex: 1; min-width: 0; display: grid; gap: 0.2rem; }
+.ak-placeholders__head h2 { margin: 0; font: 700 0.95rem/1.2 var(--font-name); color: var(--color-text-primary); }
+.ak-placeholders__head h2 em { font-style: normal; font-size: 0.75rem; color: var(--color-text-muted); margin-left: 0.3rem; }
+.ak-placeholders__chev { flex-shrink: 0; transition: transform 0.2s; color: var(--color-text-muted); }
+.ak-placeholders__chev.is-open { transform: rotate(180deg); }
+.ak-card.is-placeholder { opacity: 0.92; border-style: dashed; }
