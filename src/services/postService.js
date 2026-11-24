@@ -1,121 +1,67 @@
 /**
- * postService.js
+ * postService.js — likes, saves, shares and comments for Page posts and
+ * Gallery items. Auth headers are added by the fetch interceptor
+ * (config/session.js), so signed-in calls just work.
  *
- * Stub layer for all post-related backend API calls.
- * Each function returns a resolved Promise matching the shape a real API
- * would return. Replace the bodies with actual fetch/axios calls when the
- * backend is ready — callers don't need to change.
- *
- * Base URL pattern (set via env var when wiring up):
- *   const BASE = import.meta.env.VITE_API_BASE_URL + '/posts'
+ * kind: 'posts' (Page) | 'gallery'
  */
+import API from '../config/api'
 
-// ─── Likes ────────────────────────────────────────────────────────────────────
-
-/**
- * Like a post.
- * @param {number|string} postId
- * @returns {Promise<{ postId, likes: number }>}
- */
-export async function likePost(postId) {
-  // TODO: POST /api/posts/:postId/like
-  return Promise.resolve({ postId, likes: 0 })
-}
-
-/**
- * Unlike a post.
- * @param {number|string} postId
- * @returns {Promise<{ postId, likes: number }>}
- */
-export async function unlikePost(postId) {
-  // TODO: DELETE /api/posts/:postId/like
-  return Promise.resolve({ postId, likes: 0 })
-}
-
-// ─── Saves ────────────────────────────────────────────────────────────────────
-
-/**
- * Save (bookmark) a post.
- * @param {number|string} postId
- * @returns {Promise<{ postId, saves: number }>}
- */
-export async function savePost(postId) {
-  // TODO: POST /api/posts/:postId/save
-  return Promise.resolve({ postId, saves: 0 })
-}
-
-/**
- * Unsave a post.
- * @param {number|string} postId
- * @returns {Promise<{ postId, saves: number }>}
- */
-export async function unsavePost(postId) {
-  // TODO: DELETE /api/posts/:postId/save
-  return Promise.resolve({ postId, saves: 0 })
-}
-
-// ─── Shares ───────────────────────────────────────────────────────────────────
-
-/**
- * Record a share event.
- * @param {number|string} postId
- * @param {'facebook'|'twitter'|'whatsapp'|'copy'} platform
- * @returns {Promise<{ postId, shares: number }>}
- */
-export async function sharePost(postId, platform) {
-  // TODO: POST /api/posts/:postId/share  { platform }
-  return Promise.resolve({ postId, platform, shares: 0 })
-}
-
-// ─── Comments ─────────────────────────────────────────────────────────────────
-
-/**
- * Fetch all comments for a post.
- * @param {number|string} postId
- * @returns {Promise<Array<{ id, author, avatar, text, time }>>}
- */
-export async function getComments(postId) {
-  // TODO: GET /api/posts/:postId/comments
-  return Promise.resolve([])
-}
-
-/**
- * Post a new comment.
- * @param {number|string} postId
- * @param {string} text
- * @returns {Promise<{ id, author, avatar, text, time }>}
- */
-export async function addComment(postId, text) {
-  // TODO: POST /api/posts/:postId/comments  { text }
-  return Promise.resolve({
-    id: Date.now(),
-    author: 'You',
-    avatar: null,
-    text,
-    time: 'just now',
+async function call(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`${API}/api/${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status })
+  return data
 }
 
-// ─── Counts ───────────────────────────────────────────────────────────────────
+// Only items stored in the database can be reacted to (placeholders can't).
+export const isServerId = (id) => /^[a-f0-9]{24}$/i.test(String(id || ''))
 
-/**
- * Fetch current counts for a single post.
- * @param {number|string} postId
- * @returns {Promise<{ likes: number, saves: number, shares: number, comments: number }>}
- */
-export async function getPostCounts(postId) {
-  // TODO: GET /api/posts/:postId/counts
-  return Promise.resolve({ likes: 0, saves: 0, shares: 0, comments: 0 })
+/** { [id]: { likes, saves, shares, comments, liked, saved } } */
+export function getReactionState(kind, ids) {
+  const list = ids.filter(isServerId)
+  if (!list.length) return Promise.resolve({})
+  return call(`${kind}/state`, { method: 'POST', body: { ids: list } })
 }
 
-/**
- * Fetch counts for multiple posts in one request.
- * @param {Array<number|string>} postIds
- * @returns {Promise<Record<string, { likes: number, saves: number, shares: number, comments: number }>>}
- */
-export async function getBulkPostCounts(postIds) {
-  // TODO: POST /api/posts/counts  { ids: postIds }
-  return Promise.resolve(
-    Object.fromEntries(postIds.map(id => [id, { likes: 0, saves: 0, shares: 0, comments: 0 }]))
-  )
+export const like = (kind, id) => call(`${kind}/${id}/like`, { method: 'POST' })
+export const unlike = (kind, id) => call(`${kind}/${id}/like`, { method: 'DELETE' })
+export const save = (kind, id) => call(`${kind}/${id}/save`, { method: 'POST' })
+export const unsave = (kind, id) => call(`${kind}/${id}/save`, { method: 'DELETE' })
+export const share = (kind, id, platform) => call(`${kind}/${id}/share`, { method: 'POST', body: { platform } })
+export const getSaved = (kind) => call(`${kind}/saved/mine`)
+
+export function getComments(kind, id) {
+  return call(`${kind}/${id}/comments`)
 }
+export function addComment(kind, id, text) {
+  return call(`${kind}/${id}/comments`, { method: 'POST', body: { text } })
+}
+export function deleteComment(kind, id, commentId) {
+  return call(`${kind}/${id}/comments/${commentId}`, { method: 'DELETE' })
+}
+
+/** "just now", "5 min", "3 h", "2 d", or a date */
+export function timeAgo(date) {
+  if (!date) return ''
+  const s = (Date.now() - new Date(date).getTime()) / 1000
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)} min`
+  if (s < 86400) return `${Math.floor(s / 3600)} h`
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)} d`
+  return new Date(date).toLocaleDateString()
+}
+
+/** Server comment → the shape the Page/Gallery UIs render. */
+export const toUiComment = (c) => ({
+  id: c.id || c._id,
+  authorId: c.authorId,
+  author: c.author || c.authorName,
+  avatar: c.avatar || c.authorAvatar || null,
+  text: c.text,
+  time: c.createdAt ? timeAgo(c.createdAt) : (c.time || ''),
+})

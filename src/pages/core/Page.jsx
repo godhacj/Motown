@@ -5,13 +5,10 @@ import { galleryImages as FALLBACK_POSTS } from '../../routes/galleryImages'
 import API from '../../config/api'
 import SignInGateModal from '../../components/SignInGateModal'
 import useIsGuest from '../../hooks/useIsGuest'
+import useReactions from '../../hooks/useReactions'
+import useComments from '../../hooks/useComments'
 import '../../styles/core/Page.css'
 
-const LIKES_KEY = 'page-likes'
-const SAVES_KEY = 'page-saves'
-const LIKE_COUNTS_KEY = 'page-like-counts'
-const SAVE_COUNTS_KEY = 'page-save-counts'
-const SHARE_COUNTS_KEY = 'page-share-counts'
 
 // Accepts both the old static shape and the MongoDB PagePost shape
 function normalise(post) {
@@ -60,21 +57,18 @@ function Avatar({ src, name, size = 36 }) {
   )
 }
 
-function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike, onSave, onShare, onGuestComment }) {
+function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, commentCount: serverCommentCount, onCommentCount, onLike, onSave, onShare, onGuestComment }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [commentInput, setCommentInput] = useState('')
-  const [localComments, setLocalComments] = useState(post.comments || [])
   const inputRef = useRef(null)
+  const { comments: localComments, loading: commentsLoading, error: commentError, add, remove, canDelete } =
+    useComments('posts', post, { open: commentsOpen, onCount: onCommentCount })
 
-  const submitComment = () => {
+  const submitComment = async () => {
     if (onGuestComment) { onGuestComment(); return }
     const text = commentInput.trim()
     if (!text) return
-    setLocalComments(prev => [
-      ...prev,
-      { id: Date.now(), author: 'You', avatar: null, text, time: 'just now' }
-    ])
-    setCommentInput('')
+    if (await add(text)) setCommentInput('')
   }
 
   const handleKeyDown = (e) => {
@@ -91,7 +85,7 @@ function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike
     })
   }
 
-  const commentCount = localComments.length
+  const commentCount = Math.max(localComments.length, serverCommentCount || 0)
 
   return (
     <article className="post-card">
@@ -165,9 +159,11 @@ function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike
       {/* ── Comments ── */}
       <div className={`post-comments${commentsOpen ? ' post-comments--open' : ''}`}>
         <div className="post-comments__list">
-          {localComments.length === 0 && (
+          {commentsLoading && <p className="post-comments__empty">Loading comments…</p>}
+          {!commentsLoading && localComments.length === 0 && (
             <p className="post-comments__empty">No comments yet.</p>
           )}
+          {commentError && <p className="post-comments__empty" role="alert">{commentError}</p>}
           {localComments.map((c) => (
             <div key={c.id} className="post-comment">
               <Avatar src={c.avatar} name={c.author} size={28} />
@@ -176,6 +172,11 @@ function PostCard({ post, liked, saved, likeCount, saveCount, shareCount, onLike
                 {' '}
                 <span className="post-comment__text">{c.text}</span>
                 <span className="post-comment__time">{c.time}</span>
+                {canDelete(c) && (
+                  <button type="button" className="post-comment__delete" onClick={() => remove(c.id)} aria-label="Delete comment">
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -293,25 +294,12 @@ function ShareDialog({ post, onClose }) {
   )
 }
 
-function loadCounts(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || {} } catch { return {} }
-}
-
 export default function Page() {
   const { setSideMenu, setNotchText, setSearchConfig } = useOutletContext()
   const isGuest = useIsGuest()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [gateAction, setGateAction] = useState(null)
-  const [likedPosts, setLikedPosts] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY)) || []) } catch { return new Set() }
-  })
-  const [savedPosts, setSavedPosts] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(SAVES_KEY)) || []) } catch { return new Set() }
-  })
-  const [likeCounts, setLikeCounts] = useState(() => loadCounts(LIKE_COUNTS_KEY))
-  const [saveCounts, setSaveCounts] = useState(() => loadCounts(SAVE_COUNTS_KEY))
-  const [shareCounts, setShareCounts] = useState(() => loadCounts(SHARE_COUNTS_KEY))
   const [sharePost, setSharePost] = useState(null)
   const [savedPanelOpen, setSavedPanelOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -347,76 +335,25 @@ export default function Page() {
     return () => { cancelled = true }
   }, [])
 
-  // Seed like/save/share counts from server data the first time each post is seen
-  useEffect(() => {
-    if (posts.length === 0) return
-    setLikeCounts(c => {
-      const next = { ...c }
-      let changed = false
-      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.likeCountInitial; changed = true }
-      return changed ? next : c
-    })
-    setSaveCounts(c => {
-      const next = { ...c }
-      let changed = false
-      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.saveCountInitial; changed = true }
-      return changed ? next : c
-    })
-    setShareCounts(c => {
-      const next = { ...c }
-      let changed = false
-      for (const p of posts) if (!(p.id in next)) { next[p.id] = p.shareCountInitial; changed = true }
-      return changed ? next : c
-    })
-  }, [posts])
-
-  useEffect(() => {
-    try { localStorage.setItem(LIKES_KEY, JSON.stringify([...likedPosts])) } catch {}
-  }, [likedPosts])
-
-  useEffect(() => {
-    try { localStorage.setItem(SAVES_KEY, JSON.stringify([...savedPosts])) } catch {}
-  }, [savedPosts])
-
-  useEffect(() => {
-    try { localStorage.setItem(LIKE_COUNTS_KEY, JSON.stringify(likeCounts)) } catch {}
-  }, [likeCounts])
-
-  useEffect(() => {
-    try { localStorage.setItem(SAVE_COUNTS_KEY, JSON.stringify(saveCounts)) } catch {}
-  }, [saveCounts])
-
-  useEffect(() => {
-    try { localStorage.setItem(SHARE_COUNTS_KEY, JSON.stringify(shareCounts)) } catch {}
-  }, [shareCounts])
+  // Likes / saves / shares are stored per user on the server (hooks/useReactions).
+  const reactions = useReactions('posts', posts, { signedIn: !isGuest })
+  const savedPosts = new Set(reactions.savedIds)
 
   const toggleLike = useCallback((id) => {
     if (isGuest) { setGateAction('like'); return }
-    setLikedPosts(prev => {
-      const next = new Set(prev)
-      const wasLiked = next.has(id)
-      wasLiked ? next.delete(id) : next.add(id)
-      setLikeCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + (wasLiked ? -1 : 1)) }))
-      return next
-    })
-  }, [isGuest])
+    reactions.toggleLike(id)
+  }, [isGuest, reactions])
 
   const toggleSave = useCallback((id) => {
     if (isGuest) { setGateAction('save'); return }
-    setSavedPosts(prev => {
-      const next = new Set(prev)
-      const wasSaved = next.has(id)
-      wasSaved ? next.delete(id) : next.add(id)
-      setSaveCounts(c => ({ ...c, [id]: Math.max(0, (c[id] || 0) + (wasSaved ? -1 : 1)) }))
-      return next
-    })
-  }, [isGuest])
+    reactions.toggleSave(id)
+  }, [isGuest, reactions])
 
   const handleShare = useCallback((post) => {
     if (isGuest) { setGateAction('share'); return }
-    setShareCounts(c => ({ ...c, [post.id]: (c[post.id] || 0) + 1 }))
+    reactions.recordShare(post.id)
     setSharePost(post)
-  }, [isGuest])
+  }, [isGuest, reactions])
 
   const visiblePosts = searchQuery
     ? posts.filter(p =>
@@ -435,11 +372,13 @@ export default function Page() {
             <PostCard
               key={post.id}
               post={post}
-              liked={likedPosts.has(post.id)}
-              saved={savedPosts.has(post.id)}
-              likeCount={likeCounts[post.id] || 0}
-              saveCount={saveCounts[post.id] || 0}
-              shareCount={shareCounts[post.id] || 0}
+              liked={reactions.state(post.id).liked}
+              saved={reactions.state(post.id).saved}
+              likeCount={reactions.state(post.id).likes}
+              saveCount={reactions.state(post.id).saves}
+              shareCount={reactions.state(post.id).shares}
+              commentCount={reactions.state(post.id).comments}
+              onCommentCount={(n) => reactions.setCommentCount(post.id, n)}
               onLike={() => toggleLike(post.id)}
               onSave={() => toggleSave(post.id)}
               onShare={() => handleShare(post)}

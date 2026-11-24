@@ -31,7 +31,7 @@
 
 const express  = require('express')
 const mongoose = require('mongoose')
-const { GalleryItem, PagePost, MapLocation, CampusHighlight, Approval } = require('../schema')
+const { GalleryItem, PagePost, MapLocation, CampusHighlight, Approval, Reaction } = require('../schema')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 
 const router = express.Router()
@@ -95,6 +95,7 @@ function contentRoutes(path, Model, { sortField, searchFields, label }) {
       if (req.query.hard === 'true') {
         const item = await Model.findByIdAndDelete(req.params.id).lean()
         if (!item) return res.status(404).json({ error: `${label} not found` })
+        await Reaction.deleteMany({ targetId: item._id })
         return res.json({ message: `${label} deleted`, id: req.params.id })
       }
       const item = await Model.findByIdAndUpdate(req.params.id, { $set: { isPublished: false } }, { new: true }).lean()

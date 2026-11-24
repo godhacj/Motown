@@ -8,9 +8,9 @@ import ShareDialog from '../../components/ShareDialog'
 import SignInGateModal from '../../components/SignInGateModal'
 import useColumnCount from '../../components/useColumnCount'
 import useIsGuest from '../../hooks/useIsGuest'
+import useReactions from '../../hooks/useReactions'
 import '../../styles/core/Gallery.css'
 import API from '../../config/api'
-const LIKES_KEY = 'gallery-likes'
 
 function normalise(item) {
   // Accepts both the old static shape (id, src) and the MongoDB shape (_id, src)
@@ -32,7 +32,6 @@ export default function Gallery() {
 
   const [images,         setImages]         = useState([])
   const [loading,        setLoading]        = useState(true)
-  const [likedImages,    setLikedImages]    = useState([])
   const [modalImage,     setModalImage]     = useState(null)
   const [shareImage,     setShareImage]     = useState(null)
   const [activeCategory, setActiveCategory] = useState('All')
@@ -71,17 +70,6 @@ export default function Gallery() {
     ])
   }, [setSideMenu, setNotchText, setSearchConfig])
 
-  // Persist likes
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LIKES_KEY)
-      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) setLikedImages(p) }
-    } catch {}
-  }, [])
-  useEffect(() => {
-    try { localStorage.setItem(LIKES_KEY, JSON.stringify(likedImages)) } catch {}
-  }, [likedImages])
-
   // Body scroll lock when modal open
   useEffect(() => {
     document.body.classList.toggle('modal-open', !!modalImage)
@@ -93,23 +81,21 @@ export default function Gallery() {
     return ['All', ...cats]
   }, [images])
 
-  const likedSet  = useMemo(() => new Set(likedImages), [likedImages])
-  const isLiked   = useCallback((id) => likedSet.has(id), [likedSet])
+  // Likes / shares are stored per user on the server (hooks/useReactions).
+  const reactions  = useReactions('gallery', images, { signedIn: !isGuest })
+  const isLiked    = (id) => reactions.state(id).liked
   const toggleLike = useCallback((image) => {
     if (isGuest) { setGateAction('like'); return }
-    setLikedImages(prev => {
-      const next = new Set(prev)
-      next.has(image.id) ? next.delete(image.id) : next.add(image.id)
-      return Array.from(next)
-    })
-  }, [isGuest])
+    reactions.toggleLike(image.id)
+  }, [isGuest, reactions])
 
   const openModal  = useCallback((image) => setModalImage(image), [])
   const closeModal = useCallback(() => setModalImage(null), [])
   const openShare  = useCallback((image) => {
     if (isGuest) { setGateAction('share'); return }
+    reactions.recordShare(image.id)
     setShareImage(image)
-  }, [isGuest])
+  }, [isGuest, reactions])
   const closeShare = useCallback(() => setShareImage(null), [])
   const closeGate  = useCallback(() => setGateAction(null), [])
 
@@ -185,6 +171,8 @@ export default function Gallery() {
           onClose={closeModal}
           onNavigate={handleNavigate}
           liked={isLiked(modalImage.id)}
+          likeCount={reactions.state(modalImage.id).likes}
+          onCommentCount={(n) => reactions.setCommentCount(modalImage.id, n)}
           onLike={() => toggleLike(modalImage)}
           onShare={() => { closeModal(); openShare(modalImage) }}
           onGuestComment={isGuest ? () => setGateAction('comment') : null}

@@ -714,3 +714,16 @@
     padding-right: 14px;
   }
 }
+
+/* Delete link on your own comments */
+.post-comment__delete {
+  margin-left: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.post-comment__delete:hover { color: var(--color-danger); text-decoration: underline; }

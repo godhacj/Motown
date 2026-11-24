@@ -56,13 +56,23 @@ export function consumeExpiredNotice() {
  */
 export function storeRenewedToken(token) {
   if (!token) return
-  let kind = null
-  try { kind = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).k } catch { return }
+  const kind = decode(token)?.k
+  if (!kind) return
   const key = kind === 'admin' ? ADMIN_KEY : PROFILE_KEY
   const current = read(key)
   if (!current) return
   localStorage.setItem(key, JSON.stringify({ ...current, token }))
   window.dispatchEvent(new Event(kind === 'admin' ? 'adminSessionChanged' : 'profileChanged'))
+}
+
+const decode = (token) => {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) } catch { return null }
+}
+
+/** { id, kind } of whoever is signed in (student/teacher first), or null. */
+export function currentUser() {
+  const p = decode(profileToken() || '') || decode(adminToken() || '')
+  return p ? { id: p.sub, kind: p.k } : null
 }
 
 // Called by the XHR upload path, which can't go through fetch.

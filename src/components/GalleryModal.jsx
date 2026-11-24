@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Icons } from '../assets/icons'
+import useComments from '../hooks/useComments'
 import {
   FiChevronLeft, FiChevronRight, FiX,
   FiMapPin, FiZoomIn, FiZoomOut, FiShare2,
@@ -37,11 +38,11 @@ function Avatar({ src, name, size = 40, className = '' }) {
 const PANEL_HEIGHTS = { default: 45, peek: 65, expanded: 88 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function GalleryModal({ image, images, onClose, onNavigate, liked = false, onLike, onShare, onGuestComment }) {
-  const [comments,    setComments]    = useState(image.comments || [])
+export function GalleryModal({ image, images, onClose, onNavigate, liked = false, likeCount = 0, onLike, onShare, onGuestComment, onCommentCount }) {
+  const { comments, loading: commentsLoading, error: commentError, add, remove, canDelete } =
+    useComments('gallery', image, { open: true, onCount: onCommentCount })
   const [inputValue,  setInputValue]  = useState('')
-  const [isLiked,     setIsLiked]     = useState(liked)
-  const [likeCount,   setLikeCount]   = useState(image.comments?.length ?? 0)
+  const isLiked = liked
   const [panelState,  setPanelState]  = useState('default')
   const [zoomed,      setZoomed]      = useState(false)
   const [imgLoaded,   setImgLoaded]   = useState(false)
@@ -58,14 +59,11 @@ export function GalleryModal({ image, images, onClose, onNavigate, liked = false
 
   // Reset state on image change
   useEffect(() => {
-    setIsLiked(liked)
-    setLikeCount(0)
-    setComments(image.comments || [])
     setInputValue('')
     setPanelState('default')
     setZoomed(false)
     setImgLoaded(false)
-  }, [image.id, liked])
+  }, [image.id])
 
   // Keyboard navigation
   useEffect(() => {
@@ -161,20 +159,13 @@ export function GalleryModal({ image, images, onClose, onNavigate, liked = false
     }
   }, [])
 
-  const handleLike = () => {
-    const next = !isLiked
-    setIsLiked(next)
-    setLikeCount(c => next ? c + 1 : Math.max(0, c - 1))
-    onLike?.()
-  }
+  const handleLike = () => onLike?.()
 
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (onGuestComment) { onGuestComment(); return }
     const text = inputValue.trim()
     if (!text) return
-    setComments(prev => [...prev, {
-      id: Date.now(), author: 'You', avatar: null, text, time: 'just now'
-    }])
+    if (!(await add(text))) return
     setInputValue('')
     setTimeout(() => {
       if (scrollAreaRef.current) {
@@ -327,7 +318,10 @@ export function GalleryModal({ image, images, onClose, onNavigate, liked = false
               {comments.length > 0 && <span className="modal-comments__count">{comments.length}</span>}
             </h3>
             <div ref={scrollAreaRef} className="modal-comments-scroll">
-              {comments.length === 0 ? (
+              {commentError && <p className="modal-comments__empty" role="alert">{commentError}</p>}
+              {commentsLoading ? (
+                <p className="modal-comments__empty">Loading comments…</p>
+              ) : comments.length === 0 ? (
                 <p className="modal-comments__empty">No comments yet. Be the first!</p>
               ) : (
                 comments.map((c) => (
@@ -337,6 +331,9 @@ export function GalleryModal({ image, images, onClose, onNavigate, liked = false
                       <div className="comment-author">
                         {c.author}
                         <span className="comment-time">{c.time}</span>
+                        {canDelete(c) && (
+                          <button type="button" className="comment-delete" onClick={() => remove(c.id)} aria-label="Delete comment">Delete</button>
+                        )}
                       </div>
                       <div className="comment-text">{c.text}</div>
                     </div>

@@ -1226,6 +1226,24 @@ auditLogSchema.index({ collection: 1, docId: 1, createdAt: -1 })
 const AuditLog = mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 36. REACTIONS  (one like / save per user per Gallery item or Page post)
+// The item's likeCount / saveCount are kept in step with these rows.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const reactionSchema = new mongoose.Schema({
+  targetType: { type: String, enum: ['post', 'gallery'], required: true },
+  targetId:   { type: mongoose.Schema.Types.ObjectId, required: true },
+  kind:       { type: String, enum: ['like', 'save'], required: true },
+  userId:     { type: mongoose.Schema.Types.ObjectId, required: true },
+  userKind:   { type: String, enum: ['student', 'teacher', 'admin'] },
+}, { timestamps: { createdAt: true, updatedAt: false } })
+
+reactionSchema.index({ targetType: 1, targetId: 1, kind: 1, userId: 1 }, { unique: true })
+reactionSchema.index({ userId: 1, kind: 1, targetType: 1, createdAt: -1 })
+
+const Reaction = mongoose.models.Reaction || mongoose.model('Reaction', reactionSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS  — import any model in any route/seed file
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1246,6 +1264,7 @@ const models = {
   // Public content models
   CampusHighlight,
   AuditLog,
+  Reaction,
 }
 
 module.exports = models

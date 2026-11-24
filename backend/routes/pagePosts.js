@@ -3,6 +3,7 @@ const { PagePost } = require('../schema')
 const upload  = require('../middleware/upload')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 const { requireUser } = require('../middleware/auth')
+const { attachReactions, commentOut } = require('./reactions')
 // Writes were open to anyone; content is now managed via /api/admin/media.
 const mediaOnly = requireAdminPortal('media')
 const router  = express.Router()
@@ -41,7 +42,7 @@ router.post('/:id/comments', requireUser(), async (req, res) => {
     if (!text) return res.status(400).json({ error: 'Write a comment first' })
     post.comments.push({ authorId: req.auth.id, authorName: req.auth.name, authorAvatar: req.body?.authorAvatar, text })
     await post.save()
-    res.status(201).json(post.comments.at(-1))
+    res.status(201).json(commentOut(post.comments.at(-1)))
   } catch (err) { res.status(400).json({ error: err.message }) }
 })
 
@@ -58,5 +59,8 @@ router.delete('/:id', mediaOnly, async (req, res) => {
     res.json({ message: 'Deleted' })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
+
+// Likes, saves, shares, comment reads/deletes — see routes/reactions.js
+attachReactions(router, PagePost, 'post')
 
 module.exports = router
