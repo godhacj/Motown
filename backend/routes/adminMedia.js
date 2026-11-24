@@ -16,6 +16,9 @@
  *   PATCH  /posts/:id                     — update
  *   DELETE /posts/:id                     — unpublish; ?hard=true deletes permanently
  *   DELETE /posts/:id/comments/:cid       — remove one comment
+ * Teacher submissions
+ *   GET    /submissions?state=pending|approved|rejected
+ *   POST   /submissions/:kind/:id/review      — { decision, note }  (kind: posts|gallery)
  * Map
  *   GET    /map                           — list all locations (incl. hidden)
  *   POST   /map                           — create
@@ -28,7 +31,7 @@
 
 const express  = require('express')
 const mongoose = require('mongoose')
-const { GalleryItem, PagePost, MapLocation, CampusHighlight } = require('../schema')
+const { GalleryItem, PagePost, MapLocation, CampusHighlight, Approval } = require('../schema')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 
 const router = express.Router()
@@ -59,7 +62,8 @@ function sendError(res, err) {
 function contentRoutes(path, Model, { sortField, searchFields, label }) {
   router.get(`/${path}`, async (req, res) => {
     try {
-      const filter = {}
+      // Teacher submissions still in review live in the Submissions queue.
+      const filter = { 'submission.state': { $nin: ['pending', 'rejected'] } }
       if (req.query.category) filter.category = req.query.category
       if (req.query.published !== undefined && req.query.published !== '') filter.isPublished = req.query.published === 'true'
       if (req.query.q) {
@@ -114,6 +118,69 @@ function contentRoutes(path, Model, { sortField, searchFields, label }) {
 
 contentRoutes('gallery', GalleryItem, { sortField: 'createdAt',   searchFields: ['title', 'description', 'publisher', 'location'], label: 'Gallery item' })
 contentRoutes('posts',   PagePost,    { sortField: 'publishedAt', searchFields: ['title', 'body', 'author', 'excerpt'],           label: 'Post' })
+
+// ── Teacher submissions ───────────────────────────────────────────────────────
+
+const SUBMISSION_MODELS = { posts: PagePost, gallery: GalleryItem }
+
+router.get('/submissions', async (req, res) => {
+  try {
+    const state = ['pending', 'approved', 'rejected'].includes(req.query.state) ? req.query.state : 'pending'
+    const filter = { 'submission.state': state }
+    const [posts, gallery, pendingPosts, pendingGallery] = await Promise.all([
+      PagePost.find(filter).select('-comments').sort({ 'submission.submittedAt': -1 }).limit(200).lean(),
+      GalleryItem.find(filter).select('-comments').sort({ 'submission.submittedAt': -1 }).limit(200).lean(),
+      PagePost.countDocuments({ 'submission.state': 'pending' }),
+      GalleryItem.countDocuments({ 'submission.state': 'pending' }),
+    ])
+    const items = [
+      ...posts.map((p) => ({ ...p, kind: 'posts' })),
+      ...gallery.map((g) => ({ ...g, kind: 'gallery' })),
+    ].sort((a, b) => new Date(b.submission?.submittedAt || 0) - new Date(a.submission?.submittedAt || 0))
+    res.json({ state, count: items.length, pending: pendingPosts + pendingGallery, items })
+  } catch (err) { sendError(res, err) }
+})
+
+router.post('/submissions/:kind/:id/review', validId, async (req, res) => {
+  try {
+    const Model = SUBMISSION_MODELS[req.params.kind]
+    if (!Model) return res.status(404).json({ error: 'Unknown content type' })
+    const { decision } = req.body
+    const note = String(req.body.note || '').trim()
+    if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'decision must be "approved" or "rejected"' })
+    if (decision === 'rejected' && !note) return res.status(400).json({ error: 'Tell the teacher what to change' })
+
+    const doc = await Model.findById(req.params.id)
+    if (!doc?.submission) return res.status(404).json({ error: 'Submission not found' })
+    if (doc.submission.state !== 'pending') return res.status(409).json({ error: `Already ${doc.submission.state}` })
+
+    const user = req.adminUser
+    const now = new Date()
+    const approvalId = doc.submission.approvalId
+    doc.submission.state = decision
+    doc.submission.reviewNote = note || undefined
+    doc.submission.reviewedAt = now
+    doc.submission.reviewedBy = user.displayName || user.username
+    doc.markModified('submission')
+    if (decision === 'approved') {
+      doc.isPublished = true
+      if (req.params.kind === 'posts') doc.publishedAt = now
+    }
+    await doc.save()
+
+    if (approvalId) {
+      const approval = await Approval.findById(approvalId)
+      if (approval?.status === 'pending') {
+        Object.assign(approval, { status: decision, decidedBy: user._id, decidedAt: now, note })
+        const step = approval.chain?.find((s) => s.status === 'pending')
+        if (step) Object.assign(step, { status: decision, decidedBy: user._id, decidedAt: now, note })
+        approval.markModified('chain')
+        await approval.save()
+      }
+    }
+    res.json({ ...doc.toObject(), kind: req.params.kind })
+  } catch (err) { sendError(res, err) }
+})
 
 // ── Map ───────────────────────────────────────────────────────────────────────
 

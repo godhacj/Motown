@@ -1,6 +1,9 @@
 const express = require('express')
 const { GalleryItem } = require('../schema')
 const upload  = require('../middleware/upload')
+const { requireAdminPortal } = require('../middleware/adminAuth')
+// Writes were open to anyone; content is now managed via /api/admin/media.
+const mediaOnly = requireAdminPortal('media')
 const router  = express.Router()
 
 // GET all — optional ?category=Boardwalk
@@ -17,14 +20,14 @@ router.get('/', async (req, res) => {
 // GET single
 router.get('/:id', async (req, res) => {
   try {
-    const item = await GalleryItem.findById(req.params.id)
+    const item = await GalleryItem.findOne({ _id: req.params.id, isPublished: true })
     if (!item) return res.status(404).json({ error: 'Not found' })
     res.json(item)
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // POST upload new image
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', mediaOnly, upload.single('file'), async (req, res) => {
   try {
     const { title, description, category, aspectRatio, date, publisher, location } = req.body
     const src = req.file ? req.file.path : req.body.src
@@ -42,7 +45,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 // POST add comment
 router.post('/:id/comments', async (req, res) => {
   try {
-    const item = await GalleryItem.findById(req.params.id)
+    const item = await GalleryItem.findOne({ _id: req.params.id, isPublished: true })
     if (!item) return res.status(404).json({ error: 'Not found' })
     item.comments.push(req.body)
     await item.save()
@@ -66,7 +69,7 @@ router.patch('/:id/engage', async (req, res) => {
 })
 
 // DELETE image
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', mediaOnly, async (req, res) => {
   try {
     await GalleryItem.findByIdAndDelete(req.params.id)
     res.json({ message: 'Deleted' })

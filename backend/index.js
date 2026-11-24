@@ -34,6 +34,7 @@ app.use('/api/campus-highlights', require('./routes/campusHighlights'));
 app.use('/api/library',        require('./routes/library'));
 app.use('/api/syllabus',       require('./routes/syllabus'));
 app.use('/api/portal/syllabus', require('./routes/teacherSyllabus'));
+app.use('/api/portal/media',    require('./routes/teacherMedia'));
 app.use('/api/subjects',       require('./routes/subjects'));
 app.use('/api/messages',       require('./routes/messages'));
 app.use('/api/reports',        require('./routes/reports'));

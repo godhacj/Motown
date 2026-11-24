@@ -18,3 +18,13 @@ export function useNotice() {
   useEffect(() => () => clearTimeout(timer.current), [])
   return [notice, show, clear]
 }
+
+// Width ÷ height of an image URL, so the public masonry grid lays out correctly.
+export function measureAspect(url) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img.naturalHeight ? +(img.naturalWidth / img.naturalHeight).toFixed(3) : 1)
+    img.onerror = () => resolve(1)
+    img.src = mediaUrl(url)
+  })
+}

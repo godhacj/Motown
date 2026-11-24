@@ -20,6 +20,8 @@ function normalise(post) {
     ...post,
     id,
     src: post.coverImage?.startsWith('/media/') ? `${API}${post.coverImage}` : (post.coverImage || post.src),
+    // DB posts keep their text in body/excerpt; the static fallback uses description.
+    description: post.description || post.body || post.excerpt || '',
     publisher: post.author || post.publisher,
     avatar: post.authorAvatar?.startsWith('/media/') ? `${API}${post.authorAvatar}` : (post.authorAvatar || post.avatar || null),
     date: post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : post.date,

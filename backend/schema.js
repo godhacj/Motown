@@ -205,6 +205,18 @@ const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema)
 // 4. GALLERY ITEMS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Teacher-submitted content awaiting / after Media review (absent = created by Media).
+const submissionSchema = new mongoose.Schema({
+  teacherId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
+  teacherName: { type: String },
+  state:       { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  submittedAt: { type: Date },
+  reviewNote:  { type: String },
+  reviewedAt:  { type: Date },
+  reviewedBy:  { type: String },
+  approvalId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Approval' },
+}, { _id: false })
+
 const galleryItemSchema = new mongoose.Schema({
   src:             { type: String, required: true }, // /media/gallery/<file>
   type:            { type: String, enum: ['image','video'], default: 'image' },
@@ -222,8 +234,10 @@ const galleryItemSchema = new mongoose.Schema({
   saveCount:       { type: Number, default: 0 },
   shareCount:      { type: Number, default: 0 },
   isPublished:     { type: Boolean, default: true },
+  submission:      { type: submissionSchema, default: undefined },
 }, { timestamps: true })
 
+galleryItemSchema.index({ 'submission.teacherId': 1, 'submission.state': 1 })
 galleryItemSchema.index({ category: 1, isPublished: 1, createdAt: -1 })
 
 const GalleryItem = mongoose.models.GalleryItem || mongoose.model('GalleryItem', galleryItemSchema)
@@ -247,8 +261,10 @@ const pagePostSchema = new mongoose.Schema({
   saveCount:    { type: Number, default: 0 },
   shareCount:   { type: Number, default: 0 },
   comments:     [commentSchema],
+  submission:   { type: submissionSchema, default: undefined },
 }, { timestamps: true })
 
+pagePostSchema.index({ 'submission.teacherId': 1, 'submission.state': 1 })
 pagePostSchema.index({ category: 1, isPublished: 1, publishedAt: -1 })
 
 const PagePost = mongoose.models.PagePost || mongoose.model('PagePost', pagePostSchema)

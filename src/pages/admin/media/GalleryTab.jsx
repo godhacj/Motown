@@ -2,22 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye, FiEyeOff, FiTrash2, FiMessageSquare, FiImage } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import { Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle } from '../../../components/admin/AdminKit'
-import { mediaUrl, formatDate, splitTags } from '../../../components/admin/adminUtils'
+import { mediaUrl, formatDate, splitTags, measureAspect } from '../../../components/admin/adminUtils'
 import CommentsModal from './CommentsModal'
 
 const EMPTY = {
   src: '', type: 'image', title: '', description: '', category: '', aspectRatio: 1,
   date: '', publisher: '', location: '', tags: '', isPublished: true,
-}
-
-// Width / height of an image URL, so the public masonry grid lays out correctly.
-function measureAspect(url) {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => resolve(img.naturalHeight ? +(img.naturalWidth / img.naturalHeight).toFixed(3) : 1)
-    img.onerror = () => resolve(1)
-    img.src = mediaUrl(url)
-  })
 }
 
 export default function GalleryTab({ notify, onCount }) {
