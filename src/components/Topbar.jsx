@@ -6,6 +6,7 @@ import ThemeToggle from './ThemeToggle'
 import Tooltip from './Tooltip'
 import { useNotch } from '../contexts/NotchContext.jsx'
 import { FiX, FiLogOut, FiSettings, FiChevronRight, FiUser, FiChevronLeft, FiShield, FiMoreVertical } from 'react-icons/fi'
+import { adminHome } from '../config/adminRoutes'
 import '../styles/components/Topbar.css'
 
 // ── Session storage keys ──────────────────────────────────────────────────────
@@ -65,19 +66,6 @@ function resolveAccount() {
   return { kind: 'guest', name: 'Guest', role: 'Guest', picture: null, email: null, id: null, portal: null }
 }
 
-// Where to send an admin user after login based on their portal
-const ADMIN_PORTAL_ROUTES = {
-  house:      '/admin/house',
-  academics:  '/admin/academics',
-  data:       '/admin/data/student-data',
-  domestic:   '/admin/domestic',
-  chapel:     '/admin/chapel/aggrey-chapel',
-  library:    '/admin/library',
-  club:       '/admin/club',
-  media:      '/admin/media',
-  management: '/management',
-  accounts:   '/admin/accounts',
-}
 
 function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversationActions }) {
   const navigate = useNavigate()
@@ -639,7 +627,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                     {account.kind === 'admin' && account.portal && (
                       <button
                         className="pd-nav__item"
-                        onClick={() => { setShowProfile(false); navigate(ADMIN_PORTAL_ROUTES[account.portal] || '/') }}
+                        onClick={() => { setShowProfile(false); navigate(account.portal ? adminHome(account.portal, account.scope) : '/') }}
                       >
                         <span className="pd-nav__icon"><FiShield size={16} /></span>
                         <span className="pd-nav__label">My Portal</span>

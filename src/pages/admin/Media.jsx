@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { FiImage, FiFileText, FiMap, FiShield, FiInbox } from 'react-icons/fi'
+import { FiImage, FiFileText, FiMap, FiShield, FiInbox, FiFolder } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
 import { Tabs, Notice } from '../../components/admin/AdminKit'
 import { useNotice } from '../../components/admin/adminUtils'
@@ -9,6 +9,7 @@ import PostsTab from './media/PostsTab'
 import MapTab from './media/MapTab'
 import BadgeTab from './media/BadgeTab'
 import SubmissionsTab from './media/SubmissionsTab'
+import FileLibrary from '../../components/admin/FileLibrary'
 import '../../styles/PageContent.css'
 
 const TAB_KEY = 'adminMediaTab'
@@ -41,6 +42,7 @@ export default function Media() {
     { id: 'posts', label: 'Page', icon: FiFileText, count: counts.posts },
     { id: 'map', label: 'Map', icon: FiMap, count: counts.map },
     { id: 'badge', label: 'Badge', icon: FiShield },
+    { id: 'files', label: 'Files', icon: FiFolder },
   ]
 
   return (
@@ -58,6 +60,7 @@ export default function Media() {
       {tab === 'posts' && <PostsTab notify={notify} onCount={postsCount} />}
       {tab === 'map' && <MapTab notify={notify} onCount={mapCount} />}
       {tab === 'badge' && <BadgeTab notify={notify} />}
+      {tab === 'files' && <FileLibrary notify={notify} />}
     </div>
   )
 }

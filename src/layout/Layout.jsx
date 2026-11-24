@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNotch } from '../contexts/NotchContext.jsx'
 import { useSocket } from '../contexts/SocketContext.jsx'
 import { Icons } from '../assets/icons.js'
+import { adminHome } from '../config/adminRoutes'
 import { FiShield, FiUsers, FiBook, FiImage, FiDollarSign,
          FiHome, FiActivity, FiDatabase, FiHeart, FiSun } from 'react-icons/fi'
 
@@ -133,7 +134,15 @@ function Layout() {
     // Inject Admin Portals group for admin sessions (avoid duplicates)
     if (isAdminLoggedIn) {
       const alreadyHasAdmin = items.some(i => i.type === 'group' && i.title === 'Admin Portals')
-      if (!alreadyHasAdmin) items.push(ADMIN_GROUP)
+      if (!alreadyHasAdmin) {
+        // Data accounts land on the page for their mode; Management gets Records.
+        let dataHome = '/admin/data/student-data'
+        try {
+          const a = JSON.parse(localStorage.getItem('adminPortalSession') || 'null')
+          dataHome = a?.portal === 'management' ? '/admin/data/records' : adminHome('data', a?.portal === 'data' ? a.scope : null)
+        } catch { /* keep default */ }
+        items.push({ ...ADMIN_GROUP, children: ADMIN_GROUP.children.map(c => c.title === 'Data' ? { ...c, to: dataHome } : c) })
+      }
     }
 
     return settingsItem ? [...items, settingsItem] : items

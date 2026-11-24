@@ -1,87 +1,136 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { FiDatabase, FiImage, FiClock, FiCheckSquare } from 'react-icons/fi'
 import { useAdminPortal } from '../../../hooks/useAdminPortal'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
+import { Tabs, Notice, Pill, Toolbar, DataTable, Stats, Modal, Button } from '../../../components/admin/AdminKit'
+import { useNotice, formatDate } from '../../../components/admin/adminUtils'
+import FileLibrary from '../../../components/admin/FileLibrary'
+import DatabaseTab from './records/DatabaseTab'
 import '../../../styles/admin/Data/Records.css'
 import '../../../styles/PageContent.css'
 
-const STATUS_COLOR = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444' }
+const TAB_KEY = 'adminRecordsTab'
+const readTab = () => { try { return localStorage.getItem(TAB_KEY) || 'database' } catch { return 'database' } }
+const STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' }
+const KINDS = ['syllabus', 'timetable', 'profile_change_student', 'profile_change_teacher', 'media_post', 'club_creation', 'personnel_add', 'personnel_remove', 'major_change']
+const ACTION_TONE = { create: 'success', update: 'accent', delete: 'danger', file_upload: 'success', file_delete: 'danger' }
+const when = (d) => `${formatDate(d)} ${new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 
-export default function Records() {
-  const session = useAdminPortal('Records', 'Search records…')
+function ChangeLog({ notify }) {
   const { apiFetch } = useAdminAuth()
-
-  const [records,  setRecords]  = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState('')
-  const [status,   setStatus]   = useState('')
-  const [kind,     setKind]     = useState('')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(null)
 
   useEffect(() => {
-    if (!session) return
+    apiFetch('/api/admin/records/audit?limit=200')
+      .then((d) => setItems(d.items || []))
+      .catch((e) => notify('error', e.message))
+      .finally(() => setLoading(false))
+  }, [apiFetch, notify])
+
+  const columns = [
+    { key: 'label', label: 'Record', className: 'is-primary', render: (a) => <div className="ak-thumb-cell"><div><strong>{a.label || a.docId}</strong><span>{a.collection}{a.fields?.length ? ` · ${a.fields.join(', ')}` : ''}</span></div></div> },
+    { key: 'action', label: 'Action', render: (a) => <Pill tone={ACTION_TONE[a.action]}>{a.action.replace('_', ' ')}</Pill> },
+    { key: 'actor', label: 'By', render: (a) => a.actor?.name || '—' },
+    { key: 'createdAt', label: 'When', render: (a) => when(a.createdAt) },
+  ]
+
+  return (
+    <section className="ak-panel">
+      <h2>Change log</h2>
+      <p className="ak-muted">Every edit, deletion and file change made through this portal. Deleted records keep a full copy here.</p>
+      {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={items} onRowClick={(a) => a.before && setOpen(a)} empty="No changes recorded yet" />}
+      {open && (
+        <Modal title={`${open.action} · ${open.label || open.docId}`} subtitle={`${open.collection} · ${open.actor?.name} · ${when(open.createdAt)}`} width={720} onClose={() => setOpen(null)}
+          footer={<Button variant="ghost" onClick={() => navigator.clipboard?.writeText(JSON.stringify(open.before, null, 2)).then(() => notify('success', 'Copied'))}>Copy JSON</Button>}>
+          <p className="ak-muted">{open.action === 'delete' ? 'The record as it was before it was deleted:' : 'Previous values of the changed fields:'}</p>
+          <pre className="rk-field-locked rk-mono" style={{ maxHeight: 480 }}>{JSON.stringify(open.before, null, 2)}</pre>
+        </Modal>
+      )}
+    </section>
+  )
+}
+
+function Approvals({ notify }) {
+  const { apiFetch } = useAdminAuth()
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState('')
+  const [kind, setKind] = useState('')
+
+  useEffect(() => {
     const params = new URLSearchParams()
     if (status) params.set('status', status)
-    if (kind)   params.set('kind',   kind)
+    if (kind) params.set('kind', kind)
     setLoading(true)
     apiFetch(`/api/admin/data/records?${params}`)
-      .then(data => setRecords(data.records || []))
-      .catch(err => setError(err.message))
+      .then((d) => setRecords(d.records || []))
+      .catch((e) => notify('error', e.message))
       .finally(() => setLoading(false))
-  }, [session, status, kind])
+  }, [apiFetch, status, kind, notify])
 
-  const counts = records.reduce((acc, r) => { acc[r.status]=(acc[r.status]||0)+1; return acc }, {})
+  const counts = records.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] || 0) + 1 }), {})
+  const columns = [
+    { key: 'kind', label: 'Kind', className: 'is-primary', render: (r) => <strong style={{ textTransform: 'capitalize' }}>{r.kind?.replace(/_/g, ' ')}{r.payload?.title || r.payload?.subject ? ` — ${r.payload.title || r.payload.subject}` : ''}</strong> },
+    { key: 'by', label: 'Requested by', render: (r) => r.requestedBy?.name || '—' },
+    { key: 'approverPortal', label: 'Portal' },
+    { key: 'status', label: 'Status', render: (r) => <Pill tone={STATUS_TONE[r.status]}>{r.status}</Pill> },
+    { key: 'createdAt', label: 'Date', render: (r) => formatDate(r.createdAt) },
+  ]
+
+  return (
+    <>
+      <Stats items={[
+        { label: 'Total', value: records.length },
+        { label: 'Pending', value: counts.pending ?? 0, tone: 'warning' },
+        { label: 'Approved', value: counts.approved ?? 0, tone: 'success' },
+        { label: 'Rejected', value: counts.rejected ?? 0, tone: 'danger' },
+      ]} />
+      <section className="ak-panel">
+        <Toolbar>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
+            <option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+          </select>
+          <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Kind">
+            <option value="">All kinds</option>{KINDS.map((k) => <option key={k} value={k}>{k.replace(/_/g, ' ')}</option>)}
+          </select>
+        </Toolbar>
+        {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={records.slice(0, 200)} empty="No approval records" />}
+      </section>
+    </>
+  )
+}
+
+export default function Records() {
+  const session = useAdminPortal('Records', null)
+  const [tab, setTabState] = useState(readTab)
+  const [notice, notify, clearNotice] = useNotice()
+  const setTab = useCallback((t) => { setTabState(t); try { localStorage.setItem(TAB_KEY, t) } catch { /* private mode */ } }, [])
+
+  if (!session) return null
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Records & Approvals</h1>
-        <p>Audit log of all approval requests across portals</p>
+        <h1>Records</h1>
+        <p>Read and edit school records, manage uploaded files, and review every change.</p>
       </div>
-
-      <div className="stats-section">
-        <div className="stat-box"><div className="stat-value">{records.length}</div><div className="stat-label">Total</div></div>
-        <div className="stat-box"><div className="stat-value">{counts.pending??0}</div><div className="stat-label">Pending</div></div>
-        <div className="stat-box"><div className="stat-value">{counts.approved??0}</div><div className="stat-label">Approved</div></div>
-        <div className="stat-box"><div className="stat-value">{counts.rejected??0}</div><div className="stat-label">Rejected</div></div>
-      </div>
-
-      <div className="ap-filters">
-        <select value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <select value={kind} onChange={e => setKind(e.target.value)}>
-          <option value="">All kinds</option>
-          {['syllabus','timetable','profile_change_student','profile_change_teacher','media_post','club_creation','personnel_add','personnel_remove','major_change'].map(k=><option key={k} value={k}>{k.replace(/_/g,' ')}</option>)}
-        </select>
-      </div>
-
-      {loading && <p className="ap-loading">Loading records…</p>}
-      {error   && <p className="ap-error">{error}</p>}
-
-      {!loading && !error && (
-        <div className="table-container">
-          <h2>Approval Records</h2>
-          <table>
-            <thead>
-              <tr><th>Kind</th><th>Requested By</th><th>Portal</th><th>Status</th><th>Date</th></tr>
-            </thead>
-            <tbody>
-              {records.slice(0,100).map(r => (
-                <tr key={r._id}>
-                  <td>{r.kind?.replace(/_/g,' ')}</td>
-                  <td>{r.requestedBy?.name||'—'}</td>
-                  <td>{r.approverPortal}</td>
-                  <td><span style={{color:STATUS_COLOR[r.status]||'#6b7280',fontWeight:600,textTransform:'capitalize'}}>{r.status}</span></td>
-                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-              {records.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No records found</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Tabs
+        tabs={[
+          { id: 'database', label: 'Database', icon: FiDatabase },
+          { id: 'files', label: 'Files', icon: FiImage },
+          { id: 'log', label: 'Change log', icon: FiClock },
+          { id: 'approvals', label: 'Approvals', icon: FiCheckSquare },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      <Notice notice={notice} onClose={clearNotice} />
+      {tab === 'database' && <DatabaseTab notify={notify} />}
+      {tab === 'files' && <FileLibrary notify={notify} />}
+      {tab === 'log' && <ChangeLog notify={notify} />}
+      {tab === 'approvals' && <Approvals notify={notify} />}
     </div>
   )
 }

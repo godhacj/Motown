@@ -6,21 +6,9 @@ import {
 } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
+import { adminHome } from '../../config/adminRoutes'
 import '../../styles/Login.css'
 
-// Map portal value → frontend route
-const PORTAL_ROUTES = {
-  house:       '/admin/house',
-  academics:   '/admin/academics',
-  data:        '/admin/data/student-data',
-  domestic:    '/admin/domestic',
-  chapel:      '/admin/chapel/aggrey-chapel',
-  library:     '/admin/library',
-  club:        '/admin/club',
-  media:       '/admin/media',
-  management:  '/management',
-  accounts:    '/admin/accounts',
-}
 
 function Spinner() {
   return <span className="sl-spinner" aria-hidden="true"><FiLoader /></span>
@@ -43,7 +31,7 @@ export default function AdminLogin() {
   useEffect(() => {
     // Already logged in — redirect straight to their portal
     if (session?.portal) {
-      navigate(PORTAL_ROUTES[session.portal] || '/admin/academics', { replace: true })
+      navigate(adminHome(session.portal, session.scope), { replace: true })
     }
   }, [session, navigate])
 
@@ -86,7 +74,7 @@ export default function AdminLogin() {
         portal:    data.portal,
         role:      'adminUser',
       }))
-      navigate(PORTAL_ROUTES[data.portal] || '/admin/academics', { replace: true })
+      navigate(adminHome(data.portal, data.scope), { replace: true })
     } catch (err) {
       setError(err.message || 'Invalid credentials')
     } finally {

@@ -1203,6 +1203,25 @@ const campusHighlightSchema = new mongoose.Schema({
 const CampusHighlight = mongoose.models.CampusHighlight || mongoose.model('CampusHighlight', campusHighlightSchema)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 35. AUDIT LOG  (every write made through the Data → Records editor / file browser)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const auditLogSchema = new mongoose.Schema({
+  actor:      { id: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' }, name: String, portal: String },
+  action:     { type: String, enum: ['create','update','delete','file_upload','file_delete'], required: true },
+  collection: { type: String },          // records key, or 'files'
+  docId:      { type: String },          // record _id or Cloudinary public_id
+  label:      { type: String },          // human-readable name of the record
+  fields:     [{ type: String }],        // fields touched by an update
+  before:     { type: mongoose.Schema.Types.Mixed },  // previous values of those fields
+}, { timestamps: { createdAt: true, updatedAt: false }, suppressReservedKeysWarning: true })
+
+auditLogSchema.index({ createdAt: -1 })
+auditLogSchema.index({ collection: 1, docId: 1, createdAt: -1 })
+
+const AuditLog = mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS  — import any model in any route/seed file
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1222,6 +1241,7 @@ const models = {
   AdminUser, AchiHouse, Approval, ClearanceItem,
   // Public content models
   CampusHighlight,
+  AuditLog,
 }
 
 module.exports = models
