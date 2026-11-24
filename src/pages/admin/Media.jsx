@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { FiImage, FiFileText, FiMap, FiShield, FiInbox, FiFolder } from 'react-icons/fi'
+import { FiImage, FiFileText, FiMap, FiShield, FiInbox, FiFolder, FiBell } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
 import { Tabs, Notice } from '../../components/admin/AdminKit'
 import { useNotice } from '../../components/admin/adminUtils'
@@ -9,6 +9,7 @@ import PostsTab from './media/PostsTab'
 import MapTab from './media/MapTab'
 import BadgeTab from './media/BadgeTab'
 import SubmissionsTab from './media/SubmissionsTab'
+import AnnouncementsTab from './media/AnnouncementsTab'
 import FileLibrary from '../../components/admin/FileLibrary'
 import '../../styles/PageContent.css'
 
@@ -26,6 +27,7 @@ export default function Media() {
   const galleryCount = useCallback((n) => setCount('gallery', n), [])
   const postsCount = useCallback((n) => setCount('posts', n), [])
   const mapCount = useCallback((n) => setCount('map', n), [])
+  const annCount = useCallback((n) => setCount('announcements', n), [])
   const pendingCount = useCallback((n) => setCount('pending', n), [])
   const { apiFetch } = useAdminAuth()
 
@@ -40,6 +42,7 @@ export default function Media() {
     { id: 'submissions', label: 'Submissions', icon: FiInbox, count: counts.pending || undefined },
     { id: 'gallery', label: 'Gallery', icon: FiImage, count: counts.gallery },
     { id: 'posts', label: 'Page', icon: FiFileText, count: counts.posts },
+    { id: 'announcements', label: 'Announcements', icon: FiBell, count: counts.announcements },
     { id: 'map', label: 'Map', icon: FiMap, count: counts.map },
     { id: 'badge', label: 'Badge', icon: FiShield },
     { id: 'files', label: 'Files', icon: FiFolder },
@@ -49,7 +52,7 @@ export default function Media() {
     <div className="page-container">
       <div className="page-header">
         <h1>Media</h1>
-        <p>Review teacher submissions and manage everything visitors see on the Gallery, Page, Map and home-page Badge.</p>
+        <p>Review teacher submissions and manage everything visitors see on the Gallery, Page, Announcements, Map and home-page Badge.</p>
       </div>
 
       <Tabs tabs={tabs} value={tab} onChange={setTab} />
@@ -58,6 +61,7 @@ export default function Media() {
       {tab === 'submissions' && <SubmissionsTab notify={notify} onPending={pendingCount} />}
       {tab === 'gallery' && <GalleryTab notify={notify} onCount={galleryCount} />}
       {tab === 'posts' && <PostsTab notify={notify} onCount={postsCount} />}
+      {tab === 'announcements' && <AnnouncementsTab notify={notify} onCount={annCount} />}
       {tab === 'map' && <MapTab notify={notify} onCount={mapCount} />}
       {tab === 'badge' && <BadgeTab notify={notify} />}
       {tab === 'files' && <FileLibrary notify={notify} />}

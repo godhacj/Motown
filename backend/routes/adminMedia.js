@@ -24,6 +24,12 @@
  *   POST   /map                           — create
  *   PATCH  /map/:id                       — update
  *   DELETE /map/:id                       — delete permanently
+ * Announcements (school-wide notices; private clearance notices are left to
+ * the Domestic / Accounts portals and never appear here)
+ *   GET    /announcements                  — all, newest first
+ *   POST   /announcements                  — create
+ *   PATCH  /announcements/:id              — update
+ *   DELETE /announcements/:id              — delete
  * Badge (campus highlights — 8 fixed key slots, order 0–7)
  *   GET    /highlights                    — list all 8 slots
  *   PUT    /highlights/:order             — create or replace the slot
@@ -31,7 +37,7 @@
 
 const express  = require('express')
 const mongoose = require('mongoose')
-const { GalleryItem, PagePost, MapLocation, CampusHighlight, Approval, Reaction } = require('../schema')
+const { GalleryItem, PagePost, MapLocation, CampusHighlight, Approval, Reaction, Announcement } = require('../schema')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 
 const router = express.Router()
@@ -229,6 +235,87 @@ router.delete('/map/:id', validId, async (req, res) => {
     const item = await MapLocation.findByIdAndDelete(req.params.id).lean()
     if (!item) return res.status(404).json({ error: 'Location not found' })
     res.json({ message: 'Location deleted', id: req.params.id })
+  } catch (err) { sendError(res, err) }
+})
+
+// ── Announcements ─────────────────────────────────────────────────────────────
+
+const ANN_PRIORITIES = Announcement.schema.path('priority').enumValues
+const ANN_AUDIENCES = Announcement.schema.path('audience').caster.enumValues
+// Clearance reminders carry a "private:<studentId>" attachment; Media never touches them.
+const NOT_PRIVATE = { 'attachments.name': { $not: /^private:/ } }
+
+function announcementFields(body, { partial }) {
+  const out = {}
+  const has = (k) => !partial || body[k] !== undefined
+  const fail = (m) => { const e = new Error(m); e.name = 'ValidationError'; throw e }
+  if (has('title')) { out.title = String(body.title || '').trim().slice(0, 160); if (!out.title) fail('Give the announcement a title') }
+  if (has('content')) { out.content = String(body.content || '').trim().slice(0, 5000); if (!out.content) fail('Write the announcement text') }
+  if (body.priority !== undefined) { if (!ANN_PRIORITIES.includes(body.priority)) fail(`Priority must be ${ANN_PRIORITIES.join(', ')}`); out.priority = body.priority }
+  if (body.audience !== undefined) {
+    const list = [].concat(body.audience).filter((a) => ANN_AUDIENCES.includes(a))
+    out.audience = list.length ? [...new Set(list)] : ['all']
+  }
+  for (const k of ['publishedAt', 'expiresAt']) {
+    if (body[k] === undefined) continue
+    if (!body[k]) { out[k] = k === 'publishedAt' ? new Date() : null; continue }
+    const d = new Date(body[k])
+    if (isNaN(d)) fail(`${k === 'publishedAt' ? 'Publish' : 'Expiry'} date is not valid`)
+    out[k] = d
+  }
+  if (out.expiresAt && out.publishedAt && out.expiresAt <= out.publishedAt) fail('Expiry must be after the publish date')
+  if (body.isPublished !== undefined) out.isPublished = !!body.isPublished
+  if (body.isPinned !== undefined) out.isPinned = !!body.isPinned
+  if (body.image !== undefined) {
+    if (body.image && !/^(https?:\/\/|\/)/.test(body.image)) fail('Upload an image or paste an image URL')
+    out.attachments = body.image ? [{ name: 'image', url: body.image, type: 'image' }] : []
+  }
+  return out
+}
+
+router.get('/announcements', async (req, res) => {
+  try {
+    const [items, privateCount] = await Promise.all([
+      Announcement.find(NOT_PRIVATE).sort({ isPinned: -1, publishedAt: -1 }).limit(500).lean(),
+      Announcement.countDocuments({ 'attachments.name': /^private:/ }),
+    ])
+    res.json({ count: items.length, privateCount, priorities: ANN_PRIORITIES, audiences: ANN_AUDIENCES, items })
+  } catch (err) { sendError(res, err) }
+})
+
+router.post('/announcements', async (req, res) => {
+  try {
+    const u = req.adminUser
+    const data = announcementFields(req.body, { partial: false })
+    const item = await Announcement.create({
+      priority: 'medium', audience: ['all'], publishedAt: new Date(), isPublished: true,
+      ...data,
+      authorName: String(req.body.authorName || '').trim().slice(0, 120) || u.displayName || u.username,
+    })
+    res.status(201).json(item)
+  } catch (err) { sendError(res, err) }
+})
+
+router.patch('/announcements/:id', validId, async (req, res) => {
+  try {
+    const item = await Announcement.findOne({ _id: req.params.id, ...NOT_PRIVATE })
+    if (!item) return res.status(404).json({ error: 'Announcement not found' })
+    const data = announcementFields(req.body, { partial: true })
+    if (req.body.authorName !== undefined) data.authorName = String(req.body.authorName || '').trim().slice(0, 120) || item.authorName
+    Object.assign(item, data)
+    if (item.expiresAt && item.publishedAt && item.expiresAt <= item.publishedAt) {
+      return res.status(400).json({ error: 'Expiry must be after the publish date' })
+    }
+    await item.save()
+    res.json(item.toObject())
+  } catch (err) { sendError(res, err) }
+})
+
+router.delete('/announcements/:id', validId, async (req, res) => {
+  try {
+    const item = await Announcement.findOneAndDelete({ _id: req.params.id, ...NOT_PRIVATE }).lean()
+    if (!item) return res.status(404).json({ error: 'Announcement not found' })
+    res.json({ deleted: true, id: req.params.id })
   } catch (err) { sendError(res, err) }
 })
 

@@ -8,6 +8,7 @@ import { Icons } from '../../assets/icons'
 import PostPortal from '../../components/PostPortal'
 import '../../styles/advanced/Announcement.css'
 import API from '../../config/api'
+import { ANNOUNCEMENT_PLACEHOLDERS } from '../../data/announcementPlaceholders'
 
 const PRIORITY_META = {
   urgent: { label: 'Urgent', Icon: FiAlertCircle, cls: 'urgent' },
@@ -23,36 +24,22 @@ const AUDIENCE_LABELS = {
   parents:  'Parents',
 }
 
-const FALLBACK = [
-  {
-    _id: '1', title: 'School Reopening Notice',
-    content: 'School will reopen on January 20th. All students are required to attend the orientation session in the main hall at 8:00 AM.',
-    priority: 'high', audience: 'all', pinned: true,
-    image: null, seenBy: [],
-    createdAt: '2024-01-15T08:00:00Z', author: 'Headmaster',
-  },
-  {
-    _id: '2', title: 'PTA Monthly Meeting',
-    content: 'Monthly PTA meeting scheduled for January 25th at 6:00 PM in the auditorium. All parents are urged to attend.',
-    priority: 'medium', audience: 'parents', pinned: false,
-    image: null, seenBy: [],
-    createdAt: '2024-01-10T10:00:00Z', author: 'PTA Coordinator',
-  },
-  {
-    _id: '3', title: 'Sports Day Registration Open',
-    content: 'Registration for the annual sports day is now open. Students should sign up at the PE office by January 30th.',
-    priority: 'low', audience: 'students', pinned: false,
-    image: null, seenBy: [],
-    createdAt: '2024-01-08T09:00:00Z', author: 'PE Department',
-  },
-  {
-    _id: '4', title: 'End of Term Examinations',
-    content: 'End of term examinations begin February 5th. Timetables are available from class teachers and on the notice boards.',
-    priority: 'urgent', audience: 'all', pinned: true,
-    image: null, seenBy: [],
-    createdAt: '2024-01-05T07:30:00Z', author: 'Academic Affairs',
-  },
-]
+// Built-in placeholders (shared with Admin → Media → Announcements)
+const FALLBACK = ANNOUNCEMENT_PLACEHOLDERS
+
+// Database announcement → the shape the cards render.
+function normaliseAnnouncement(a) {
+  const image = (a.attachments || []).find((x) => x?.type === 'image' && x.url)?.url || null
+  return {
+    ...a,
+    pinned: a.pinned ?? !!a.isPinned,
+    author: a.author || a.authorName || null,
+    image: a.image ?? (image?.startsWith('/media/') ? `${API}${image}` : image),
+    createdAt: a.publishedAt || a.createdAt,
+    audience: Array.isArray(a.audience) ? (a.audience.includes('all') || !a.audience.length ? 'all' : a.audience[0]) : (a.audience || 'all'),
+    seenBy: a.seenBy || [],
+  }
+}
 
 const FILTERS   = ['All', 'Urgent', 'High', 'Medium', 'Low']
 const AUDIENCES = ['all', 'students', 'teachers', 'parents']
@@ -234,7 +221,8 @@ export default function Announcement() {
     let cancelled = false
     fetch(`${API}/api/announcements`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { if (!cancelled) setItems(data) })
+      // No real announcements yet → built-in placeholders (same rule as the admin page)
+      .then(data => { if (!cancelled) setItems(Array.isArray(data) && data.length ? data.map(normaliseAnnouncement) : FALLBACK) })
       .catch(() => { if (!cancelled) setItems(FALLBACK) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -273,7 +261,7 @@ export default function Announcement() {
       const res = await fetch(`${API}/api/announcements`, { method: 'POST', body })
       if (res.ok) {
         const created = await res.json()
-        setItems(prev => [created, ...prev])
+        setItems(prev => [normaliseAnnouncement(created), ...prev])
         return
       }
     } catch { /* fall through */ }

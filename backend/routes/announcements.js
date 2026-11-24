@@ -32,7 +32,12 @@ function visibleTo(req) {
 
 router.get('/', async (req, res) => {
   try {
-    const filter = { isPublished: true }
+    const now = new Date()
+    const filter = {
+      isPublished: true,
+      publishedAt: { $lte: now },                                       // not scheduled for later
+      $or: [{ expiresAt: null }, { expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }], // not expired
+    }
     if (req.query.audience) filter.audience = { $in: [req.query.audience, 'all'] }
     if (req.query.priority) filter.priority = req.query.priority
     const items = await Announcement.find(filter).sort({ isPinned: -1, publishedAt: -1 }).lean()
