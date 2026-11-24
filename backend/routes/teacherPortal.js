@@ -430,4 +430,32 @@ router.get('/hod/:id/timetable/:classId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+
+// HOD: appoint / stand down an HOD assistant in their own department
+//   PATCH /api/portal/hod/:id/teachers/:teacherId/role   body: { role: 'teacher'|'hod_assistant' }
+// Only the HOD (not the assistant) may do this; appointing a HOD is Management's job.
+
+const HOD_ASSIGNABLE = ['teacher', 'hod_assistant']
+
+router.patch('/hod/:id/teachers/:teacherId/role', async (req, res) => {
+  try {
+    const { role } = req.body
+    if (!HOD_ASSIGNABLE.includes(role)) {
+      return res.status(400).json({ error: 'A HOD can set a teacher to "teacher" or "hod_assistant". Ask Management to appoint a HOD.' })
+    }
+    const hod = await Teacher.findById(req.params.id).select('role department').lean()
+    if (!hod || hod.role !== 'hod') return res.status(403).json({ error: 'Only the Head of Department can change roles' })
+    if (String(req.params.teacherId) === String(hod._id)) return res.status(400).json({ error: "You can't change your own role" })
+
+    const target = await Teacher.findById(req.params.teacherId).select('role department firstName lastName')
+    if (!target) return res.status(404).json({ error: 'Teacher not found' })
+    if (target.department !== hod.department) return res.status(403).json({ error: 'That teacher is not in your department' })
+    if (target.role === 'hod') return res.status(403).json({ error: 'Only Management can change another HOD' })
+
+    target.role = role
+    await target.save()
+    res.json({ _id: target._id, role: target.role, name: `${target.firstName} ${target.lastName}` })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 module.exports = router

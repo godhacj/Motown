@@ -146,7 +146,13 @@ router.patch('/teachers/:id', requireMode('teacher'), async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid teacher ID' })
     }
-    const { password, username, _id, __v, createdAt, updatedAt, ...safe } = req.body
+    const { password, username, _id, __v, createdAt, updatedAt, role, ...safe } = req.body
+    // Portal role (teacher / HOD / HOD assistant) is set by Management, or by
+    // the HOD from the Teacher Portal — not by the Data office.
+    if (role !== undefined) {
+      if (req.adminUser.portal !== 'management') return res.status(403).json({ error: 'Only Management (or the HOD, from the Teacher Portal) can change a teacher’s role' })
+      safe.role = role
+    }
     const teacher = await Teacher.findByIdAndUpdate(
       req.params.id,
       { $set: safe },

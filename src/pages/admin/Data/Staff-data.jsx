@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useMemo } from 'react'
+import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import { Pill } from '../../../components/admin/AdminKit'
 import DataDirectory from './DataDirectory'
 import '../../../styles/admin/Data/Staff-data.css'
@@ -8,7 +9,9 @@ const STATUS = ['Active', 'On Leave', 'Retired', 'Resigned']
 const TONE = { Active: 'success', 'On Leave': 'warning', Retired: 'neutral', Resigned: 'neutral' }
 const ROLE = { teacher: 'Teacher', hod: 'Head of Department', hod_assistant: 'HOD Assistant' }
 
-const config = {
+const ROLE_FIELD = { name: 'role', label: 'Portal role', type: 'select', options: ['teacher', 'hod', 'hod_assistant'], hint: 'hod / hod_assistant unlock the Timetable Builder' }
+
+const baseConfig = {
   title: 'Staff Data',
   subtitle: 'Teaching staff: contact details, department, role and status.',
   notch: 'Staff Data',
@@ -42,7 +45,7 @@ const config = {
     { title: 'Employment', fields: [
       { name: 'department', label: 'Department', type: 'select', options: DEPTS },
       { name: 'yearGroup', label: 'Year group', type: 'select', options: ['SHS 1', 'SHS 2', 'SHS 3'] },
-      { name: 'role', label: 'Portal role', type: 'select', options: ['teacher', 'hod', 'hod_assistant'], hint: 'hod / hod_assistant unlock the Timetable Builder' },
+      ROLE_FIELD,
       { name: 'position', label: 'Position' },
       { name: 'qualification', label: 'Qualification' },
       { name: 'yearsOfService', label: 'Years of service', type: 'number' },
@@ -53,5 +56,15 @@ const config = {
 }
 
 export default function StaffData() {
+  const { session } = useAdminAuth()
+  const isManagement = session?.portal === 'management'
+  // Roles are changed by Management here, or by the HOD in the Teacher Portal.
+  const config = useMemo(() => isManagement ? baseConfig : {
+    ...baseConfig,
+    sections: baseConfig.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => (f === ROLE_FIELD ? { ...f, readOnly: true, hint: 'Changed by Management, or by the HOD in the Teacher Portal' } : f)),
+    })),
+  }, [isManagement])
   return <DataDirectory config={config} />
 }

@@ -12,6 +12,7 @@ import API from '../../config/api'
 import { useSocket } from '../../contexts/SocketContext.jsx'
 import PartSyllabus from './PartSyllabus'
 import PartMedia from './PartMedia'
+import PartDepartment from './PartDepartment'
 import '../../styles/Teacher/Teacher.css'
 
 // ─── Parts & sub-tabs ────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ const ALL_PARTS = [
   { value: 'media',         label: 'Page & Gallery',    icon: <FiImage     size={15} /> },
   { value: 'profile',       label: 'Profile',           icon: <FiUser      size={15} /> },
   { value: 'timetable',     label: 'Timetable Builder', icon: <FiLayout    size={15} />, hodOnly: true },
+  { value: 'department',    label: 'Department',        icon: <FiUsers     size={15} />, hodOnly: true },
 ]
 
 const ASSESSMENT_TABS = ['Class Roster', 'Register', 'Class Assessment']
@@ -37,6 +39,7 @@ const SUB_TABS = {
   media:         null,
   profile:       PROFILE_TABS,
   timetable:     null,
+  department:    null,
 }
 
 const TAB_ICON = {
@@ -1393,6 +1396,7 @@ export default function Teacher() {
         {currentPart.value === 'media'        && <PartMedia              profile={profile} />}
         {currentPart.value === 'profile'      && <PartProfile            tab={activeTab} profile={profile} />}
         {currentPart.value === 'timetable'    && <PartTimetableBuilder   profile={profile} />}
+        {currentPart.value === 'department'   && <PartDepartment         profile={profile} />}
       </div>
 
       <PartNavButton
