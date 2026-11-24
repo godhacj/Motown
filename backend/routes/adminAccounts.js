@@ -66,7 +66,9 @@ router.patch('/orders/:id', guard, async (req, res) => {
 // GET /api/admin/accounts/debtors
 router.get('/debtors', guard, async (req, res) => {
   try {
-    const items = await ClearanceItem.find({ source: 'accounts', status: 'outstanding' })
+    const status = req.query.status === 'cleared' ? 'cleared' : 'outstanding'
+    const items = await ClearanceItem.find({ source: 'accounts', status })
+      .populate('student', 'firstName lastName studentId classLevel')
       .sort({ createdAt: -1 })
       .lean()
 
@@ -125,7 +127,8 @@ router.patch('/clearance/:id', guard, async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid clearance item ID' })
     }
-    const item = await ClearanceItem.findById(req.params.id)
+    // Only fee items — DC and library items are cleared by their own portals.
+    const item = await ClearanceItem.findOne({ _id: req.params.id, source: 'accounts' })
     if (!item) return res.status(404).json({ error: 'Clearance item not found' })
     if (item.status === 'cleared') return res.status(409).json({ error: 'Already cleared' })
 

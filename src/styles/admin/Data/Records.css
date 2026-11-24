@@ -29,8 +29,6 @@
 .rk-pager { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--color-text-muted); }
 .rk-pager > div { display: flex; gap: 0.35rem; }
 
-.rk-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
-.rk-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; }
 
 /* ── Record editor ── */
 .rk-field-locked {
@@ -66,9 +64,6 @@
 .rk-file__meta span { font-size: 0.68rem; color: var(--color-text-muted); }
 
 .rk-preview { width: 100%; max-height: 380px; object-fit: contain; border-radius: var(--radius-md); background: var(--background-hover); display: block; }
-.rk-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 0.9rem; font-size: 0.82rem; }
-.rk-kv dt { color: var(--color-text-muted); }
-.rk-kv dd { margin: 0; word-break: break-all; }
 
 /* ── Change log ── */
 .rk-log-action { font-weight: 700; text-transform: capitalize; }

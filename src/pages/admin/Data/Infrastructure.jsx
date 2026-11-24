@@ -1,79 +1,97 @@
-import React, { useEffect, useState } from 'react'
-import { useAdminPortal } from '../../../hooks/useAdminPortal'
-import { useAdminAuth } from '../../../contexts/AdminAuthContext'
+import React, { useState } from 'react'
+import { FiPlus, FiX } from 'react-icons/fi'
+import { Pill, Button, Field } from '../../../components/admin/AdminKit'
+import { formatDate } from '../../../components/admin/adminUtils'
+import DataDirectory from './DataDirectory'
 import '../../../styles/admin/Data/Infrastructure.css'
-import '../../../styles/PageContent.css'
 
-const COND_COLOR = { Excellent:'#10b981', Good:'#3b82f6', Fair:'#f59e0b', Poor:'#ef4444', 'Under Repair':'#8b5cf6' }
+const CATEGORIES = ['Classroom', 'Laboratory', 'Dormitory', 'Sports', 'Chapel', 'Dining', 'Admin', 'ICT', 'Library', 'Other']
+const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Under Repair']
+const TONE = { Excellent: 'success', Good: 'success', Fair: 'warning', Poor: 'danger', 'Under Repair': 'danger' }
+const LOG_STATUS = ['Pending', 'In Progress', 'Completed']
+const LOG_TONE = { Pending: 'warning', 'In Progress': 'accent', Completed: 'success' }
 
-export default function Infrastructure() {
-  const session = useAdminPortal('Infrastructure', 'Search facilities…')
-  const { apiFetch } = useAdminAuth()
-
-  const [facilities, setFacilities] = useState([])
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
-  const [category,   setCategory]   = useState('')
-
-  useEffect(() => {
-    if (!session) return
-    const params = new URLSearchParams()
-    if (category) params.set('category', category)
-    setLoading(true)
-    apiFetch(`/api/admin/data/infrastructure?${params}`)
-      .then(data => setFacilities(data.facilities || []))
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [session, category])
-
-  const counts = facilities.reduce((acc, f) => { acc[f.condition]=(acc[f.condition]||0)+1; return acc }, {})
+// Maintenance history editor shown under the facility form.
+function MaintenanceLogs({ record, setRecord }) {
+  const [draft, setDraft] = useState({ date: new Date().toISOString().slice(0, 10), description: '', cost: '', contractor: '', status: 'Pending' })
+  const logs = record.maintenanceLogs || []
+  const update = (list) => setRecord((r) => ({ ...r, maintenanceLogs: list }))
+  const add = () => {
+    if (!draft.description.trim()) return
+    update([{ ...draft, cost: draft.cost === '' ? undefined : Number(draft.cost) }, ...logs])
+    setDraft((d) => ({ ...d, description: '', cost: '', contractor: '' }))
+  }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Infrastructure</h1>
-        <p>Facilities, maintenance logs and condition tracking</p>
+    <div style={{ display: 'grid', gap: '0.6rem' }}>
+      <h4 style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>Maintenance log</h4>
+      <div className="ak-form-grid" style={{ alignItems: 'end' }}>
+        <Field label="Date"><input className="ak-input" type="date" value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} /></Field>
+        <Field label="Work"><input className="ak-input" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} placeholder="Replaced roofing sheets" /></Field>
+        <Field label="Cost (GH₵)"><input className="ak-input" type="number" value={draft.cost} onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))} /></Field>
+        <Field label="Contractor"><input className="ak-input" value={draft.contractor} onChange={(e) => setDraft((d) => ({ ...d, contractor: e.target.value }))} /></Field>
+        <Field label="Status"><select value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}>{LOG_STATUS.map((s) => <option key={s}>{s}</option>)}</select></Field>
+        <div><Button variant="ghost" onClick={add} disabled={!draft.description.trim()}><FiPlus /> Add entry</Button></div>
       </div>
-
-      <div className="stats-section">
-        <div className="stat-box"><div className="stat-value">{facilities.length}</div><div className="stat-label">Facilities</div></div>
-        <div className="stat-box"><div className="stat-value">{counts.Excellent??0}</div><div className="stat-label">Excellent</div></div>
-        <div className="stat-box"><div className="stat-value">{counts.Good??0}</div><div className="stat-label">Good</div></div>
-        <div className="stat-box"><div className="stat-value">{(counts.Poor??0)+(counts['Under Repair']??0)}</div><div className="stat-label">Needs Attention</div></div>
-      </div>
-
-      <div className="ap-filters">
-        <select value={category} onChange={e => setCategory(e.target.value)}>
-          <option value="">All categories</option>
-          {['Classroom','Laboratory','Dormitory','Sports','Chapel','Dining','Admin','ICT','Library','Other'].map(c=><option key={c}>{c}</option>)}
-        </select>
-      </div>
-
-      {loading && <p className="ap-loading">Loading facilities…</p>}
-      {error   && <p className="ap-error">{error}</p>}
-
-      {!loading && !error && (
-        <div className="table-container">
-          <h2>Facility Records</h2>
-          <table>
-            <thead>
-              <tr><th>Facility</th><th>Category</th><th>Location</th><th>Capacity</th><th>Condition</th></tr>
-            </thead>
-            <tbody>
-              {facilities.slice(0,100).map(f => (
-                <tr key={f._id}>
-                  <td><strong>{f.facilityName}</strong></td>
-                  <td>{f.category||'—'}</td>
-                  <td>{f.location||'—'}</td>
-                  <td>{f.capacity||'—'}</td>
-                  <td><span style={{color:COND_COLOR[f.condition]||'#6b7280',fontWeight:600}}>{f.condition}</span></td>
-                </tr>
-              ))}
-              {facilities.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No facilities found</td></tr>}
-            </tbody>
-          </table>
-        </div>
+      {logs.length > 0 && (
+        <ul className="ak-list">
+          {logs.map((l, i) => (
+            <li key={l._id || i}>
+              <div><strong>{l.description}</strong><span>{formatDate(l.date)}{l.contractor ? ` · ${l.contractor}` : ''}{l.cost != null ? ` · GH₵ ${l.cost}` : ''}</span></div>
+              <div className="ak-row-actions">
+                <select value={l.status || 'Pending'} onChange={(e) => update(logs.map((x, j) => (j === i ? { ...x, status: e.target.value } : x)))} aria-label="Status">
+                  {LOG_STATUS.map((s) => <option key={s}>{s}</option>)}
+                </select>
+                <Pill tone={LOG_TONE[l.status]}>{l.status || 'Pending'}</Pill>
+                <Button size="sm" variant="danger-ghost" onClick={() => update(logs.filter((_, j) => j !== i))} aria-label="Remove entry"><FiX /></Button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
+      <small className="ak-muted">Log changes are saved with the facility when you press Save.</small>
     </div>
   )
+}
+
+const config = {
+  title: 'Infrastructure',
+  subtitle: 'School facilities, their condition, inspections and maintenance history.',
+  notch: 'Infrastructure',
+  mode: 'infrastructure',
+  endpoint: '/api/admin/data/infrastructure',
+  listKey: 'facilities',
+  singular: 'facility',
+  searchPlaceholder: 'Facility, location or inspector…',
+  canCreate: true,
+  newRecord: { facilityName: '', category: 'Classroom', condition: 'Good', maintenanceLogs: [] },
+  filters: [
+    { key: 'category', label: 'All categories', options: CATEGORIES },
+    { key: 'condition', label: 'Any condition', options: CONDITIONS },
+  ],
+  columns: [
+    { key: 'facilityName', label: 'Facility', className: 'is-primary', render: (f) => <div className="ak-thumb-cell"><div><strong>{f.facilityName}</strong><span>{f.location || '—'}</span></div></div> },
+    { key: 'category', label: 'Category', render: (f) => f.category || '—' },
+    { key: 'capacity', label: 'Capacity', render: (f) => f.capacity ?? '—' },
+    { key: 'condition', label: 'Condition', render: (f) => <Pill tone={TONE[f.condition]}>{f.condition || '—'}</Pill> },
+    { key: 'lastInspected', label: 'Inspected', render: (f) => formatDate(f.lastInspected) },
+    { key: 'open', label: 'Open work', render: (f) => (f.maintenanceLogs || []).filter((l) => l.status !== 'Completed').length || '—' },
+  ],
+  recordTitle: (f) => f.facilityName,
+  fields: [
+    { name: 'facilityName', label: 'Name' },
+    { name: 'category', label: 'Category', type: 'select', options: CATEGORIES },
+    { name: 'location', label: 'Location' },
+    { name: 'capacity', label: 'Capacity', type: 'number' },
+    { name: 'condition', label: 'Condition', type: 'select', options: CONDITIONS },
+    { name: 'lastInspected', label: 'Last inspected', type: 'date' },
+    { name: 'inspectedBy', label: 'Inspected by' },
+  ],
+  // maintenanceLogs isn't in `fields`, so send it whenever it changed.
+  extraBody: (rec, orig) => (JSON.stringify(rec.maintenanceLogs || []) !== JSON.stringify(orig?.maintenanceLogs || []) ? { maintenanceLogs: rec.maintenanceLogs || [] } : {}),
+  extra: (record, setRecord) => <MaintenanceLogs record={record} setRecord={setRecord} />,
+}
+
+export default function Infrastructure() {
+  return <DataDirectory config={config} />
 }

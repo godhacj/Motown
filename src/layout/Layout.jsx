@@ -135,13 +135,16 @@ function Layout() {
     if (isAdminLoggedIn) {
       const alreadyHasAdmin = items.some(i => i.type === 'group' && i.title === 'Admin Portals')
       if (!alreadyHasAdmin) {
-        // Data accounts land on the page for their mode; Management gets Records.
+        // Data / Chapel accounts go to the page for their mode / stream.
         let dataHome = '/admin/data/student-data'
+        let chapelHome = '/admin/chapel/aggrey-chapel'
         try {
           const a = JSON.parse(localStorage.getItem('adminPortalSession') || 'null')
           dataHome = a?.portal === 'management' ? '/admin/data/records' : adminHome('data', a?.portal === 'data' ? a.scope : null)
-        } catch { /* keep default */ }
-        items.push({ ...ADMIN_GROUP, children: ADMIN_GROUP.children.map(c => c.title === 'Data' ? { ...c, to: dataHome } : c) })
+          chapelHome = adminHome('chapel', a?.portal === 'chapel' ? a.scope : null)
+        } catch { /* keep defaults */ }
+        const overrides = { Data: dataHome, Chapel: chapelHome }
+        items.push({ ...ADMIN_GROUP, children: ADMIN_GROUP.children.map(c => overrides[c.title] ? { ...c, to: overrides[c.title] } : c) })
       }
     }
 

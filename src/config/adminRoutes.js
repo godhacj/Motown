@@ -1,4 +1,5 @@
-// Home page for each admin portal. Data accounts are split by scope.mode.
+// Home page for each admin portal. Data accounts are split by scope.mode,
+// chapel accounts by scope.stream.
 const PORTAL_HOME = {
   house:      '/admin/house',
   academics:  '/admin/academics',
@@ -21,5 +22,6 @@ const DATA_MODE_HOME = {
 
 export function adminHome(portal, scope) {
   if (portal === 'data' && DATA_MODE_HOME[scope?.mode]) return DATA_MODE_HOME[scope.mode]
+  if (portal === 'chapel' && scope?.stream === 'Catholic') return '/admin/chapel/catholic'
   return PORTAL_HOME[portal] || '/admin/academics'
 }

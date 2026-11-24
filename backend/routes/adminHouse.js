@@ -6,6 +6,8 @@
  * GET  /api/admin/house             — all 19 houses (senior/management only)
  * GET  /api/admin/house/:id         — single house + students
  * PATCH /api/admin/house/:id/students — reassign a student to a different house
+ * POST  /api/admin/house/:id/events   — log an event + award points (senior)
+ * DELETE /api/admin/house/:id/events/:eventId — remove an event, reverse its points
  */
 
 const express  = require('express')
@@ -62,7 +64,7 @@ router.get('/mine', requireHouseOwn, async (req, res) => {
 router.get('/', requireHouseSenior, async (req, res) => {
   try {
     const houses = await AchiHouse.find()
-      .select('name type gender compound housemaster students points')
+      .select('name type gender compound housemaster students points events')
       .lean()
     // Attach student counts without loading all profiles
     const result = houses.map(h => ({ ...h, studentCount: (h.students || []).length }))
@@ -122,6 +124,49 @@ router.patch('/:id/students', requireHouseSenior, async (req, res) => {
       fromHouse:   fromHouse.name,
       toHouse:     toHouse.name,
     })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+
+// ── POST /:id/events — log a house event and award points (senior / management)
+// Body: { eventName, date, result, pointsEarned }
+router.post('/:id/events', requireHouseSenior, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid house ID' })
+    const { eventName, date, result } = req.body
+    const pointsEarned = Number(req.body.pointsEarned) || 0
+    if (!String(eventName || '').trim()) return res.status(400).json({ error: 'eventName is required' })
+    if (Math.abs(pointsEarned) > 1000) return res.status(400).json({ error: 'Points must be between -1000 and 1000' })
+    const house = await AchiHouse.findByIdAndUpdate(
+      req.params.id,
+      { $push: { events: { eventName: String(eventName).trim(), date: date || new Date(), result, pointsEarned } }, $inc: { points: pointsEarned } },
+      { new: true, runValidators: true }
+    ).select('-students').lean()
+    if (!house) return res.status(404).json({ error: 'House not found' })
+    res.status(201).json(house)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── DELETE /:id/events/:eventId — remove an event and take its points back
+router.delete('/:id/events/:eventId', requireHouseSenior, async (req, res) => {
+  try {
+    const { id, eventId } = req.params
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(eventId)) return res.status(400).json({ error: 'Invalid ID' })
+    const house = await AchiHouse.findById(id)
+    if (!house) return res.status(404).json({ error: 'House not found' })
+    const ev = house.events.id(eventId)
+    if (!ev) return res.status(404).json({ error: 'Event not found' })
+    house.points = (house.points || 0) - (ev.pointsEarned || 0)
+    house.events.pull(eventId)
+    await house.save()
+    const { students, ...rest } = house.toObject()
+    res.json(rest)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: err.message })

@@ -9,9 +9,13 @@
  * GET  /attendance/:date     — attendance for a service date
  * POST /attendance           — mark attendance for a service
  * GET  /stats                — attendance summary per stream
+ * PATCH/DELETE /services/:chapelId/:serviceId — edit / remove a service
+ * GET  /roll/:date           — attendance for a day with student names
+ * DELETE /attendance/:chapelId/:recordId — undo one attendance mark
  */
 
 const express  = require('express')
+const mongoose = require('mongoose')
 const { Chapel } = require('../schema')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 
@@ -133,6 +137,88 @@ router.get('/stats', guard, async (req, res) => {
     }))
 
     res.json({ stats })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+
+function canUseChapel(user, chapel) {
+  if (user.portal === 'management' || !user.scope?.stream) return true
+  return chapel.chapelName === (user.scope.stream === 'Aggrey' ? 'Aggrey Chapel' : 'Catholic Chapel')
+}
+
+// PATCH /api/admin/chapel/services/:chapelId/:serviceId — edit one service
+router.patch('/services/:chapelId/:serviceId', guard, async (req, res) => {
+  try {
+    const { chapelId, serviceId } = req.params
+    if (!mongoose.isValidObjectId(chapelId) || !mongoose.isValidObjectId(serviceId)) return res.status(400).json({ error: 'Invalid ID' })
+    const chapel = await Chapel.findById(chapelId)
+    if (!chapel) return res.status(404).json({ error: 'Chapel not found' })
+    if (!canUseChapel(req.adminUser, chapel)) return res.status(403).json({ error: 'Not your chapel' })
+    const svc = chapel.services.id(serviceId)
+    if (!svc) return res.status(404).json({ error: 'Service not found' })
+    for (const k of ['date', 'time', 'topic', 'speaker', 'scriptureRef']) if (req.body[k] !== undefined) svc[k] = req.body[k]
+    await chapel.save()
+    res.json(chapel.toObject())
+  } catch (err) {
+    console.error(err)
+    res.status(err.name === 'ValidationError' || err.name === 'CastError' ? 400 : 500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/admin/chapel/services/:chapelId/:serviceId
+router.delete('/services/:chapelId/:serviceId', guard, async (req, res) => {
+  try {
+    const { chapelId, serviceId } = req.params
+    if (!mongoose.isValidObjectId(chapelId) || !mongoose.isValidObjectId(serviceId)) return res.status(400).json({ error: 'Invalid ID' })
+    const chapel = await Chapel.findById(chapelId)
+    if (!chapel) return res.status(404).json({ error: 'Chapel not found' })
+    if (!canUseChapel(req.adminUser, chapel)) return res.status(403).json({ error: 'Not your chapel' })
+    chapel.services.pull(serviceId)
+    await chapel.save()
+    res.json(chapel.toObject())
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/admin/chapel/roll/:date?chapelName= — attendance for a day, with student names
+router.get('/roll/:date', guard, async (req, res) => {
+  try {
+    const target = new Date(req.params.date)
+    if (isNaN(target)) return res.status(400).json({ error: 'Invalid date' })
+    const start = new Date(target); start.setHours(0, 0, 0, 0)
+    const end = new Date(target); end.setHours(23, 59, 59, 999)
+    const filter = streamFilter(req.adminUser)
+    if (req.query.chapelName) filter.chapelName = req.query.chapelName
+    const chapels = await Chapel.find(filter).populate('attendance.studentId', 'firstName lastName studentId classLevel').lean()
+    const records = chapels.flatMap((c) => c.attendance
+      .filter((a) => a.date >= start && a.date <= end)
+      .map((a) => ({
+        ...a, chapelName: c.chapelName, chapelId: c._id,
+        student: a.studentId && { _id: a.studentId._id, name: `${a.studentId.firstName} ${a.studentId.lastName}`, studentId: a.studentId.studentId, classLevel: a.studentId.classLevel },
+      })))
+    res.json({ date: req.params.date, count: records.length, records })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/admin/chapel/attendance/:chapelId/:recordId — undo one attendance mark
+router.delete('/attendance/:chapelId/:recordId', guard, async (req, res) => {
+  try {
+    const { chapelId, recordId } = req.params
+    if (!mongoose.isValidObjectId(chapelId) || !mongoose.isValidObjectId(recordId)) return res.status(400).json({ error: 'Invalid ID' })
+    const chapel = await Chapel.findById(chapelId)
+    if (!chapel) return res.status(404).json({ error: 'Chapel not found' })
+    if (!canUseChapel(req.adminUser, chapel)) return res.status(403).json({ error: 'Not your chapel' })
+    chapel.attendance.pull(recordId)
+    await chapel.save()
+    res.json({ removed: recordId })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: err.message })

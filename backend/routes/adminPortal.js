@@ -4,11 +4,12 @@
  * Shared admin portal endpoints:
  *   POST /api/admin/login   — authenticate any AdminUser, return bearer token
  *   GET  /api/admin/me      — verify token + return current user info
+ *   GET  /api/admin/lookup/students?q= — student picker search (any admin)
  */
 
 const express  = require('express')
 const bcrypt   = require('bcryptjs')
-const { AdminUser } = require('../schema')
+const { AdminUser, Student } = require('../schema')
 const { requireAdminAny } = require('../middleware/adminAuth')
 const router   = express.Router()
 
@@ -79,6 +80,27 @@ router.patch('/password', requireAdminAny, async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// GET /api/admin/lookup/students?q= — small picker search for any admin portal
+// (Domestic, Accounts, Chapel…). Returns only identifying fields.
+router.get('/lookup/students', requireAdminAny, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim()
+    if (q.length < 2) return res.json({ items: [] })
+    const rx = new RegExp(escapeRegex(q), 'i')
+    const items = await Student.find({ $or: [{ firstName: rx }, { lastName: rx }, { studentId: rx }, { username: rx }] })
+      .select('firstName lastName studentId classLevel program passportPhoto')
+      .sort({ lastName: 1 })
+      .limit(20)
+      .lean()
+    res.json({ items: items.map((s) => ({ _id: s._id, studentId: s.studentId, name: `${s.firstName} ${s.lastName}`, classLevel: s.classLevel, program: s.program, photo: s.passportPhoto })) })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
   }
 })
 

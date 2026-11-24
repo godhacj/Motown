@@ -114,8 +114,8 @@ router.post('/:id/members', guard, async (req, res) => {
 
     const club = await Club.findByIdAndUpdate(
       req.params.id,
-      { $push: { members: { studentId, name, role: role || 'Member' } }, $inc: { totalMembers: 1 } },
-      { new: true }
+      { $push: { members: { studentId, name, role: role || 'Member', joinedDate: new Date(), status: 'Active' } }, $inc: { totalMembers: 1 } },
+      { new: true, runValidators: true }
     ).lean()
     if (!club) return res.status(404).json({ error: 'Club not found' })
     res.status(201).json(club)
@@ -135,13 +135,15 @@ router.delete('/:id/members/:memberId', guard, async (req, res) => {
     if (user.portal !== 'management' && user.scope?.club?.toString() !== req.params.id) {
       return res.status(403).json({ error: 'You do not manage this club' })
     }
-    const club = await Club.findByIdAndUpdate(
-      req.params.id,
-      { $pull: { members: { _id: req.params.memberId } }, $inc: { totalMembers: -1 } },
-      { new: true }
-    ).lean()
-    if (!club) return res.status(404).json({ error: 'Club not found' })
-    res.json({ message: 'Member removed', club })
+    const doc = await Club.findById(req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Club not found' })
+    if (!doc.members.id(req.params.memberId)) return res.status(404).json({ error: 'Member not found' })
+    doc.members.pull(req.params.memberId)
+    // totalMembers can include people not listed individually (seeded counts),
+    // so adjust it rather than recomputing from members.length.
+    doc.totalMembers = Math.max(0, (doc.totalMembers || 0) - 1)
+    await doc.save()
+    res.json({ message: 'Member removed', club: doc.toObject() })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: err.message })
