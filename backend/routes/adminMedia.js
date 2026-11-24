@@ -1,159 +1,192 @@
 /**
  * adminMedia.js — /api/admin/media/*
  *
- * Media portal manages gallery items and page posts.
- * Posts go via an Approval (media_post kind) before publishing.
+ * The Media portal owns all public-facing content: Gallery, Page posts,
+ * campus Map locations and the Badge (campus highlights).
  *
- * GET  /gallery             — list gallery items
- * POST /gallery             — create gallery item (direct, media portal)
- * PATCH /gallery/:id        — update gallery item
- * DELETE /gallery/:id       — unpublish (soft delete)
- * GET  /posts               — list page posts
- * POST /posts               — create post (direct)
- * PATCH /posts/:id          — update post
- * DELETE /posts/:id         — unpublish post
+ * Gallery
+ *   GET    /gallery                       — list (?category=&published=&q=)
+ *   POST   /gallery                       — create
+ *   PATCH  /gallery/:id                   — update
+ *   DELETE /gallery/:id                   — unpublish; ?hard=true deletes permanently
+ *   DELETE /gallery/:id/comments/:cid     — remove one comment
+ * Page posts
+ *   GET    /posts                         — list (?category=&published=&q=)
+ *   POST   /posts                         — create
+ *   PATCH  /posts/:id                     — update
+ *   DELETE /posts/:id                     — unpublish; ?hard=true deletes permanently
+ *   DELETE /posts/:id/comments/:cid       — remove one comment
+ * Map
+ *   GET    /map                           — list all locations (incl. hidden)
+ *   POST   /map                           — create
+ *   PATCH  /map/:id                       — update
+ *   DELETE /map/:id                       — delete permanently
+ * Badge (campus highlights — 8 fixed key slots, order 0–7)
+ *   GET    /highlights                    — list all 8 slots
+ *   PUT    /highlights/:order             — create or replace the slot
  */
 
 const express  = require('express')
 const mongoose = require('mongoose')
-const { GalleryItem, PagePost } = require('../schema')
+const { GalleryItem, PagePost, MapLocation, CampusHighlight } = require('../schema')
 const { requireAdminPortal } = require('../middleware/adminAuth')
 
 const router = express.Router()
-const guard  = requireAdminPortal('media')
+router.use(requireAdminPortal('media'))
 
-// ── Gallery ───────────────────────────────────────────────────────────────────
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-router.get('/gallery', guard, async (req, res) => {
+// Strip fields clients must never set directly.
+function clean(body = {}) {
+  const { _id, __v, createdAt, updatedAt, comments, likeCount, saveCount, shareCount, ...safe } = body
+  return safe
+}
+
+function validId(req, res, next) {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid ID' })
+  next()
+}
+
+// Mongoose validation / duplicate-key errors are the client's fault → 400.
+function sendError(res, err) {
+  if (err.name === 'ValidationError' || err.name === 'CastError') return res.status(400).json({ error: err.message })
+  if (err.code === 11000) return res.status(409).json({ error: 'A record with that unique value already exists' })
+  console.error(err)
+  res.status(500).json({ error: err.message })
+}
+
+// Shared list/create/update/delete for Gallery and Page posts.
+function contentRoutes(path, Model, { sortField, searchFields, label }) {
+  router.get(`/${path}`, async (req, res) => {
+    try {
+      const filter = {}
+      if (req.query.category) filter.category = req.query.category
+      if (req.query.published !== undefined && req.query.published !== '') filter.isPublished = req.query.published === 'true'
+      if (req.query.q) {
+        const rx = new RegExp(escapeRegex(String(req.query.q)), 'i')
+        filter.$or = searchFields.map((f) => ({ [f]: rx }))
+      }
+      const items = await Model.find(filter).sort({ [sortField]: -1 }).limit(500).lean()
+      res.json({ count: items.length, items })
+    } catch (err) { sendError(res, err) }
+  })
+
+  router.post(`/${path}`, async (req, res) => {
+    try {
+      const item = await Model.create(clean(req.body))
+      res.status(201).json(item)
+    } catch (err) { sendError(res, err) }
+  })
+
+  router.patch(`/${path}/:id`, validId, async (req, res) => {
+    try {
+      const item = await Model.findByIdAndUpdate(req.params.id, { $set: clean(req.body) }, { new: true, runValidators: true }).lean()
+      if (!item) return res.status(404).json({ error: `${label} not found` })
+      res.json(item)
+    } catch (err) { sendError(res, err) }
+  })
+
+  router.delete(`/${path}/:id`, validId, async (req, res) => {
+    try {
+      if (req.query.hard === 'true') {
+        const item = await Model.findByIdAndDelete(req.params.id).lean()
+        if (!item) return res.status(404).json({ error: `${label} not found` })
+        return res.json({ message: `${label} deleted`, id: req.params.id })
+      }
+      const item = await Model.findByIdAndUpdate(req.params.id, { $set: { isPublished: false } }, { new: true }).lean()
+      if (!item) return res.status(404).json({ error: `${label} not found` })
+      res.json({ message: `${label} unpublished`, item })
+    } catch (err) { sendError(res, err) }
+  })
+
+  router.delete(`/${path}/:id/comments/:cid`, validId, async (req, res) => {
+    try {
+      const item = await Model.findByIdAndUpdate(
+        req.params.id,
+        { $pull: { comments: { _id: req.params.cid } } },
+        { new: true }
+      ).lean()
+      if (!item) return res.status(404).json({ error: `${label} not found` })
+      res.json(item)
+    } catch (err) { sendError(res, err) }
+  })
+}
+
+contentRoutes('gallery', GalleryItem, { sortField: 'createdAt',   searchFields: ['title', 'description', 'publisher', 'location'], label: 'Gallery item' })
+contentRoutes('posts',   PagePost,    { sortField: 'publishedAt', searchFields: ['title', 'body', 'author', 'excerpt'],           label: 'Post' })
+
+// ── Map ───────────────────────────────────────────────────────────────────────
+
+const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
+
+function cleanLocation(body) {
+  const data = clean(body)
+  if (data.coords !== undefined) {
+    const coords = Array.isArray(data.coords) ? data.coords.map(Number) : []
+    if (coords.length !== 2 || coords.some((n) => !Number.isFinite(n)) || Math.abs(coords[0]) > 90 || Math.abs(coords[1]) > 180) {
+      const e = new Error('Coordinates must be [latitude, longitude]'); e.name = 'ValidationError'; throw e
+    }
+    data.coords = coords
+  }
+  return data
+}
+
+router.get('/map', async (req, res) => {
   try {
-    const filter = {}
-    if (req.query.category)  filter.category  = req.query.category
-    if (req.query.published !== undefined) filter.isPublished = req.query.published === 'true'
-
-    const items = await GalleryItem.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .lean()
-
+    const items = await MapLocation.find({}).sort({ name: 1 }).lean()
     res.json({ count: items.length, items })
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { sendError(res, err) }
 })
 
-router.post('/gallery', guard, async (req, res) => {
+router.post('/map', async (req, res) => {
   try {
-    const item = await GalleryItem.create(req.body)
+    const data = cleanLocation(req.body)
+    if (!data.locationId) data.locationId = `${slugify(data.name) || 'location'}-${Date.now().toString(36)}`
+    const item = await MapLocation.create(data)
     res.status(201).json(item)
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { sendError(res, err) }
 })
 
-router.patch('/gallery/:id', guard, async (req, res) => {
+router.patch('/map/:id', validId, async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid gallery item ID' })
-    }
-    const { _id, __v, ...safe } = req.body
-    const item = await GalleryItem.findByIdAndUpdate(
-      req.params.id,
-      { $set: safe },
-      { new: true, runValidators: true }
-    ).lean()
-    if (!item) return res.status(404).json({ error: 'Gallery item not found' })
+    const { locationId, ...data } = cleanLocation(req.body) // locationId is a stable public key
+    const item = await MapLocation.findByIdAndUpdate(req.params.id, { $set: data }, { new: true, runValidators: true }).lean()
+    if (!item) return res.status(404).json({ error: 'Location not found' })
     res.json(item)
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { sendError(res, err) }
 })
 
-router.delete('/gallery/:id', guard, async (req, res) => {
+router.delete('/map/:id', validId, async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid gallery item ID' })
-    }
-    const item = await GalleryItem.findByIdAndUpdate(
-      req.params.id,
-      { $set: { isPublished: false } },
-      { new: true }
+    const item = await MapLocation.findByIdAndDelete(req.params.id).lean()
+    if (!item) return res.status(404).json({ error: 'Location not found' })
+    res.json({ message: 'Location deleted', id: req.params.id })
+  } catch (err) { sendError(res, err) }
+})
+
+// ── Badge highlights ──────────────────────────────────────────────────────────
+
+router.get('/highlights', async (req, res) => {
+  try {
+    const items = await CampusHighlight.find({}).sort({ order: 1 }).lean()
+    res.json({ count: items.length, items })
+  } catch (err) { sendError(res, err) }
+})
+
+router.put('/highlights/:order', async (req, res) => {
+  try {
+    const order = Number(req.params.order)
+    if (!Number.isInteger(order) || order < 0 || order > 7) return res.status(400).json({ error: 'Slot must be 0–7' })
+    const { title, description = '', image } = req.body
+    if (!title?.trim()) return res.status(400).json({ error: 'Title is required' })
+    if (!image) return res.status(400).json({ error: 'An image is required' })
+    const item = await CampusHighlight.findOneAndUpdate(
+      { order },
+      { $set: { order, title: title.trim(), description, image } },
+      { new: true, upsert: true, runValidators: true }
     ).lean()
-    if (!item) return res.status(404).json({ error: 'Gallery item not found' })
-    res.json({ message: 'Gallery item unpublished', item })
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ── Page Posts ────────────────────────────────────────────────────────────────
-
-router.get('/posts', guard, async (req, res) => {
-  try {
-    const filter = {}
-    if (req.query.category)  filter.category  = req.query.category
-    if (req.query.published !== undefined) filter.isPublished = req.query.published === 'true'
-
-    const posts = await PagePost.find(filter)
-      .sort({ publishedAt: -1 })
-      .limit(200)
-      .lean()
-
-    res.json({ count: posts.length, posts })
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-router.post('/posts', guard, async (req, res) => {
-  try {
-    const post = await PagePost.create(req.body)
-    res.status(201).json(post)
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-router.patch('/posts/:id', guard, async (req, res) => {
-  try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid post ID' })
-    }
-    const { _id, __v, ...safe } = req.body
-    const post = await PagePost.findByIdAndUpdate(
-      req.params.id,
-      { $set: safe },
-      { new: true, runValidators: true }
-    ).lean()
-    if (!post) return res.status(404).json({ error: 'Post not found' })
-    res.json(post)
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-router.delete('/posts/:id', guard, async (req, res) => {
-  try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid post ID' })
-    }
-    const post = await PagePost.findByIdAndUpdate(
-      req.params.id,
-      { $set: { isPublished: false } },
-      { new: true }
-    ).lean()
-    if (!post) return res.status(404).json({ error: 'Post not found' })
-    res.json({ message: 'Post unpublished', post })
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: err.message })
-  }
+    res.json(item)
+  } catch (err) { sendError(res, err) }
 })
 
 module.exports = router

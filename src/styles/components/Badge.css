@@ -12,61 +12,80 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100%;
   position: relative;
 }
 
-/* ===================== BADGE SVG ===================== */
-.shield-svg {
-  /*
-    Target: fill ~55% of viewport width on mid screens, capped at 31em on
-    desktop and floored at 18em so it never shrinks too small.
-    The 55vw sweet-spot keeps it large between 400px–1000px.
-  */
-  width: clamp(18em, 55vw, 31em);
-  height: auto;
-  display: block;
+/* ===================== SHIELD (HTML, see BadgeShield.jsx) ===================== */
+.bshield {
   position: relative;
-  z-index: 1;
+  aspect-ratio: 300 / 360;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
 }
 
-/* SVG internal container (rendered inside foreignObject) */
-.badge-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
+/* Fallback for browsers without aspect-ratio (Safari < 15) */
+@supports not (aspect-ratio: 1) {
+  .bshield { height: 0; padding-top: 120%; }
 }
 
-.badge-container .top {
-  width: 100%;
-  height: 12%;
-  position: relative;
+.badge-shield {
+  /* ~55vw between 400–1000px, capped at 31em, and never taller than ~62% of
+     the viewport so the motto stays visible on short / landscape screens. */
+  width: min(clamp(18em, 55vw, 31em), 52vh);
+  width: min(clamp(18em, 55vw, 31em), 52dvh);
 }
 
-.badge-container .top::before {
-  content: '';
+.bshield__face {
   position: absolute;
   inset: 0;
-  background-color: var(--color-text-primary);
-  opacity: 1;
-  z-index: -1;
-}
-
-.badge-container .bottom {
-  width: 100%;
-  height: 88%;
   display: flex;
+  flex-direction: column;
 }
 
-.badge-container .bottom .key {
-  width: 12.5%;
-  border: 2px solid var(--color-text-primary);
+.bshield__outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.bshield__top {
+  height: 12%;
+  flex-shrink: 0;
+  background: var(--color-text-primary);
+}
+
+.bshield__keys {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.bshield__key {
+  /* reset button defaults (keys are buttons on the live badge) */
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  border-radius: 0;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+
   position: relative;
-  transition: background-color 0.2s ease;
+  flex: 1 1 12.5%;
+  min-width: 0;
+  border: 2px solid var(--color-text-primary);
   cursor: pointer;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
 }
 
-.badge-container .bottom .key::before {
+div.bshield__key { cursor: default; }
+
+.bshield__key::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -75,26 +94,36 @@
   z-index: -1;
 }
 
-.badge-container .bottom .key:hover {
-  background: var(--background-hover);
+@media (hover: hover) {
+  button.bshield__key:hover { background: var(--background-hover); }
+}
+.bshield__key.is-active { background: var(--background-hover); }
+.bshield__key:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: -5px;
+  z-index: 30;
 }
 
-.badge-container .bottom .key .key-hole {
+/* The bar + V-notch that joins keys 2–3, 4–5, 6–7 */
+.bshield__hole {
   position: absolute;
+  top: 0;
+  left: 50%;
   width: 100%;
   height: 45%;
-  left: 50%;
   background: var(--color-text-primary);
   z-index: 20;
+  pointer-events: none;
 }
 
-.badge-container .bottom .key .key-hole div {
+.bshield__hole > span {
   position: absolute;
-  bottom: -17.5%;
+  bottom: -17%;
   left: 1%;
   width: 100%;
-  height: 1.6em;
+  height: 18%;
   background: var(--color-text-primary);
+  -webkit-clip-path: polygon(50% 100%, 0 0, 100% 0);
   clip-path: polygon(50% 100%, 0 0, 100% 0);
 }
 
@@ -112,67 +141,55 @@
   font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: 0.04em;
-  /* Allow wrapping on very narrow screens instead of overflowing */
   word-break: break-word;
+  -webkit-hyphens: auto;
   hyphens: auto;
 }
 
-/* ===================== POPUP ===================== */
+/* ===================== POPUP (portalled to <body>) ===================== */
 .badge-popup {
   position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  width: clamp(18em, 30vw, 26em);
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
   color: var(--color-text-primary);
+  background: var(--background-elevated);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
-  z-index: 999;
-  background: var(--background-elevated);
-  width: clamp(18em, 30vw, 30em);
-  height: clamp(26em, 42vh, 40em);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  touch-action: none;
-  cursor: grab;
-  animation: popupAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
   overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  animation: popupAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
-.badge-popup:active {
-  cursor: grabbing;
-}
+.badge-popup.is-dragging { cursor: grabbing; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34); }
 
-/* ===================== POPUP ANIMATIONS ===================== */
 @keyframes popupAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.92) translateY(-10px); }
+  to   { opacity: 1; transform: none; }
 }
 
-.badge-popup.fade-out {
-  animation: popupDisappear 0.18s ease-in forwards;
-}
+.badge-popup.fade-out { animation: popupDisappear 0.2s ease-in forwards; pointer-events: none; }
 
 @keyframes popupDisappear {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.9);
-  }
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.92); }
 }
 
-/* ===================== POPUP HEADER ===================== */
 .badge-popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -186,46 +203,60 @@
 }
 
 .badge-popup-header button {
-  background: var(--background-hover);
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
-  cursor: pointer;
-  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--background-hover);
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  cursor: pointer;
   transition: background 0.15s ease;
 }
 
-.badge-popup-header button:hover {
-  background: var(--border-color);
+.badge-popup-header button:hover { background: var(--border-color); }
+
+.badge-popup__media {
+  flex-shrink: 1;
+  min-height: 120px;
+  aspect-ratio: 4 / 3;
+  background: var(--background-hover);
+  overflow: hidden;
 }
 
-/* ===================== IMAGE ===================== */
-.badge-popup img {
+.badge-popup__media img {
   width: 100%;
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   object-fit: cover;
   display: block;
   pointer-events: none;
+  -webkit-user-drag: none; /* Safari would otherwise start a native image drag */
 }
 
-/* ===================== TEXT ===================== */
-.badge-popup p {
+/* Text scrolls on its own and stays selectable */
+.badge-popup__body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  cursor: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.badge-popup__body p {
   margin: 0;
-  padding: 10px 16px;
+  padding: 12px 16px;
   font-size: 0.875rem;
+  line-height: 1.55;
   color: var(--color-text-secondary);
-  line-height: 1.5;
-  flex-shrink: 0;
 }
 
-/* ===================== ACTION BUTTONS ===================== */
 .badge-popup-actions {
   display: flex;
   justify-content: flex-end;
@@ -240,13 +271,15 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 44px;
+  min-height: 38px;
   padding: 8px 14px;
   border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   background: var(--background-subtle);
   color: var(--color-text-secondary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
   font-size: 0.9rem;
+  cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
@@ -262,106 +295,71 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-.badge-popup-actions button.liked:hover {
-  background: rgba(239, 68, 68, 0.18);
+/* ===================== BOTTOM SHEET (≤ 600px) ===================== */
+.badge-popup.is-sheet {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 100%;
+  max-height: 85vh;
+  max-height: 85dvh;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 0;
+  cursor: default;
+  padding-bottom: env(safe-area-inset-bottom);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: sheetUp 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 
-/* ===================== MOBILE — bottom sheet ===================== */
+.badge-popup.is-sheet.is-dragging { transition: none; }
+.badge-popup.is-sheet.fade-out { animation: sheetDown 0.2s ease-in forwards; }
+
+@keyframes sheetUp   { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetDown { from { opacity: 1; } to { opacity: 0; transform: translateY(100%); } }
+
+.badge-popup__handle {
+  width: 40px;
+  height: 5px;
+  margin: 10px auto 0;
+  border-radius: 3px;
+  background: var(--border-color-strong, var(--border-color));
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.badge-popup.is-sheet .badge-popup__media {
+  aspect-ratio: 16 / 10;
+  max-height: 38vh;
+  max-height: 38dvh;
+}
+
+/* ===================== RESPONSIVE SIZING ===================== */
 @media (max-width: 600px) {
-  /* Let the global clamp handle sizing — no override needed here */
-
-  .motto span {
-    font-size: clamp(1rem, 5vw, 1.8rem);
-  }
-
-  /* On mobile the popup becomes a bottom sheet */
-  .badge-popup {
-    position: fixed;
-    left: 0 !important;
-    right: 0;
-    bottom: 0 !important;
-    top: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    max-height: 85vh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    cursor: default;
-    animation: sheetUp 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
-  }
-
-  .badge-popup:active {
-    cursor: default;
-  }
-
-  @keyframes sheetUp {
-    from {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .badge-popup.fade-out {
-    animation: sheetDown 0.2s ease-in forwards;
-  }
-
-  @keyframes sheetDown {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-  }
-
-  /* Pull indicator */
-  .badge-popup::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border-color);
-    border-radius: 2px;
-    margin: 10px auto 0;
-    flex-shrink: 0;
-  }
-
-  .badge-popup img {
-    max-height: 40vh;
-    flex: none;
-  }
+  .motto span { font-size: clamp(1rem, 5vw, 1.8rem); }
 }
 
 @media (max-width: 480px) {
-  .shield-svg {
-    /* Cap the badge so motto stays visible without scrolling */
-    width: clamp(12em, 60vw, 16em);
-  }
-
-  .motto span {
-    font-size: clamp(0.9rem, 4.5vw, 1.4rem);
-  }
+  .badge-shield { width: min(clamp(12em, 60vw, 16em), 52vh); width: min(clamp(12em, 60vw, 16em), 52dvh); }
+  .motto span { font-size: clamp(0.9rem, 4.5vw, 1.4rem); }
 }
 
 @media (max-width: 400px) {
-  /* Badge: 20% larger than the 480px breakpoint's clamp(11em, 58vw, 14em).
-     At 360px this gives ~251px; at 390px ~271px — both clear of the viewport. */
-  .shield-svg {
-    width: clamp(13.2em, 69.6vw, 16.8em);
-  }
-
-  /* Exactly 8px gap between badge and motto; override the calc() default. */
-  .motto {
-    margin-top: 8px;
-  }
-
-  /* 1.1rem fits "Ut Omnes Unum Sint" on one line at 360px with room to spare. */
-  .motto span {
-    font-size: 1.1rem;
-  }
+  .badge-shield { width: min(clamp(13.2em, 69.6vw, 16.8em), 52vh); width: min(clamp(13.2em, 69.6vw, 16.8em), 52dvh); }
+  .motto { margin-top: 8px; }
+  .motto span { font-size: 1.1rem; }
 }
+
+/* Landscape phones: short viewport, let height drive the size */
+@media (max-height: 500px) and (orientation: landscape) {
+  .badge-shield { width: min(18em, 58vh); width: min(18em, 58dvh); }
+  .motto { margin-top: 4px; }
+  .motto span { font-size: clamp(0.9rem, 4vh, 1.3rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-popup, .badge-popup.is-sheet, .badge-popup.fade-out, .badge-popup.is-sheet.fade-out { animation-duration: 0.01ms; transition: none; }
+}
+
+/* Small static icon variant */
+.badge-icon__shield .bshield__key { border-width: 1px; }

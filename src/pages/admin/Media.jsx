@@ -1,99 +1,52 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
+import { FiImage, FiFileText, FiMap, FiShield } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
-import { useAdminAuth } from '../../contexts/AdminAuthContext'
+import { Tabs, Notice } from '../../components/admin/AdminKit'
+import { useNotice } from '../../components/admin/adminUtils'
+import GalleryTab from './media/GalleryTab'
+import PostsTab from './media/PostsTab'
+import MapTab from './media/MapTab'
+import BadgeTab from './media/BadgeTab'
 import '../../styles/PageContent.css'
 
+const TAB_KEY = 'adminMediaTab'
+const readTab = () => { try { return localStorage.getItem(TAB_KEY) || 'gallery' } catch { return 'gallery' } }
+
 export default function Media() {
-  const session = useAdminPortal('Media', 'Search posts…')
-  const { apiFetch } = useAdminAuth()
+  const session = useAdminPortal('Media', null)
+  const [tab, setTabState] = useState(readTab)
+  const [counts, setCounts] = useState({})
+  const [notice, notify, clearNotice] = useNotice()
 
-  const [gallery,  setGallery]  = useState([])
-  const [posts,    setPosts]    = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState('')
-  const [tab,      setTab]      = useState('posts')
+  const setTab = (t) => { setTabState(t); try { localStorage.setItem(TAB_KEY, t) } catch { /* private mode */ } }
+  const setCount = (key, n) => setCounts((c) => (c[key] === n ? c : { ...c, [key]: n }))
+  const galleryCount = useCallback((n) => setCount('gallery', n), [])
+  const postsCount = useCallback((n) => setCount('posts', n), [])
+  const mapCount = useCallback((n) => setCount('map', n), [])
 
-  useEffect(() => {
-    if (!session) return
-    Promise.all([
-      apiFetch('/api/admin/media/gallery'),
-      apiFetch('/api/admin/media/posts'),
-    ])
-      .then(([gData, pData]) => {
-        setGallery(gData.items || [])
-        setPosts(pData.posts || [])
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [session])
+  if (!session) return null
+
+  const tabs = [
+    { id: 'gallery', label: 'Gallery', icon: FiImage, count: counts.gallery },
+    { id: 'posts', label: 'Page', icon: FiFileText, count: counts.posts },
+    { id: 'map', label: 'Map', icon: FiMap, count: counts.map },
+    { id: 'badge', label: 'Badge', icon: FiShield },
+  ]
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>Media</h1>
-        <p>Gallery items and page posts</p>
+        <p>Manage everything visitors see on the Gallery, Page, Map and home-page Badge.</p>
       </div>
 
-      <div className="stats-section">
-        <div className="stat-box"><div className="stat-value">{posts.length}</div><div className="stat-label">Posts</div></div>
-        <div className="stat-box"><div className="stat-value">{posts.filter(p=>p.isPublished).length}</div><div className="stat-label">Published</div></div>
-        <div className="stat-box"><div className="stat-value">{gallery.length}</div><div className="stat-label">Gallery Items</div></div>
-        <div className="stat-box"><div className="stat-value">{gallery.filter(g=>g.isPublished).length}</div><div className="stat-label">Gallery Published</div></div>
-      </div>
+      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+      <Notice notice={notice} onClose={clearNotice} />
 
-      <div className="ap-filters">
-        <button className={`page-button${tab==='posts'?'':' ap-tab-inactive'}`} onClick={()=>setTab('posts')}>Posts</button>
-        <button className={`page-button${tab==='gallery'?'':' ap-tab-inactive'}`} onClick={()=>setTab('gallery')}>Gallery</button>
-      </div>
-
-      {loading && <p className="ap-loading">Loading…</p>}
-      {error   && <p className="ap-error">{error}</p>}
-
-      {!loading && !error && tab === 'posts' && (
-        <div className="table-container">
-          <h2>Page Posts</h2>
-          <table>
-            <thead>
-              <tr><th>Title</th><th>Category</th><th>Author</th><th>Published</th><th>Date</th></tr>
-            </thead>
-            <tbody>
-              {posts.slice(0,100).map(p => (
-                <tr key={p._id}>
-                  <td><strong>{p.title}</strong></td>
-                  <td>{p.category||'—'}</td>
-                  <td>{p.author||'—'}</td>
-                  <td><span style={{color:p.isPublished?'#10b981':'#6b7280',fontWeight:600}}>{p.isPublished?'Yes':'No'}</span></td>
-                  <td>{new Date(p.publishedAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-              {posts.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No posts found</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {!loading && !error && tab === 'gallery' && (
-        <div className="table-container">
-          <h2>Gallery Items</h2>
-          <table>
-            <thead>
-              <tr><th>Title</th><th>Category</th><th>Type</th><th>Publisher</th><th>Published</th></tr>
-            </thead>
-            <tbody>
-              {gallery.slice(0,100).map(g => (
-                <tr key={g._id}>
-                  <td><strong>{g.title}</strong></td>
-                  <td>{g.category||'—'}</td>
-                  <td style={{textTransform:'capitalize'}}>{g.type}</td>
-                  <td>{g.publisher||'—'}</td>
-                  <td><span style={{color:g.isPublished?'#10b981':'#6b7280',fontWeight:600}}>{g.isPublished?'Yes':'No'}</span></td>
-                </tr>
-              ))}
-              {gallery.length===0 && <tr><td colSpan={5} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No gallery items found</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {tab === 'gallery' && <GalleryTab notify={notify} onCount={galleryCount} />}
+      {tab === 'posts' && <PostsTab notify={notify} onCount={postsCount} />}
+      {tab === 'map' && <MapTab notify={notify} onCount={mapCount} />}
+      {tab === 'badge' && <BadgeTab notify={notify} />}
     </div>
   )
 }

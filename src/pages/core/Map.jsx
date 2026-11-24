@@ -4,7 +4,17 @@ import L from 'leaflet'
 import { useOutletContext } from 'react-router-dom'
 import { FiX, FiNavigation, FiHome, FiPlus, FiMinus, FiLayers } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
-import { LOCATIONS, SCHOOL_CENTER, SCHOOL_BOUNDS, CATEGORY_META } from './files/mapLocations'
+import { LOCATIONS as FALLBACK_LOCATIONS, SCHOOL_CENTER, SCHOOL_BOUNDS, CATEGORY_META } from './files/mapLocations'
+import API from '../../config/api'
+
+// DB rows → the shape the map components use. locationId is the stable public key.
+const normaliseLocation = (l) => ({
+  id: l.locationId || l._id,
+  name: l.name,
+  coords: l.coords,
+  category: l.category,
+  description: l.description,
+})
 import 'leaflet/dist/leaflet.css'
 import '../../styles/core/Map.css'
 
@@ -94,6 +104,20 @@ export default function Map() {
   const [filterCat,   setFilterCat]   = useState(null)   // null = all
   const [flyTo,       setFlyTo]       = useState(null)
   const [panelOpen,   setPanelOpen]   = useState(false)  // mobile: detail panel
+  const [locations,   setLocations]   = useState(FALLBACK_LOCATIONS)
+
+  // Live locations managed from Admin → Media → Map; static file if the API is down/empty.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/api/map-locations`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => {
+        if (cancelled || !Array.isArray(data) || !data.length) return
+        setLocations(data.filter(l => Array.isArray(l.coords) && l.coords.length === 2).map(normaliseLocation))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const mapRef        = useRef(null)
   const clearInputRef = useRef(null)
 
@@ -124,22 +148,22 @@ export default function Map() {
   // ── Filtered locations ─────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return LOCATIONS.filter(loc => {
+    return locations.filter(loc => {
       const matchCat = !filterCat || loc.category === filterCat
       const matchQ   = !q || loc.name.toLowerCase().includes(q)
       return matchCat && matchQ
     })
-  }, [query, filterCat])
+  }, [query, filterCat, locations])
 
   // ── Per-marker icons (rebuild when active selection changes) ──────────
   const icons = useMemo(() => {
     const map = { _default: makeIcon('#94a3b8') }
-    LOCATIONS.forEach(loc => {
+    locations.forEach(loc => {
       const color = CATEGORY_META[loc.category]?.color ?? '#94a3b8'
       map[loc.id] = makeIcon(color, selected?.id === loc.id)
     })
     return map
-  }, [selected])
+  }, [selected, locations])
 
   // ── Select a location ─────────────────────────────────────────────────
   const selectLocation = useCallback((loc) => {
@@ -322,7 +346,7 @@ export default function Map() {
 
       {/* ── Location count badge ── */}
       <div className="map-count-badge">
-        {filtered.length} / {LOCATIONS.length} locations
+        {filtered.length} / {locations.length} locations
       </div>
     </div>
   )

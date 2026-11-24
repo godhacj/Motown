@@ -262,4 +262,5 @@ export const CATEGORY_META = {
   dining:      { label: 'Dining',      color: '#f97316' },
   worship:     { label: 'Worship',     color: '#eab308' },
   facility:    { label: 'Facility',    color: '#14b8a6' },
+  admin:       { label: 'Administration', color: '#64748b' },
 }

@@ -1,237 +1,297 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { keyData as FALLBACK_KEY_DATA } from './files/badge_keyData.js';
-import { Icons } from '../assets/icons.js';
-import { useNotch } from '../contexts/NotchContext.jsx';
-import API from '../config/api';
-import '../styles/components/Badge.css';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { keyData as FALLBACK_KEY_DATA } from './files/badge_keyData.js'
+import { Icons } from '../assets/icons.js'
+import { useNotch } from '../contexts/NotchContext.jsx'
+import BadgeShield from './BadgeShield.jsx'
+import API from '../config/api'
+import '../styles/components/Badge.css'
+
+const SHEET_QUERY = '(max-width: 600px)'
+const GAP = 16
+const EDGE = 8
+const CLOSE_MS = 200
+const DISMISS_DRAG = 90 // px a bottom sheet must be pulled down to close
 
 function normalise(item) {
   return {
     title: item.title,
     description: item.description,
     image: item.image?.startsWith('/media/') ? `${API}${item.image}` : item.image,
-  };
+  }
 }
 
+function useMediaQuery(query) {
+  const get = () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  const [matches, setMatches] = useState(get)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = () => setMatches(mq.matches)
+    onChange()
+    // Safari < 14 only has the deprecated addListener API.
+    if (mq.addEventListener) mq.addEventListener('change', onChange)
+    else mq.addListener(onChange)
+    return () => (mq.removeEventListener ? mq.removeEventListener('change', onChange) : mq.removeListener(onChange))
+  }, [query])
+  return matches
+}
+
+const clamp = (v, min, max) => Math.max(min, Math.min(v, Math.max(min, max)))
+
 export default function Badge({ className = '', isLoading = false }) {
-  const { setNotchText } = useNotch();
-  const [popup, setPopup] = useState(null);
-  const [liked, setLiked] = useState({});
-  const [keyData, setKeyData] = useState(FALLBACK_KEY_DATA);
+  const { setNotchText } = useNotch()
+  const [keyData, setKeyData] = useState(FALLBACK_KEY_DATA)
+  const [popup, setPopup] = useState(null)      // { index, anchor: DOMRect }
+  const [closing, setClosing] = useState(false)
+  const [liked, setLiked] = useState({})
+  const isSheet = useMediaQuery(SHEET_QUERY)
 
-  const popupRef = useRef(null);
-  const draggingRef = useRef(false);
-  const offsetRef = useRef({ x: 0, y: 0 });
+  const popupRef = useRef(null)
+  const posRef = useRef({ x: 0, y: 0 })          // desktop: top-left in px
+  const dragRef = useRef(null)                   // active drag state
+  const closeTimer = useRef()
+  const keyRefs = useRef([])
 
-  // Fetch campus highlights from API, fall back to static file if backend is down
+  // Campus highlights from the API (managed in Admin → Media → Badge).
+  // Any slot the admin hasn't filled keeps its built-in placeholder.
   useEffect(() => {
     let cancelled = false
     fetch(`${API}/api/campus-highlights`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        if (cancelled || !Array.isArray(data) || data.length === 0) return
-        setKeyData(data.map(normalise))
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (cancelled || !Array.isArray(data) || !data.length) return
+        const merged = FALLBACK_KEY_DATA.map((f) => ({ ...f }))
+        data.forEach((h) => { if (h.order >= 0 && h.order < 8) merged[h.order] = normalise(h) })
+        setKeyData(merged)
       })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
-  //Open Pop up function
+  // ── Positioning ────────────────────────────────────────────────────────────
+  const applyPosition = useCallback(() => {
+    const el = popupRef.current
+    if (!el) return
+    if (isSheet) { el.style.transform = ''; el.style.left = ''; el.style.top = ''; return }
+    // left/top rather than transform: the open/close keyframes animate
+    // transform and would otherwise override the position mid-animation.
+    const { x, y } = posRef.current
+    el.style.left = `${Math.round(x)}px`
+    el.style.top = `${Math.round(y)}px`
+  }, [isSheet])
 
-  const handleKeyClick = (e, index) => {
-    e.stopPropagation();
-
-    const keyRect = e.currentTarget.getBoundingClientRect();
-    const POPUP_WIDTH = 480; // ~30em
-    const POPUP_HEIGHT = 640; // ~40em
-    const GAP = 16;
-
-    let x;
-    let y = keyRect.top + keyRect.height / 2 - POPUP_HEIGHT / 2;
-
-    if (index < 4) x = keyRect.left - POPUP_WIDTH; // left keys → right popup
-    else x = keyRect.right + GAP; // right keys → left popup
-
-    // Clamp to viewport
-    x = Math.max(8, Math.min(x, window.innerWidth - POPUP_WIDTH - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - POPUP_HEIGHT - 8));
-
-    setPopup({ index, x, y });
-  };
-
-  // ===================== CLOSE POPUP =====================
-  const closePopup = () => {
-    const el = popupRef.current;
-    if (!el) {
-      setPopup(null);
-      return;
+  const clampToViewport = useCallback(() => {
+    const el = popupRef.current
+    if (!el) return
+    const w = el.offsetWidth, h = el.offsetHeight
+    posRef.current = {
+      x: clamp(posRef.current.x, EDGE, window.innerWidth - w - EDGE),
+      y: clamp(posRef.current.y, EDGE, window.innerHeight - h - EDGE),
     }
+  }, [])
 
-    el.classList.add('fade-out');
-    setTimeout(() => setPopup(null), 200);
-  };
-
-  // ===================== LIKE / SHARE =====================
-  const toggleLike = (e) => {
-    e.stopPropagation();
-    setLiked(prev => ({
-      ...prev,
-      [popup.index]: !prev[popup.index]
-    }));
-  };
-
-  const handleShare = (e) => {
-    e.stopPropagation();
-    const item = keyData[popup.index];
-    if (navigator.share) {
-      navigator.share({ title: item.title, text: item.description }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(item.title + ' — ' + item.description).catch(() => {});
+  // Place the popup beside its key once we know its real size.
+  useLayoutEffect(() => {
+    if (!popup || isSheet || !popupRef.current) { applyPosition(); return }
+    const el = popupRef.current
+    const r = popup.anchor
+    const w = el.offsetWidth, h = el.offsetHeight
+    const leftSide = popup.index < 4
+    posRef.current = {
+      x: leftSide ? r.left - w - GAP : r.right + GAP,
+      y: r.top + r.height / 2 - h / 2,
     }
-  };
+    clampToViewport()
+    applyPosition()
+  }, [popup, isSheet, applyPosition, clampToViewport])
 
-  // ===================== DRAG =====================
-  const handlePointerDown = (e) => {
-    if (e.target.closest('button') || e.target.closest('.badge-popup-actions')) return;
-    if (!popupRef.current) return;
-
-    const rect = popupRef.current.getBoundingClientRect();
-    draggingRef.current = true;
-    offsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    popupRef.current.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!draggingRef.current || !popupRef.current) return;
-
-    let x = e.clientX - offsetRef.current.x;
-    let y = e.clientY - offsetRef.current.y;
-
-    const el = popupRef.current;
-    const maxX = window.innerWidth - el.offsetWidth;
-    const maxY = window.innerHeight - el.offsetHeight;
-
-    x = Math.max(0, Math.min(x, maxX));
-    y = Math.max(0, Math.min(y, maxY));
-
-    setPopup(prev => ({ ...prev, x, y }));
-  };
-
-  const handlePointerUp = (e) => {
-    draggingRef.current = false;
-    if (!popupRef.current) return;
-
-    try { popupRef.current.releasePointerCapture(e.pointerId); } catch {}
-  };
-
-  // ===================== CLICK OUTSIDE =====================
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (popupRef.current && !popupRef.current.contains(e.target)) closePopup();
-    };
+    if (!popup) return
+    const onResize = () => { clampToViewport(); applyPosition() }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [popup, clampToViewport, applyPosition])
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+  // ── Open / close ───────────────────────────────────────────────────────────
+  const open = (index, target) => {
+    clearTimeout(closeTimer.current)
+    setClosing(false)
+    setPopup({ index, anchor: target.getBoundingClientRect() })
+    setNotchText(keyData[index].title)
+  }
 
+  const close = useCallback(() => {
+    if (!popupRef.current) { setPopup(null); return }
+    setClosing(true)
+    clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => {
+      setPopup(null)
+      setClosing(false)
+      setNotchText('Badge')
+    }, CLOSE_MS)
+  }, [setNotchText])
+
+  useEffect(() => () => clearTimeout(closeTimer.current), [])
+
+  // Outside press + Escape. Pressing another key is not "outside": it switches.
+  useEffect(() => {
+    if (!popup) return
+    const onDown = (e) => {
+      if (popupRef.current?.contains(e.target)) return
+      if (keyRefs.current.some((k) => k?.contains(e.target))) return
+      close()
+    }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const idx = popup.index
+      close()
+      keyRefs.current[idx]?.focus()
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [popup]);
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [popup, close])
 
-  // ===================== KEYS =====================
-  const keys = Array.from({ length: 8 }, (_, i) => (
-    <div
-      key={i}
-      className={`key ${isLoading ? 'loading-key' : ''}`}
-      onClick={(e) => handleKeyClick(e, i)}
-      onMouseEnter={() => setNotchText(keyData[i].title)}
-      onMouseLeave={() => setNotchText('Badge')}
-    >
-      {[1, 3, 5].includes(i) && (
-        <div className="key-hole"><div /></div>
-      )}
-    </div>
-  ));
+  // ── Drag ───────────────────────────────────────────────────────────────────
+  // Desktop: drag anywhere except controls, moves freely inside the viewport.
+  // Sheet:   drag the handle/header down; past DISMISS_DRAG (or a quick flick) closes.
+  const onPointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return
+    if (e.target.closest('button, a, .badge-popup__body')) return
+    const el = popupRef.current
+    if (!el) return
+    dragRef.current = {
+      id: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origin: { ...posRef.current },
+      t: performance.now(),
+      dy: 0,
+    }
+    try { el.setPointerCapture(e.pointerId) } catch { /* older Safari */ }
+    el.classList.add('is-dragging')
+    e.preventDefault() // stops Safari's text-selection / image-drag gestures
+  }
+
+  const onPointerMove = (e) => {
+    const d = dragRef.current
+    const el = popupRef.current
+    if (!d || d.id !== e.pointerId || !el) return
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    if (isSheet) {
+      d.dy = Math.max(0, dy)
+      el.style.transform = `translate3d(0, ${d.dy}px, 0)`
+      return
+    }
+    posRef.current = { x: d.origin.x + dx, y: d.origin.y + dy }
+    clampToViewport()
+    applyPosition()
+  }
+
+  const endDrag = (e) => {
+    const d = dragRef.current
+    const el = popupRef.current
+    if (!d || d.id !== e.pointerId) return
+    dragRef.current = null
+    try { el?.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    el?.classList.remove('is-dragging')
+    if (isSheet && el) {
+      const velocity = d.dy / Math.max(1, performance.now() - d.t)
+      if (d.dy > DISMISS_DRAG || velocity > 0.6) close()
+      else el.style.transform = ''
+    }
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+  const toggleLike = () => setLiked((prev) => ({ ...prev, [popup.index]: !prev[popup.index] }))
+
+  const handleShare = () => {
+    const item = keyData[popup.index]
+    const text = `${item.title} — ${item.description}`
+    if (navigator.share) navigator.share({ title: item.title, text, url: window.location.href }).catch(() => {})
+    else navigator.clipboard?.writeText(`${text}\n${window.location.href}`).catch(() => {})
+  }
+
+  const item = popup ? keyData[popup.index] : null
+  const titleId = 'badge-popup-title'
 
   return (
     <div className={`badge-container ${className}`}>
       <div className="badge-cover">
-        <svg
-          className="shield-svg"
-          viewBox="0 0 300 360"
-          xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <defs>
-            <clipPath id="shield-clip">
-              <path d="M20,0 H280 Q290,0 290,20 V220 Q290,280 150,350 Q10,280 10,220 V20 Q10,0 20,0 Z" />
-            </clipPath>
-          </defs>
-
-          <path
-            d="M20,0 H280 Q290,0 290,20 V220 Q290,280 150,350 Q10,280 10,220 V20 Q10,0 20,0 Z"
-            fill="none"
-            stroke="var(--color-text-primary)"
-            strokeWidth="4"
-          />
-
-          <foreignObject
-            x="0"
-            y="0"
-            width="300"
-            height="360"
-            clipPath="url(#shield-clip)"
-          >
-            <div className="badge-container">
-              <div className="top" />
-              <div className="bottom">{keys}</div>
-            </div>
-          </foreignObject>
-        </svg>
-
-        {popup && (
-          <div
-            ref={popupRef}
-            className={`badge-popup badge-popup-key-${popup.index}`}
-            style={{ left: popup.x, top: popup.y }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-          >
-            <div className="badge-popup-header">
-              <h3>{keyData[popup.index].title}</h3>
-              <button onClick={closePopup}>×</button>
-            </div>
-
-            <img
-              src={keyData[popup.index].image}
-              alt={keyData[popup.index].title}
-              draggable={false}
-            />
-
-            <p>{keyData[popup.index].description}</p>
-
-            <div className="badge-popup-actions">
-              <button
-                onClick={toggleLike}
-                className={liked[popup.index] ? 'liked' : ''}
-                aria-label={liked[popup.index] ? 'Unlike' : 'Like'}
-              >
-                {liked[popup.index] ? <Icons.heartFill /> : <Icons.heart />}
-              </button>
-
-              <button onClick={handleShare} aria-label="Share">
-                <Icons.share />
-              </button>
-            </div>
-          </div>
-        )}
+        <BadgeShield
+          className="badge-shield"
+          keyClassName={isLoading ? 'loading-key' : ''}
+          label={isLoading ? undefined : 'Campus highlights'}
+          renderKey={isLoading ? undefined : (i, { className: cls, children }) => (
+            <button
+              key={i}
+              ref={(el) => { keyRefs.current[i] = el }}
+              type="button"
+              className={`${cls}${popup?.index === i && !closing ? ' is-active' : ''}`}
+              aria-label={keyData[i].title}
+              aria-haspopup="dialog"
+              aria-expanded={popup?.index === i}
+              onClick={(e) => (popup?.index === i && !closing ? close() : open(i, e.currentTarget))}
+              onMouseEnter={() => setNotchText(keyData[i].title)}
+              onMouseLeave={() => !popup && setNotchText('Badge')}
+              onFocus={() => setNotchText(keyData[i].title)}
+            >
+              {children}
+            </button>
+          )}
+        />
       </div>
 
       <div className="motto">
         <span>Ut Omnes Unum Sint</span>
       </div>
+
+      {item && createPortal(
+        <div
+          ref={popupRef}
+          className={`badge-popup${isSheet ? ' is-sheet' : ''}${closing ? ' fade-out' : ''}`}
+          role="dialog"
+          aria-labelledby={titleId}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
+          {isSheet && <div className="badge-popup__handle" aria-hidden="true" />}
+          <div className="badge-popup-header">
+            <h3 id={titleId}>{item.title}</h3>
+            <button type="button" onClick={close} aria-label="Close">×</button>
+          </div>
+
+          <div className="badge-popup__media">
+            <img src={item.image} alt={item.title} draggable={false} />
+          </div>
+
+          <div className="badge-popup__body">
+            <p>{item.description}</p>
+          </div>
+
+          <div className="badge-popup-actions">
+            <button
+              type="button"
+              onClick={toggleLike}
+              className={liked[popup.index] ? 'liked' : ''}
+              aria-pressed={!!liked[popup.index]}
+              aria-label={liked[popup.index] ? 'Unlike' : 'Like'}
+            >
+              {liked[popup.index] ? <Icons.heartFill /> : <Icons.heart />}
+            </button>
+            <button type="button" onClick={handleShare} aria-label="Share">
+              <Icons.share />
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
-  );
+  )
 }
