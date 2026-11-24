@@ -3,6 +3,9 @@ const crypto     = require('crypto')
 const bcrypt     = require('bcryptjs')
 const Student    = require('../models/Student')
 const { Assessment, Attendance, Achievement, Clearance, AchiHouse } = require('../schema')
+const { requireUser, mustBeSelf, loginLimiter, rateLimit, signToken } = require('../middleware/auth')
+const passwordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 8, key: (req) => `${req.ip}|pw` })
+const applyLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: 'Too many applications from this connection. Please try again later.' })
 const router     = express.Router()
 
 // Mirrors the enum on clearanceSchema.departments.dept in backend/schema.js
@@ -80,7 +83,7 @@ function validateApplication(body) {
 }
 
 // POST /api/students/apply — prospect student admission form submission
-router.post('/apply', async (req, res) => {
+router.post('/apply', applyLimiter, async (req, res) => {
   const body = req.body || {}
 
   const errors = validateApplication(body)
@@ -179,7 +182,7 @@ router.post('/apply', async (req, res) => {
 // account creation (auto-generated one is shown once and never stored in
 // plaintext, so this is the applicant's one chance to swap it for something
 // memorable). Requires the current password to prove it's really them.
-router.patch('/:studentId/password', async (req, res) => {
+router.patch('/:studentId/password', passwordLimiter, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {}
 
   if (!currentPassword || !newPassword)
@@ -205,7 +208,7 @@ router.patch('/:studentId/password', async (req, res) => {
 })
 
 // POST /api/students/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body
   if (!username || !password)
     return res.status(400).json({ error: 'Username and password are required' })
@@ -220,6 +223,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' })
 
     res.json({
+      token:      signToken('student', student),
       username:   student.username,
       studentId:  student.studentId,
       name:       `${student.firstName} ${student.lastName}`,
@@ -236,7 +240,7 @@ router.post('/login', async (req, res) => {
 // GET /api/students/:studentId/profile
 // Returns the full student profile including assessments, attendance,
 // achievements, and clearance — used by the Student page.
-router.get('/:studentId/profile', async (req, res) => {
+router.get('/:studentId/profile', requireUser('student', 'admin'), mustBeSelf({ params: ['studentId'] }), async (req, res) => {
   try {
     const student = await Student.findOne({ studentId: req.params.studentId }).lean()
     if (!student) return res.status(404).json({ error: 'Student not found' })

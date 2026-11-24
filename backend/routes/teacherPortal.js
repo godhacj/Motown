@@ -11,6 +11,14 @@
 
 const express = require('express');
 const router  = express.Router();
+const { requireUser, mustBeSelf } = require('../middleware/auth');
+
+// Signed-in teacher only. The ownership checks below trust teacherId, so it
+// must be the caller's own: query/body teacherId and the :id in
+// /teacher/:id/* and /hod/:id/* are all bound to the session token.
+router.use(requireUser('teacher'));
+router.use(mustBeSelf({ query: ['teacherId'], body: ['teacherId', 'markedBy', 'updatedBy'] }));
+router.use(['/teacher/:id', '/hod/:id'], (req, res, next) => mustBeSelf({ params: ['id'] })(req, res, next));
 
 const {
   Teacher, Student,

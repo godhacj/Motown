@@ -1,14 +1,11 @@
 /**
  * adminAuth.js — Admin portal authentication + scope middleware
  *
- * How it works (stateless, token-free for now):
- *   The client POSTs to /api/admin/login → receives a plain JSON token:
- *     { adminUserId, portal, scope, displayName }
- *   The client stores this in localStorage and sends it back as:
- *     Authorization: Bearer <base64(JSON)>
- *
- * This is deliberately simple (no JWT signature) because the real auth
- * layer will be added later. It is NOT production-safe as-is.
+ * How it works:
+ *   POST /api/admin/login returns a signed, expiring token (middleware/auth.js).
+ *   The client sends it back as  Authorization: Bearer <token>.
+ *   Every guard verifies the signature and re-loads the AdminUser, so a
+ *   suspended account loses access on its next request.
  *
  * Guards exported:
  *   requireAdminPortal(portal)        — only that portal (+ management) may pass
@@ -18,23 +15,16 @@
  */
 
 const { AdminUser } = require('../schema');
+const { verifyToken } = require('./auth');
 
-// Decode the bearer token and attach req.adminUser
+// Verify the signed bearer token (see middleware/auth.js) and load the
+// AdminUser, so suspended accounts lose access immediately.
 async function decodeAdminToken(req) {
-  const auth = req.headers['authorization'] || ''
-  if (!auth.startsWith('Bearer ')) return null
-
-  let payload
+  const h = req.headers['authorization'] || ''
+  const auth = req.auth !== undefined ? req.auth : verifyToken(h.startsWith('Bearer ') ? h.slice(7).trim() : '')
+  if (!auth || auth.kind !== 'admin') return null
   try {
-    payload = JSON.parse(Buffer.from(auth.slice(7), 'base64').toString('utf8'))
-  } catch {
-    return null
-  }
-
-  if (!payload.adminUserId) return null
-
-  try {
-    const user = await AdminUser.findById(payload.adminUserId).lean()
+    const user = await AdminUser.findById(auth.id).lean()
     if (!user || user.status !== 'active') return null
     return user
   } catch {
@@ -45,7 +35,10 @@ async function decodeAdminToken(req) {
 // Attach req.adminUser; 401 if missing
 async function requireAdminAny(req, res, next) {
   const user = await decodeAdminToken(req)
-  if (!user) return res.status(401).json({ error: 'Admin authentication required' })
+  if (!user) {
+    res.set('X-Auth-Error', req.headers.authorization ? 'invalid' : 'missing')
+    return res.status(401).json({ error: 'Admin authentication required' })
+  }
   req.adminUser = user
   next()
 }
@@ -54,7 +47,10 @@ async function requireAdminAny(req, res, next) {
 function requireAdminPortal(...portals) {
   return async (req, res, next) => {
     const user = await decodeAdminToken(req)
-    if (!user) return res.status(401).json({ error: 'Admin authentication required' })
+    if (!user) {
+      res.set('X-Auth-Error', req.headers.authorization ? 'invalid' : 'missing')
+      return res.status(401).json({ error: 'Admin authentication required' })
+    }
     if (user.portal !== 'management' && !portals.includes(user.portal)) {
       return res.status(403).json({ error: `This endpoint requires portal: ${portals.join(' or ')}` })
     }
@@ -66,7 +62,10 @@ function requireAdminPortal(...portals) {
 // House portal + scope.level === 'senior' (or management)
 async function requireHouseSenior(req, res, next) {
   const user = await decodeAdminToken(req)
-  if (!user) return res.status(401).json({ error: 'Admin authentication required' })
+  if (!user) {
+    res.set('X-Auth-Error', req.headers.authorization ? 'invalid' : 'missing')
+    return res.status(401).json({ error: 'Admin authentication required' })
+  }
   const ok = user.portal === 'management' ||
     (user.portal === 'house' && user.scope?.level === 'senior')
   if (!ok) return res.status(403).json({ error: 'Senior house role required' })
@@ -77,7 +76,10 @@ async function requireHouseSenior(req, res, next) {
 // Any house portal user (own house) or senior or management
 async function requireHouseOwn(req, res, next) {
   const user = await decodeAdminToken(req)
-  if (!user) return res.status(401).json({ error: 'Admin authentication required' })
+  if (!user) {
+    res.set('X-Auth-Error', req.headers.authorization ? 'invalid' : 'missing')
+    return res.status(401).json({ error: 'Admin authentication required' })
+  }
   if (user.portal !== 'house' && user.portal !== 'management') {
     return res.status(403).json({ error: 'House portal required' })
   }

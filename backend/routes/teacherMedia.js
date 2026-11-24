@@ -19,6 +19,10 @@ const mongoose = require('mongoose')
 const { PagePost, GalleryItem, Teacher, Approval } = require('../schema')
 
 const router = express.Router()
+const { requireUser, mustBeSelf } = require('../middleware/auth')
+
+// Signed-in teacher only; teacherId in query/body must be the caller's own.
+router.use(requireUser('teacher'), mustBeSelf({ query: ['teacherId'], body: ['teacherId'] }))
 
 const POST_CATEGORIES = ['News', 'Event', 'Achievement', 'Notice', 'Sports', 'Academic']
 const MODELS = { posts: PagePost, gallery: GalleryItem }

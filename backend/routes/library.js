@@ -14,6 +14,7 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const { LibraryResource, LibraryBorrowRequest, DigitalResource, Student } = require('../schema')
+const { requireUser, mustBeSelf } = require('../middleware/auth')
 const router = express.Router()
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -78,7 +79,7 @@ router.get('/digital', async (req, res) => {
   }
 })
 
-router.get('/digital/mine', async (req, res) => {
+router.get('/digital/mine', requireUser('student', 'teacher'), mustBeSelf({ query: ['uploadedBy'] }), async (req, res) => {
   try {
     const key = normalizeKey(req.query.uploadedBy)
     if (!key) return res.status(400).json({ error: 'uploadedBy is required' })
@@ -92,7 +93,7 @@ router.get('/digital/mine', async (req, res) => {
   }
 })
 
-router.post('/digital', async (req, res) => {
+router.post('/digital', requireUser('student', 'teacher'), mustBeSelf({ body: ['uploadedBy'] }), async (req, res) => {
   try {
     const title = String(req.body.title || '').trim()
     const description = String(req.body.description || '').trim()
@@ -119,7 +120,7 @@ router.post('/digital', async (req, res) => {
       fileUrl,
       uploadedBy,
       uploadedByObjectId: student?._id,
-      uploaderName: String(req.body.uploaderName || '').trim() || 'Member',
+      uploaderName: String((req.auth?.name || req.body.uploaderName) || '').trim() || 'Member',
       status: 'pending',
     })
 
@@ -129,7 +130,7 @@ router.post('/digital', async (req, res) => {
   }
 })
 
-router.get('/my-borrows', async (req, res) => {
+router.get('/my-borrows', requireUser('student'), mustBeSelf({ query: ['studentId', 'studentIdentifier', 'userId'] }), async (req, res) => {
   try {
     const key = normalizeKey(req.query.studentId || req.query.userId || req.query.studentIdentifier)
     if (!key) return res.status(400).json({ error: 'studentId is required' })
@@ -149,7 +150,7 @@ router.get('/my-borrows', async (req, res) => {
   }
 })
 
-router.post('/:id/borrow-request', async (req, res) => {
+router.post('/:id/borrow-request', requireUser('student'), mustBeSelf({ body: ['studentId', 'studentIdentifier', 'userId'] }), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid resource ID' })
@@ -209,7 +210,7 @@ router.post('/:id/borrow-request', async (req, res) => {
   }
 })
 
-router.patch('/requests/:id/cancel', async (req, res) => {
+router.patch('/requests/:id/cancel', requireUser('student'), mustBeSelf({ body: ['studentId'] }), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid request ID' })

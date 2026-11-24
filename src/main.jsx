@@ -10,6 +10,10 @@ import { NotchProvider } from './contexts/NotchContext.jsx'
 import { AdminAuthProvider } from './contexts/AdminAuthContext.jsx'
 import { SocketProvider } from './contexts/SocketContext.jsx'
 import App from './App.jsx'
+import { installAuthFetch } from './config/session'
+
+// Attach the session token to every API request (see config/session.js).
+installAuthFetch()
 
 // Apply saved or system theme before app renders so the whole page uses correct variables
 try {

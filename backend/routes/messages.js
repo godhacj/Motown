@@ -2,6 +2,7 @@ const express  = require('express')
 const mongoose = require('mongoose')
 const { Message, Student, Teacher } = require('../schema')
 const { emitToUser, isUserOnline } = require('../socket')
+const { requireUser, mustBeSelf } = require('../middleware/auth')
 const router   = express.Router()
 
 // Resolve a route param (Mongo ObjectId, studentId, or username) to a user's ObjectId
@@ -90,7 +91,7 @@ function previewOf(msg) {
 }
 
 // GET /api/messages/inbox/:userId — direct-message threads for a user, newest first
-router.get('/inbox/:userId', async (req, res) => {
+router.get('/inbox/:userId', requireUser('student', 'teacher'), mustBeSelf({ params: ['userId'] }), async (req, res) => {
   try {
     const uid = await resolveUserId(req.params.userId)
     if (!uid) return res.status(404).json({ error: 'User not found' })
@@ -124,7 +125,7 @@ router.get('/inbox/:userId', async (req, res) => {
 })
 
 // GET /api/messages/groups/:userId — group threads for a user, newest first
-router.get('/groups/:userId', async (req, res) => {
+router.get('/groups/:userId', requireUser('student', 'teacher'), mustBeSelf({ params: ['userId'] }), async (req, res) => {
   try {
     const uid = await resolveUserId(req.params.userId)
     if (!uid) return res.status(404).json({ error: 'User not found' })
@@ -157,7 +158,7 @@ router.get('/groups/:userId', async (req, res) => {
 })
 
 // PATCH /api/messages/:threadId/read — mark every message in a thread as read by userId
-router.patch('/:threadId/read', async (req, res) => {
+router.patch('/:threadId/read', requireUser('student', 'teacher'), mustBeSelf({ body: ['userId'] }), async (req, res) => {
   try {
     const { userId: rawUserId } = req.body
     const uid = await resolveUserId(rawUserId)
@@ -190,7 +191,7 @@ router.patch('/:threadId/read', async (req, res) => {
 })
 
 // GET /api/messages/unread-count/:userId — total unread messages across all threads
-router.get('/unread-count/:userId', async (req, res) => {
+router.get('/unread-count/:userId', requireUser('student', 'teacher'), mustBeSelf({ params: ['userId'] }), async (req, res) => {
   try {
     const uid = await resolveUserId(req.params.userId)
     if (!uid) return res.status(404).json({ error: 'User not found' })
@@ -213,7 +214,7 @@ router.get('/unread-count/:userId', async (req, res) => {
 })
 
 // POST /api/messages/direct — find or create a direct thread with a recipient
-router.post('/direct', async (req, res) => {
+router.post('/direct', requireUser('student', 'teacher'), mustBeSelf({ body: ['userId'] }), async (req, res) => {
   try {
     const { userId: rawUserId, recipientId: rawRecipientId } = req.body
     if (!rawUserId || !rawRecipientId)
@@ -254,7 +255,7 @@ router.post('/direct', async (req, res) => {
 })
 
 // POST /api/messages/:threadId/send — append a message to a thread
-router.post('/:threadId/send', async (req, res) => {
+router.post('/:threadId/send', requireUser('student', 'teacher'), mustBeSelf({ body: ['senderId'] }), async (req, res) => {
   try {
     const { senderId: rawSenderId, senderName, text, attachments, replyTo } = req.body
     // One attachment per message by design — the composer only ever uploads
@@ -272,6 +273,9 @@ router.post('/:threadId/send', async (req, res) => {
     const thread = await Message.findById(req.params.threadId)
     if (!thread) return res.status(404).json({ error: 'Thread not found' })
 
+    if (!thread.participants.some(p => String(p) === String(senderId))) {
+      return res.status(403).json({ error: 'You are not part of this conversation' })
+    }
     const recipients = thread.participants.filter(p => String(p) !== String(senderId))
     // Anyone with a live socket right now counts as delivered immediately;
     // the rest are caught up by the sweep in socket.js when they reconnect.

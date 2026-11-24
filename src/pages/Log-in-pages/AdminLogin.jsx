@@ -8,6 +8,7 @@ import { Icons } from '../../assets/icons'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import { adminHome } from '../../config/adminRoutes'
 import '../../styles/Login.css'
+import { consumeExpiredNotice } from '../../config/session'
 
 
 function Spinner() {
@@ -23,7 +24,7 @@ export default function AdminLogin() {
   const [password,     setPassword]     = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState('')
+  const [error,        setError]        = useState(() => (consumeExpiredNotice() ? 'Your session has expired. Please sign in again.' : ''))
   const [fieldErrors,  setFieldErrors]  = useState({})
 
   const usernameRef = useRef(null)

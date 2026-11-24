@@ -1,10 +1,12 @@
 const express  = require('express')
 const bcrypt   = require('bcryptjs')
 const { Teacher, AchiClass, Timetable, LessonNote, Subject } = require('../schema')
+const { requireUser, mustBeSelf, loginLimiter, rateLimit, signToken } = require('../middleware/auth')
+const passwordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 8, key: (req) => `${req.ip}|pw` })
 const router   = express.Router()
 
 // ── GET /api/teachers  (list, no password) ───────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requireUser(), async (req, res) => {
   try {
     const teachers = await Teacher.find().select('-password').sort({ lastName: 1 })
     res.json(teachers)
@@ -12,7 +14,7 @@ router.get('/', async (req, res) => {
 })
 
 // ── PATCH /api/teachers/:username/password ───────────────────────────────────
-router.patch('/:username/password', async (req, res) => {
+router.patch('/:username/password', passwordLimiter, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {}
 
   if (!currentPassword || !newPassword)
@@ -38,7 +40,7 @@ router.patch('/:username/password', async (req, res) => {
 })
 
 // ── POST /api/teachers/login ──────────────────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body
   if (!username || !password)
     return res.status(400).json({ error: 'Username and password required' })
@@ -50,6 +52,7 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, teacher.password)
     if (!match) return res.status(401).json({ error: 'Invalid credentials' })
     res.json({
+      token:          signToken('teacher', teacher),
       role:           teacher.role,
       username:       teacher.username,
       teacherId:      String(teacher._id),
@@ -76,7 +79,7 @@ router.post('/login', async (req, res) => {
 })
 
 // ── GET /api/teachers/:id/profile ─────────────────────────────────────────────
-router.get('/:id/profile', async (req, res) => {
+router.get('/:id/profile', requireUser('teacher', 'admin'), mustBeSelf({ params: ['id'] }), async (req, res) => {
   try {
     const t = await Teacher.findById(req.params.id)
       .select('-password')
@@ -89,7 +92,7 @@ router.get('/:id/profile', async (req, res) => {
 
 // ── GET /api/teachers/:id/schedule ────────────────────────────────────────────
 // Returns all timetable periods where period.teacher === :id, grouped by day.
-router.get('/:id/schedule', async (req, res) => {
+router.get('/:id/schedule', requireUser('teacher', 'admin'), mustBeSelf({ params: ['id'] }), async (req, res) => {
   try {
     const { term = 'Term 1' } = req.query
     // Find all timetables that contain a period taught by this teacher
@@ -123,7 +126,7 @@ router.get('/:id/schedule', async (req, res) => {
 })
 
 // ── GET /api/teachers/:id/lesson-notes ────────────────────────────────────────
-router.get('/:id/lesson-notes', async (req, res) => {
+router.get('/:id/lesson-notes', requireUser('teacher', 'admin'), mustBeSelf({ params: ['id'] }), async (req, res) => {
   try {
     const notes = await LessonNote.find({ teacher: req.params.id })
       .sort({ createdAt: -1 })
@@ -134,7 +137,7 @@ router.get('/:id/lesson-notes', async (req, res) => {
 })
 
 // ── POST /api/teachers/lesson-notes ───────────────────────────────────────────
-router.post('/lesson-notes', async (req, res) => {
+router.post('/lesson-notes', requireUser('teacher'), mustBeSelf({ body: ['teacherId'] }), async (req, res) => {
   try {
     const { teacherId, subjectId, classId, term, title, content, visibleOn } = req.body
     if (!teacherId || !title)
@@ -153,9 +156,12 @@ router.post('/lesson-notes', async (req, res) => {
 })
 
 // ── PATCH /api/teachers/lesson-notes/:noteId ──────────────────────────────────
-router.patch('/lesson-notes/:noteId', async (req, res) => {
+router.patch('/lesson-notes/:noteId', requireUser('teacher'), async (req, res) => {
   try {
     const { title, content, visibleOn } = req.body
+    const own = await LessonNote.findById(req.params.noteId).select('teacher').lean()
+    if (!own) return res.status(404).json({ error: 'Note not found' })
+    if (String(own.teacher) !== req.auth.id) return res.status(403).json({ error: 'You can only edit your own notes' })
     const note = await LessonNote.findByIdAndUpdate(
       req.params.noteId,
       { $set: { title, content, visibleOn } },
@@ -167,7 +173,7 @@ router.patch('/lesson-notes/:noteId', async (req, res) => {
 })
 
 // ── GET /api/teachers/:id  (legacy — keep after specific routes) ──────────────
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireUser(), async (req, res) => {
   try {
     const t = await Teacher.findById(req.params.id).select('-password')
     if (!t) return res.status(404).json({ error: 'Not found' })

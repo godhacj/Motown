@@ -4,8 +4,8 @@
  * Ownership rule: the Teacher whose classTeacherOf === :id may read/write.
  * HODs may read any class in their department (checked via query param deptOverride).
  *
- * All routes are currently open (no JWT) — matching the existing codebase pattern
- * where auth is client-side via localStorage.
+ * Requires a signed-in teacher or admin. Teachers can only open classes they
+ * teach or (HOD / assistant) classes in their department.
  */
 
 const express = require('express')
@@ -13,6 +13,37 @@ const {
   AchiClass, ClassAttendance, ClassAssessment, RosterDoc, Timetable,
 } = require('../schema')
 const router = express.Router()
+const mongoose = require('mongoose')
+const { Teacher } = require('../schema')
+const { requireUser } = require('../middleware/auth')
+
+router.use(requireUser('teacher', 'admin'))
+
+async function canUseClass(req, classId) {
+  if (req.auth.kind === 'admin') return true
+  if (!mongoose.isValidObjectId(classId)) return false
+  const [cls, me] = await Promise.all([
+    AchiClass.findById(classId).select('classTeacher department').lean(),
+    Teacher.findById(req.auth.id).select('role department').lean(),
+  ])
+  if (!cls || !me) return false
+  if (String(cls.classTeacher) === req.auth.id) return true
+  return ['hod', 'hod_assistant'].includes(me.role) && me.department === cls.department
+}
+
+router.param('id', async (req, res, next, id) => {
+  try { (await canUseClass(req, id)) ? next() : res.status(403).json({ error: 'Not your class' }) }
+  catch (err) { next(err) }
+})
+
+router.param('assessmentId', async (req, res, next, id) => {
+  try {
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: 'Invalid ID' })
+    const doc = await ClassAssessment.findById(id).select('class').lean()
+    if (!doc) return res.status(404).json({ error: 'Not found' })
+    ;(await canUseClass(req, doc.class)) ? next() : res.status(403).json({ error: 'Not your class' })
+  } catch (err) { next(err) }
+})
 
 // ── GET /api/classes  (list all, lightweight) ─────────────────────────────────
 router.get('/', async (req, res) => {

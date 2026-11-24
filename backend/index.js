@@ -13,8 +13,26 @@ connectDB();
 const MEDIA_DIR = process.env.MEDIA_DIR || 'C:\\Users\\HP\\Downloads\\Motown_Media';
 app.use('/media', express.static(MEDIA_DIR));
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
-app.use(express.json());
+app.disable('x-powered-by');
+// Behind a proxy (e.g. Render) set TRUST_PROXY=1 so rate limits see real client IPs.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+
+// Basic hardening headers for every API response.
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  });
+  next();
+});
+
+app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173', exposedHeaders: ['X-Auth-Error', 'Retry-After'] }));
+app.use(express.json({ limit: '1mb' }));
+
+// Reads the Bearer token (if any) into req.auth for every route below.
+app.use(require('./middleware/auth').authenticate);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/gallery',        require('./routes/gallery'));

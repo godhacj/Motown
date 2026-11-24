@@ -1,6 +1,7 @@
 const express  = require('express')
 const mongoose = require('mongoose')
 const { Report, Student, Teacher } = require('../schema')
+const { requireUser, mustBeSelf } = require('../middleware/auth')
 const router   = express.Router()
 
 // Resolve a route param (Mongo ObjectId, studentId/staffId, or username) to a
@@ -21,7 +22,7 @@ async function resolveUser(param) {
 }
 
 // GET /api/reports/:userId — this user's own past reports, newest first
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', requireUser('student', 'teacher'), mustBeSelf({ params: ['userId'] }), async (req, res) => {
   try {
     const user = await resolveUser(req.params.userId)
     if (!user) return res.status(404).json({ error: 'User not found' })
@@ -35,7 +36,7 @@ router.get('/:userId', async (req, res) => {
 })
 
 // POST /api/reports — submit a new report
-router.post('/', async (req, res) => {
+router.post('/', requireUser('student', 'teacher'), mustBeSelf({ body: ['submitterId'] }), async (req, res) => {
   try {
     const { submitterId, type, subject, body, anonymous } = req.body
     if (!submitterId || !type || !subject?.trim() || !body?.trim())

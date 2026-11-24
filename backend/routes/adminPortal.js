@@ -11,10 +11,12 @@ const express  = require('express')
 const bcrypt   = require('bcryptjs')
 const { AdminUser, Student } = require('../schema')
 const { requireAdminAny } = require('../middleware/adminAuth')
+const { loginLimiter, rateLimit, signToken } = require('../middleware/auth')
+const passwordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 8, key: (req) => `${req.ip}|pw` })
 const router   = express.Router()
 
 // POST /api/admin/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' })
@@ -29,14 +31,8 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password)
     if (!match) return res.status(401).json({ error: 'Invalid credentials' })
 
-    // Build a simple base64 token the client sends back as Bearer
-    const tokenPayload = {
-      adminUserId:  user._id.toString(),
-      portal:       user.portal,
-      scope:        user.scope,
-      displayName:  user.displayName,
-    }
-    const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64')
+    // Signed, expiring session token (middleware/auth.js)
+    const token = signToken('admin', user)
 
     res.json({
       token,
@@ -58,7 +54,7 @@ router.get('/me', requireAdminAny, (req, res) => {
 })
 
 // PATCH /api/admin/password — change the signed-in admin user's password
-router.patch('/password', requireAdminAny, async (req, res) => {
+router.patch('/password', passwordLimiter, requireAdminAny, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {}
 
   if (!currentPassword || !newPassword)

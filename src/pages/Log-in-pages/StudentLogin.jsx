@@ -4,6 +4,7 @@ import { FiBookOpen, FiLock, FiEye, FiEyeOff, FiAlertCircle, FiArrowLeft, FiLoad
 import { Icons } from '../../assets/icons'
 import '../../styles/Login.css'
 import API from '../../config/api'
+import { consumeExpiredNotice } from '../../config/session'
 
 const ID_REGEX = /^[A-Za-z0-9][A-Za-z0-9_\-]{2,29}$/
 
@@ -23,7 +24,7 @@ export default function StudentLogin() {
   const [password,     setPassword]     = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState('')
+  const [error,        setError]        = useState(() => (consumeExpiredNotice() ? 'Your session has expired. Please sign in again.' : ''))
   const [fieldErrors,  setFieldErrors]  = useState({})
   const [forgotSent,   setForgotSent]   = useState(false)
   const [view,         setView]         = useState('login') // 'login' | 'forgot'
@@ -89,6 +90,7 @@ export default function StudentLogin() {
         return
       }
       saveAndGo({
+        token:    data.token,
         role:     'student',
         name:     data.name,
         username: data.username,

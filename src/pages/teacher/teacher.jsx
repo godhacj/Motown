@@ -1312,7 +1312,7 @@ export default function Teacher() {
     const load = () => {
       try {
         const p = JSON.parse(localStorage.getItem('signedInProfile') || '{}')
-        if (p.role && p.role !== 'student' && p.role !== 'admin') setProfile(p)
+        setProfile(p.role && p.role !== 'student' && p.role !== 'admin' ? p : null)
       } catch { /* ignore */ }
     }
     load()

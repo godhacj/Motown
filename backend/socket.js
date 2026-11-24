@@ -1,6 +1,7 @@
 const { Server } = require('socket.io')
 const mongoose = require('mongoose')
 const { Conference, Message, Student, Teacher } = require('./schema')
+const { authSocket } = require('./middleware/auth')
 
 // Resolve a studentId/staffId/username/ObjectId to { id, role, name } — same
 // pattern used by routes/messages.js and routes/reports.js.
@@ -112,15 +113,20 @@ function attachSignaling(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' },
   })
+  // Reads the session token from the handshake into socket.data.auth.
+  authSocket(io)
 
   // socket.id -> { conferenceId, userId, name, role }
   const sockets = new Map()
 
   io.on('connection', (socket) => {
-    socket.on('join-room', async ({ conferenceId, userId, name, role }) => {
+    socket.on('join-room', async ({ conferenceId }) => {
       try {
-        const user = await resolveUser(userId)
+        if (!socket.data.auth) return socket.emit('signal-error', { message: 'Please sign in first' })
+        const user = await resolveUser(socket.data.auth.id)
         if (!user) return socket.emit('signal-error', { message: 'User not found' })
+        // Conference.participants.role is lower-case (student / teacher / admin).
+        const role = socket.data.auth.kind
 
         const conf = await findOrCreateConference(conferenceId, user)
         const roomId = String(conf._id)
@@ -130,13 +136,13 @@ function attachSignaling(httpServer) {
           .filter(Boolean)
 
         socket.join(roomId)
-        sockets.set(socket.id, { conferenceId: roomId, userId: user.id, name: name || user.name, role: role || user.role })
+        sockets.set(socket.id, { conferenceId: roomId, userId: user.id, name: user.name, role })
 
-        conf.participants.push({ userId: user.id, name: name || user.name, role: role || user.role, joinedAt: new Date() })
+        conf.participants.push({ userId: user.id, name: user.name, role, joinedAt: new Date() })
         await conf.save()
 
         socket.emit('room-joined', { conferenceId: roomId, roster })
-        socket.to(roomId).emit('user-joined', { socketId: socket.id, name: name || user.name, role: role || user.role })
+        socket.to(roomId).emit('user-joined', { socketId: socket.id, name: user.name, role })
       } catch (err) {
         console.error('join-room error:', err.message)
         socket.emit('signal-error', { message: 'Failed to join room' })
@@ -148,9 +154,11 @@ function attachSignaling(httpServer) {
     // The client may pass a human-readable id (studentId/staffId/username) or an
     // ObjectId — resolve to the canonical ObjectId so it matches what emitToUser
     // (called from routes/messages.js with real ObjectIds) actually targets.
-    socket.on('identify', async ({ userId }) => {
-      if (!userId) return
-      const user = await resolveUser(userId)
+    // Identity comes from the signed handshake token, never the payload.
+    socket.on('identify', async () => {
+      const auth = socket.data.auth
+      if (!auth || !['student', 'teacher'].includes(auth.kind)) return
+      const user = await resolveUser(auth.id)
       if (!user) return
       socket.join(`user:${user.id}`)
       socket.data.userId = String(user.id)

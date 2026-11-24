@@ -21,6 +21,10 @@ const mongoose = require('mongoose')
 const { Syllabus, Teacher, Approval } = require('../schema')
 
 const router = express.Router()
+const { requireUser, mustBeSelf } = require('../middleware/auth')
+
+// Signed-in teacher only; teacherId in query/body must be the caller's own.
+router.use(requireUser('teacher'), mustBeSelf({ query: ['teacherId'], body: ['teacherId'] }))
 
 const FORMS = ['SHS 1', 'SHS 2', 'SHS 3']
 const TERMS = ['Term 1', 'Term 2', 'Term 3']

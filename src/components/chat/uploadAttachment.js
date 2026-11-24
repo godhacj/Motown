@@ -1,4 +1,5 @@
 import API from '../../config/api'
+import { profileToken, handleAuthFailure } from '../../config/session'
 
 /**
  * POST a file to the chat-attachments folder, reporting upload progress.
@@ -15,6 +16,8 @@ export default function uploadAttachment(file, onProgress) {
 
   const promise = new Promise((resolve, reject) => {
     xhr.open('POST', `${API}/api/media/upload/chat-attachments`)
+    const token = profileToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
 
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) onProgress?.(e.loaded / e.total)
@@ -27,6 +30,7 @@ export default function uploadAttachment(file, onProgress) {
         onProgress?.(1)
         resolve(data)
       } else {
+        handleAuthFailure(xhr.status, xhr.getResponseHeader('X-Auth-Error'), token)
         reject(new Error(data.error || `Upload failed (${xhr.status})`))
       }
     }

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const upload = require('../middleware/upload');
+const { requireAdminPortal } = require('../middleware/adminAuth');
+const shopAdmin = requireAdminPortal('accounts');
 
 // GET all products (optional ?category= filter)
 router.get('/', async (req, res) => {
@@ -28,7 +30,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST create product with image upload
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', shopAdmin, upload.single('file'), async (req, res) => {
   try {
     const { name, category, price, description, stock } = req.body;
     const image = req.file ? req.file.path : req.body.image;
@@ -46,7 +48,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 });
 
 // PATCH update product
-router.patch('/:id', upload.single('file'), async (req, res) => {
+router.patch('/:id', shopAdmin, upload.single('file'), async (req, res) => {
   try {
     const updates = { ...req.body };
     if (req.file) updates.image = req.file.path;
@@ -58,7 +60,7 @@ router.patch('/:id', upload.single('file'), async (req, res) => {
 });
 
 // DELETE product
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', shopAdmin, async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });

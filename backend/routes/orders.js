@@ -1,8 +1,12 @@
 const express = require('express')
 const { Order } = require('../schema')
+const { requireAdminPortal } = require('../middleware/adminAuth')
+const { rateLimit } = require('../middleware/auth')
+const accountsOnly = requireAdminPortal('accounts')
+const checkoutLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 })
 const router  = express.Router()
 
-router.post('/', async (req, res) => {
+router.post('/', checkoutLimiter, async (req, res) => {
   try {
     const { buyerName, buyerEmail, buyerPhone, deliveryNote, items, total, paymentMethod } = req.body
     const itemsWithSubtotal = (items || []).map(i => ({
@@ -17,14 +21,14 @@ router.post('/', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }) }
 })
 
-router.get('/', async (req, res) => {
+router.get('/', accountsOnly, async (req, res) => {
   try {
     const orders = await Order.find().sort({ placedAt: -1 })
     res.json(orders)
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', accountsOnly, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
     if (!order) return res.status(404).json({ error: 'Not found' })
@@ -32,7 +36,7 @@ router.get('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', accountsOnly, async (req, res) => {
   try {
     const { paymentStatus, orderStatus } = req.body
     const order = await Order.findByIdAndUpdate(

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { io } from 'socket.io-client'
 import API from '../config/api'
+import { profileToken } from '../config/session'
 
 const SocketContext = createContext(null)
 
@@ -28,9 +29,10 @@ export function SocketProvider({ children }) {
       const uid = readUserId()
       if (!uid) { setSocket(null); setUnreadCount(0); return }
 
-      const s = io(API)
+      // The server identifies the socket from this signed token.
+      const s = io(API, { auth: { token: profileToken() } })
       s.on('connect', () => {
-        s.emit('identify', { userId: uid })
+        s.emit('identify')
         refetchUnreadCount()
       })
       socketRef.current = s

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import API from '../config/api'
 
 const AdminAuthContext = createContext(null)
@@ -11,6 +11,17 @@ function loadSession() {
 
 export function AdminAuthProvider({ children }) {
   const [session, setSession] = useState(loadSession)
+
+  // Stay in step when the session is cleared elsewhere (expired token, other tab).
+  useEffect(() => {
+    const sync = () => setSession(loadSession())
+    window.addEventListener('adminSessionChanged', sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener('adminSessionChanged', sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
 
   const login = useCallback(async (username, password) => {
     const res = await fetch(`${API}/api/admin/login`, {

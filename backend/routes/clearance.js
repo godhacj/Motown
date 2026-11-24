@@ -14,6 +14,7 @@ const express  = require('express')
 const mongoose = require('mongoose')
 const { ClearanceItem, Student, Announcement } = require('../schema')
 const { requireAdminAny } = require('../middleware/adminAuth')
+const { requireUser, mustBeSelf } = require('../middleware/auth')
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ async function deleteAnnouncement(announcementId) {
 const studentClearanceRouter = express.Router()
 
 // GET /api/students/:studentId/clearance
-studentClearanceRouter.get('/:studentId/clearance', async (req, res) => {
+studentClearanceRouter.get('/:studentId/clearance', requireUser('student', 'admin'), mustBeSelf({ params: ['studentId'] }), async (req, res) => {
   try {
     const student = await Student.findOne({ studentId: req.params.studentId }).lean()
     if (!student) return res.status(404).json({ error: 'Student not found' })

@@ -2,6 +2,7 @@ const express = require('express')
 const { PagePost } = require('../schema')
 const upload  = require('../middleware/upload')
 const { requireAdminPortal } = require('../middleware/adminAuth')
+const { requireUser } = require('../middleware/auth')
 // Writes were open to anyone; content is now managed via /api/admin/media.
 const mediaOnly = requireAdminPortal('media')
 const router  = express.Router()
@@ -32,11 +33,13 @@ router.post('/', mediaOnly, upload.single('cover'), async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }) }
 })
 
-router.post('/:id/comments', async (req, res) => {
+router.post('/:id/comments', requireUser(), async (req, res) => {
   try {
     const post = await PagePost.findOne({ _id: req.params.id, isPublished: true })
     if (!post) return res.status(404).json({ error: 'Not found' })
-    post.comments.push(req.body)
+    const text = String(req.body?.text || '').trim().slice(0, 2000)
+    if (!text) return res.status(400).json({ error: 'Write a comment first' })
+    post.comments.push({ authorId: req.auth.id, authorName: req.auth.name, authorAvatar: req.body?.authorAvatar, text })
     await post.save()
     res.status(201).json(post.comments.at(-1))
   } catch (err) { res.status(400).json({ error: err.message }) }

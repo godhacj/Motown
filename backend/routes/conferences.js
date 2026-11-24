@@ -1,6 +1,7 @@
 const express  = require('express')
 const mongoose = require('mongoose')
 const { Conference, Student, Teacher } = require('../schema')
+const { requireUser } = require('../middleware/auth')
 const router   = express.Router()
 
 async function resolveUser(param) {
@@ -20,7 +21,7 @@ async function resolveUser(param) {
 
 // GET /api/conferences/active — currently live conferences (feeds the Chat
 // "Live Conference" landing state)
-router.get('/active', async (req, res) => {
+router.get('/active', requireUser(), async (req, res) => {
   try {
     const conferences = await Conference.find({ status: 'live' }).sort({ startedAt: -1 })
     res.json(conferences)
@@ -31,7 +32,7 @@ router.get('/active', async (req, res) => {
 })
 
 // GET /api/conferences/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireUser(), async (req, res) => {
   try {
     const conf = await Conference.findById(req.params.id)
     if (!conf) return res.status(404).json({ error: 'Conference not found' })
@@ -44,7 +45,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/conferences — create a conference (mainly for explicit/scheduled
 // use; ad-hoc rooms are otherwise created implicitly by socket.js on join)
-router.post('/', async (req, res) => {
+router.post('/', requireUser('teacher', 'admin'), async (req, res) => {
   try {
     const { hostId, title, type } = req.body
     if (!hostId || !title?.trim())
