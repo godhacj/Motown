@@ -70,9 +70,11 @@ router.patch('/password', passwordLimiter, requireAdminAny, async (req, res) => 
     if (!match) return res.status(401).json({ error: 'Current password is incorrect' })
 
     user.password = await bcrypt.hash(newPassword, 10)
+    // Signs out every other session; this device gets a fresh token.
+    user.tokenVersion = (user.tokenVersion || 0) + 1
     await user.save()
 
-    res.json({ message: 'Password updated' })
+    res.json({ message: 'Password updated', token: signToken('admin', user) })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })

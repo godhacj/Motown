@@ -26,6 +26,7 @@ async function decodeAdminToken(req) {
   try {
     const user = await AdminUser.findById(auth.id).lean()
     if (!user || user.status !== 'active') return null
+    if ((user.tokenVersion || 0) !== auth.tv) return null  // password changed since issue
     return user
   } catch {
     return null

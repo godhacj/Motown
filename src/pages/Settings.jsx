@@ -9,6 +9,7 @@ import { Icons } from '../assets/icons'
 import API from '../config/api'
 import useCurrentSession from '../hooks/useCurrentSession'
 import '../styles/Settings.css'
+import { storeRenewedToken } from '../config/session'
 
 // ── localStorage key ──────────────────────────────────────────────────────
 const LS_KEY = 'motownSettings'
@@ -210,6 +211,8 @@ function ChangePasswordForm({ session }) {
       const res = await changePasswordRequest(session, currentPassword, newPassword)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setError(data.error || 'Could not update password'); setSaving(false); return }
+      // Other sessions are now signed out; keep this one with the new token.
+      storeRenewedToken(data.token)
       setDone(true)
       setCurrentPassword(''); setNewPassword(''); setConfirm('')
       setSaving(false)

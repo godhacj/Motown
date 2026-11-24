@@ -49,6 +49,22 @@ export function consumeExpiredNotice() {
   } catch { return false }
 }
 
+/**
+ * After a password change the server revokes every older token and returns a
+ * fresh one for this device. Save it into the matching session so this
+ * device stays signed in (and tell listeners, e.g. the admin context/socket).
+ */
+export function storeRenewedToken(token) {
+  if (!token) return
+  let kind = null
+  try { kind = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).k } catch { return }
+  const key = kind === 'admin' ? ADMIN_KEY : PROFILE_KEY
+  const current = read(key)
+  if (!current) return
+  localStorage.setItem(key, JSON.stringify({ ...current, token }))
+  window.dispatchEvent(new Event(kind === 'admin' ? 'adminSessionChanged' : 'profileChanged'))
+}
+
 // Called by the XHR upload path, which can't go through fetch.
 export function handleAuthFailure(status, authError, token) {
   if (status === 401 && authError === 'invalid') signOutToken(token)

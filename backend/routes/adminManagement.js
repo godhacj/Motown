@@ -116,13 +116,15 @@ router.patch('/users/:id', guard, async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid user ID' })
     }
-    const { password, _id, __v, ...safe } = req.body
-    // Allow password reset via this route — hash if provided
+    const { password, _id, __v, tokenVersion, ...safe } = req.body
+    // Allow password reset via this route — hash if provided. A reset (or a
+    // suspension) signs that account out of every session.
     if (password) safe.password = await bcrypt.hash(password, 10)
+    const revoke = !!password || safe.status === 'suspended'
 
     const user = await AdminUser.findByIdAndUpdate(
       req.params.id,
-      { $set: safe },
+      { $set: safe, ...(revoke ? { $inc: { tokenVersion: 1 } } : {}) },
       { new: true, runValidators: true }
     ).select('-password').lean()
 

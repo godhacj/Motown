@@ -9,6 +9,7 @@ import {
 import API from '../../config/api'
 import uploadMedia from '../../components/uploadMedia'
 import '../../styles/Student/ProspectStudent.css'
+import { storeRenewedToken } from '../../config/session'
 
 /* ─────────────────────────────────────────────
    STAGE CONFIG — drives the notch nav
@@ -843,6 +844,7 @@ function ChangePasswordPanel({ studentId, currentPassword, onChanged }) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setError(data.error || 'Could not update password'); setSaving(false); return }
+      storeRenewedToken(data.token)
       setDone(true)
       onChanged?.(newPassword)
     } catch {

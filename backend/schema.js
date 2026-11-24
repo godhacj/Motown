@@ -66,6 +66,7 @@ const studentSchema = new mongoose.Schema({
   // Auth
   username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
+  tokenVersion: { type: Number, default: 0 },  // see teacherSchema
   role:     { type: String, default: 'student' },
 
   // Stage 1 — Biometric
@@ -141,6 +142,8 @@ const YEAR_ENUM = ['SHS 1','SHS 2','SHS 3']
 const teacherSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
+  // Bumped on password change; tokens carrying an older value stop working.
+  tokenVersion: { type: Number, default: 0 },
   role:     { type: String, enum: ['teacher','hod','hod_assistant'], default: 'teacher' },
 
   firstName:      { type: String, required: true },
@@ -1040,6 +1043,7 @@ const LessonNote = mongoose.models.LessonNote || mongoose.model('LessonNote', le
 const adminUserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
+  tokenVersion: { type: Number, default: 0 },  // see teacherSchema
 
   portal: {
     type: String,

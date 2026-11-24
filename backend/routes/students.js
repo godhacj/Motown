@@ -198,9 +198,11 @@ router.patch('/:studentId/password', passwordLimiter, async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Current password is incorrect' })
 
     student.password = await bcrypt.hash(newPassword, 10)
+    // Signs out every other session; this device gets a fresh token.
+    student.tokenVersion = (student.tokenVersion || 0) + 1
     await student.save()
 
-    res.json({ message: 'Password updated' })
+    res.json({ message: 'Password updated', token: signToken('student', student) })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Server error' })

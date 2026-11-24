@@ -2,10 +2,12 @@
  * auth.js — signed session tokens for every account type + request guards.
  *
  * Token format:  v1.<base64url(JSON payload)>.<base64url(HMAC-SHA256)>
- * Payload:       { k: 'admin'|'teacher'|'student', sub, ids: [...], name, iat, exp }
+ * Payload:       { k: 'admin'|'teacher'|'student', sub, ids: [...], name, tv, iat, exp }
  *   sub  — the account's MongoDB _id
  *   ids  — every identifier the account may legitimately send for itself
  *          (_id, username, studentId / staffId), used by mustBeSelf()
+ *   tv   — the account's tokenVersion when the token was issued. Changing the
+ *          password bumps tokenVersion, so every older token stops working.
  *
  * The secret comes from AUTH_SECRET. Without it the server refuses to start in
  * production; in development a random secret is used (sessions reset on restart).
@@ -47,7 +49,7 @@ function identifiersOf(kind, a) {
 function signToken(kind, account) {
   const now = Math.floor(Date.now() / 1000)
   const name = account.displayName || [account.firstName, account.lastName].filter(Boolean).join(' ') || account.username
-  const payload = { k: kind, sub: String(account._id), ids: identifiersOf(kind, account), name, iat: now, exp: now + TTL[kind] }
+  const payload = { k: kind, sub: String(account._id), ids: identifiersOf(kind, account), name, tv: account.tokenVersion || 0, iat: now, exp: now + TTL[kind] }
   const body = b64url(JSON.stringify(payload))
   return `v1.${body}.${hmac(`v1.${body}`)}`
 }
@@ -62,7 +64,7 @@ function verifyToken(token) {
   let payload
   try { payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) } catch { return null }
   if (!payload?.sub || !TTL[payload.k] || !(payload.exp > Date.now() / 1000)) return null
-  return { kind: payload.k, id: payload.sub, ids: new Set(payload.ids || [payload.sub]), name: payload.name }
+  return { kind: payload.k, id: payload.sub, ids: new Set(payload.ids || [payload.sub]), name: payload.name, tv: payload.tv || 0 }
 }
 
 function bearer(req) {
@@ -70,10 +72,26 @@ function bearer(req) {
   return h.startsWith('Bearer ') ? h.slice(7).trim() : null
 }
 
-// Sets req.auth for any valid token; never rejects (guards below do that).
-function authenticate(req, res, next) {
+// Signature + expiry are checked in verifyToken; this also confirms the
+// account still exists and the token predates no password change.
+const MODEL_FOR = { admin: 'AdminUser', teacher: 'Teacher', student: 'Student' }
+
+async function isCurrent(auth) {
+  if (!auth) return false
+  const models = require('../schema') // lazy: schema.js doesn't depend on this file
+  const doc = await models[MODEL_FOR[auth.kind]].findById(auth.id).select('tokenVersion').lean()
+  return !!doc && (doc.tokenVersion || 0) === auth.tv
+}
+
+async function verifySession(token) {
+  const auth = verifyToken(token)
+  try { return (await isCurrent(auth)) ? auth : null } catch { return null }
+}
+
+// Sets req.auth for any valid, current token; never rejects (guards below do that).
+async function authenticate(req, res, next) {
   const token = bearer(req)
-  req.auth = token ? verifyToken(token) : null
+  req.auth = token ? await verifySession(token) : null
   req.authTokenInvalid = !!token && !req.auth
   next()
 }
@@ -156,10 +174,10 @@ const loginLimiter = rateLimit({
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 function authSocket(io) {
-  io.use((socket, next) => {
-    socket.data.auth = verifyToken(socket.handshake.auth?.token)
+  io.use(async (socket, next) => {
+    socket.data.auth = await verifySession(socket.handshake.auth?.token)
     next() // anonymous sockets may connect; handlers check socket.data.auth
   })
 }
 
-module.exports = { signToken, verifyToken, authenticate, requireUser, mustBeSelf, rateLimit, loginLimiter, authSocket }
+module.exports = { signToken, verifyToken, verifySession, authenticate, requireUser, mustBeSelf, rateLimit, loginLimiter, authSocket }
