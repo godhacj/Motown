@@ -570,7 +570,7 @@ async function seedSyllabuses() {
   const syllabuses = [
     {
       subject: 'Mathematics', form: 'SHS 1', term: 'Term 1',
-      academicYear: '2024/25', program: 'General Science', teacherName: 'Ms. Felicia Ansah',
+      academicYear: '2024/25', program: 'General Science', teacherName: 'Ms. Felicia Ansah', isPublished: true,
       topics: [
         { weekNumber: 1, topicTitle: 'Sets', subtopics: ['Concept of Sets','Subsets','Operations on Sets'], objectives: ['Define a set','Identify subsets'], completed: true },
         { weekNumber: 2, topicTitle: 'Number and Numeration', subtopics: ['Integers','Fractions','Decimals'], objectives: ['Convert between number forms'], completed: true },
@@ -579,7 +579,7 @@ async function seedSyllabuses() {
     },
     {
       subject: 'English Language', form: 'SHS 1', term: 'Term 1',
-      academicYear: '2024/25', program: 'All', teacherName: 'Mr. Kweku Mensah',
+      academicYear: '2024/25', program: 'All', teacherName: 'Mr. Kweku Mensah', isPublished: true,
       topics: [
         { weekNumber: 1, topicTitle: 'Grammar — Parts of Speech', subtopics: ['Nouns','Verbs','Adjectives','Adverbs'], objectives: ['Identify parts of speech'], completed: true },
         { weekNumber: 2, topicTitle: 'Comprehension Skills', subtopics: ['Reading strategies','Inference'], objectives: ['Answer comprehension questions'], completed: true },

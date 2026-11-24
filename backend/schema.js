@@ -665,6 +665,16 @@ const DigitalResource = mongoose.models.DigitalResource || mongoose.model('Digit
 // 17. SYLLABUSES
 // ─────────────────────────────────────────────────────────────────────────────
 
+const syllabusTopicSchema = new mongoose.Schema({
+  weekNumber:  { type: Number },
+  topicTitle:  { type: String },
+  subtopics:   [{ type: String }],
+  objectives:  [{ type: String }],
+  resources:   [{ type: String }],
+  completed:   { type: Boolean, default: false },
+  completedAt: { type: Date },
+})
+
 const syllabusSchema = new mongoose.Schema({
   subject:      { type: String, required: true },
   form:         { type: String, required: true, enum: ['SHS 1','SHS 2','SHS 3'] },
@@ -675,19 +685,41 @@ const syllabusSchema = new mongoose.Schema({
   teacherId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
   teacherName:  { type: String },
 
-  topics: [{
-    weekNumber:  { type: Number },
-    topicTitle:  { type: String },
-    subtopics:   [{ type: String }],
-    objectives:  [{ type: String }],
-    resources:   [{ type: String }],
-    completed:   { type: Boolean, default: false },
-    completedAt: { type: Date },
-  }],
+  topics: [syllabusTopicSchema],
 
   fileAttachments: [attachmentSchema],
+  overview:        { type: String },
+
+  // Live (public) version is the fields above. Seeded/legacy docs have no
+  // isPublished and count as published.
+  isPublished:  { type: Boolean, default: false },
+  publishedAt:  { type: Date },
+
+  // Teacher's working copy. Edits never touch the live version until
+  // Academics approves; then draft content is copied over and cleared.
+  draft: {
+    type: new mongoose.Schema({
+      overview:        { type: String },
+      topics:          [syllabusTopicSchema],
+      fileAttachments: [attachmentSchema],
+      state:           { type: String, enum: ['draft','pending','rejected'], default: 'draft' },
+      submittedAt:     { type: Date },
+      reviewNote:      { type: String },
+      reviewedAt:      { type: Date },
+      approvalId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Approval' },
+    }, { _id: false }),
+    default: undefined,
+  },
+  lastReview: {
+    decision:  { type: String, enum: ['approved','rejected'] },
+    note:      { type: String },
+    by:        { type: String },
+    at:        { type: Date },
+  },
 }, { timestamps: true })
 
+syllabusSchema.index({ teacherId: 1, updatedAt: -1 })
+syllabusSchema.index({ 'draft.state': 1 })
 syllabusSchema.index(
   { subject: 1, form: 1, term: 1, academicYear: 1, program: 1 },
   { unique: true }

@@ -1,0 +1,90 @@
+/* Shared syllabus content (public page, Teacher Portal, Academics review). */
+.sv { display: grid; gap: 0.9rem; min-width: 0; }
+.sv-overview { margin: 0; color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.6; white-space: pre-line; }
+.sv-empty { margin: 0; color: var(--color-text-muted); font-size: 0.86rem; }
+
+.sv-progress { display: flex; align-items: center; gap: 0.6rem; }
+.sv-progress__track { flex: 1; height: 6px; border-radius: 999px; background: var(--background-hover); overflow: hidden; }
+.sv-progress__track span { display: block; height: 100%; border-radius: inherit; background: var(--color-success); transition: width 0.3s ease; }
+.sv-progress small { color: var(--color-text-muted); font-size: 0.74rem; white-space: nowrap; }
+
+.sv-weeks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.sv-week {
+  display: grid; gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--background-surface);
+}
+.sv-week.is-done { border-left-color: var(--color-success); }
+.sv-week__head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sv-week__head h4 { margin: 0; flex: 1 1 160px; font: 700 0.95rem/1.3 var(--font-name); color: var(--color-text-primary); }
+.sv-week__num {
+  padding: 0.15rem 0.5rem; border-radius: 999px;
+  background: var(--background-hover); color: var(--color-text-secondary);
+  font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+}
+.sv-done { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--color-success); font-size: 0.75rem; font-weight: 600; }
+
+.sv-tick {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 32px; padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border-color); border-radius: 999px;
+  background: transparent; color: var(--color-text-secondary);
+  font: 600 0.75rem/1 var(--font-name); cursor: pointer;
+}
+.sv-tick[aria-pressed='true'] { border-color: color-mix(in srgb, var(--color-success) 45%, transparent); color: var(--color-success); background: color-mix(in srgb, var(--color-success) 10%, transparent); }
+.sv-tick:disabled { opacity: 0.6; cursor: wait; }
+
+.sv-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.sv-chips li { padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid var(--border-color); font-size: 0.75rem; color: var(--color-text-secondary); }
+
+.sv-block { display: grid; gap: 0.25rem; }
+.sv-block strong { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); }
+.sv-block ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.15rem; font-size: 0.84rem; color: var(--color-text-primary); }
+.sv-block a { color: var(--color-accent); word-break: break-all; }
+
+.sv-attachments { display: grid; gap: 0.4rem; }
+.sv-attachments strong { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--color-text-secondary); }
+.sv-attachments a {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-md);
+  color: var(--color-text-primary); text-decoration: none; font-size: 0.84rem;
+}
+.sv-attachments a:hover { background: var(--background-hover); }
+.sv-attachments a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Topic editor (Teacher Portal) ── */
+.sv-editor { display: grid; gap: 0.6rem; }
+.sv-editor__topic {
+  display: grid; gap: 0.6rem;
+  padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md);
+  background: var(--background-subtle, var(--background-surface));
+}
+.sv-editor__row { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 0.5rem; align-items: end; }
+.sv-editor__cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.sv-editor__tools { display: flex; gap: 0.3rem; }
+@media (max-width: 640px) {
+  .sv-editor__row { grid-template-columns: 72px minmax(0, 1fr); }
+  .sv-editor__tools { grid-column: 1 / -1; justify-content: flex-end; }
+  .sv-editor__cols { grid-template-columns: 1fr; }
+}
+
+.sv-note {
+  padding: 0.7rem 0.85rem; border-radius: var(--radius-md); font-size: 0.85rem; line-height: 1.5;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--background-surface));
+  color: var(--color-text-primary);
+}
+.sv-note strong { display: block; margin-bottom: 0.2rem; color: var(--color-danger); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.sv-note.is-info { border-color: color-mix(in srgb, var(--color-accent) 35%, transparent); background: color-mix(in srgb, var(--color-accent) 8%, var(--background-surface)); }
+.sv-note.is-info strong { color: var(--color-accent); }
+
+/* ── Syllabus cards (lists) ── */
+.sv-card { display: grid; gap: 0.55rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--background-surface); box-shadow: var(--card-shadow); min-width: 0; }
+.sv-card h3 { margin: 0; font: 700 1rem/1.25 var(--font-name); color: var(--color-text-primary); }
+.sv-card__meta { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; color: var(--color-text-muted); font-size: 0.78rem; }
+.sv-card__actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
+.sv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; }
+@media (max-width: 480px) { .sv-grid { grid-template-columns: 1fr; } }

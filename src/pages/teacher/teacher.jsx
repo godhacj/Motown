@@ -10,6 +10,7 @@ import {
 import { Icons } from '../../assets/icons'
 import API from '../../config/api'
 import { useSocket } from '../../contexts/SocketContext.jsx'
+import PartSyllabus from './PartSyllabus'
 import '../../styles/Teacher/Teacher.css'
 
 // ─── Parts & sub-tabs ────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ const ALL_PARTS = [
   { value: 'assessment',    label: 'Assessment',        icon: <FiClipboard size={15} /> },
   { value: 'schedule',      label: 'Schedule',          icon: <FiCalendar  size={15} /> },
   { value: 'lesson-notes',  label: 'Lesson Notes',      icon: <FiBookOpen  size={15} /> },
+  { value: 'syllabus',      label: 'Syllabus',          icon: <FiList      size={15} /> },
   { value: 'profile',       label: 'Profile',           icon: <FiUser      size={15} /> },
   { value: 'timetable',     label: 'Timetable Builder', icon: <FiLayout    size={15} />, hodOnly: true },
 ]
@@ -29,6 +31,7 @@ const SUB_TABS = {
   assessment:    ASSESSMENT_TABS,
   schedule:      null,
   'lesson-notes': null,
+  syllabus:      null,
   profile:       PROFILE_TABS,
   timetable:     null,
 }
@@ -1383,6 +1386,7 @@ export default function Teacher() {
         {currentPart.value === 'assessment'   && renderAssessment()}
         {currentPart.value === 'schedule'     && <PartSchedule           profile={profile} />}
         {currentPart.value === 'lesson-notes' && <PartLessonNotes        profile={profile} />}
+        {currentPart.value === 'syllabus'     && <PartSyllabus           profile={profile} />}
         {currentPart.value === 'profile'      && <PartProfile            tab={activeTab} profile={profile} />}
         {currentPart.value === 'timetable'    && <PartTimetableBuilder   profile={profile} />}
       </div>
