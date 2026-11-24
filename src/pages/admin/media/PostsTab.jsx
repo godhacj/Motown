@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye, FiEyeOff, FiTrash2, FiMessageSquare, FiFileText } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle } from '../../../components/admin/AdminKit'
-import { mediaUrl, formatDate, splitTags } from '../../../components/admin/adminUtils'
+import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection } from '../../../components/admin/AdminKit'
+import { mediaUrl, formatDate, splitTags, isPlaceholderRecord } from '../../../components/admin/adminUtils'
+import { galleryImages as BUILT_IN } from '../../../routes/galleryImages'
 import CommentsModal from './CommentsModal'
 
 const POST_CATEGORIES = ['News', 'Event', 'Achievement', 'Notice', 'Sports', 'Academic']
@@ -103,7 +104,7 @@ export default function PostsTab({ notify, onCount }) {
     },
     { key: 'category', label: 'Category', render: (p) => p.category || '—' },
     { key: 'author', label: 'Author', render: (p) => p.author || '—' },
-    { key: 'status', label: 'Status', render: (p) => <Pill tone={p.isPublished ? 'success' : 'neutral'}>{p.isPublished ? 'Live' : 'Hidden'}</Pill> },
+    { key: 'status', label: 'Status', render: (p) => (isPlaceholderRecord(p) ? <Pill tone="warning">Placeholder</Pill> : <Pill tone={p.isPublished ? 'success' : 'neutral'}>{p.isPublished ? 'Live' : 'Hidden'}</Pill>) },
     { key: 'publishedAt', label: 'Date', render: (p) => formatDate(p.publishedAt) },
     {
       key: 'actions', label: 'Actions', className: 'is-right',
@@ -137,6 +138,13 @@ export default function PostsTab({ notify, onCount }) {
       {loading ? <p className="ak-muted">Loading posts…</p> : (
         <DataTable columns={columns} rows={visible} onRowClick={openEdit} empty={items.length ? 'No posts match those filters' : 'No posts yet'} />
       )}
+
+      <PlaceholderSection
+        title="Built-in placeholder posts"
+        items={BUILT_IN.map((p) => ({ key: `ph-${p.id}`, image: p.src, title: p.title, subtitle: p.publisher, source: p }))}
+        live={!loading && !items.some((i) => i.isPublished)}
+        onAdopt={({ source: p }) => setEditing({ ...EMPTY, title: p.title, body: p.description || '', coverImage: p.src, author: p.publisher || '', category: 'News', publishedAt: toLocalInput() })}
+      />
 
       {editing && (
         <Modal

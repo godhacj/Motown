@@ -70,12 +70,15 @@ function Notice({ notice, onClose }) {
   )
 }
 
+// Sample books from `npm run seed:library` are tagged in their edition.
+const isSample = (book) => /sample \(test data\)/i.test(book?.edition || '')
+
 function BookCell({ book, sub }) {
   return (
     <div className="library-admin-book">
       <BookCover book={book} />
       <div>
-        <strong>{book?.title || 'Removed title'}</strong>
+        <strong>{book?.title || 'Removed title'}{isSample(book) && <span className="library-sample-tag" title="Added by the sample data seed — remove with: node backend/seedLibrary.js --remove">Placeholder</span>}</strong>
         {sub && <span>{sub}</span>}
       </div>
     </div>

@@ -329,7 +329,8 @@ export default function Page() {
     let cancelled = false
     fetch(`${API}/api/posts`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { if (!cancelled) setPosts(data.map(normalise)) })
+      // No real posts yet → show the built-in placeholders (same rule as the admin page)
+      .then(data => { if (!cancelled) setPosts((Array.isArray(data) && data.length ? data : FALLBACK_POSTS).map(normalise)) })
       .catch(() => { if (!cancelled) setPosts(FALLBACK_POSTS.map(normalise)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

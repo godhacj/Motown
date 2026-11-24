@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye, FiEyeOff, FiTrash2, FiMessageSquare, FiImage } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle } from '../../../components/admin/AdminKit'
-import { mediaUrl, formatDate, splitTags, measureAspect } from '../../../components/admin/adminUtils'
+import { Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection } from '../../../components/admin/AdminKit'
+import { mediaUrl, formatDate, splitTags, measureAspect, isPlaceholderRecord } from '../../../components/admin/adminUtils'
+import { galleryImages as BUILT_IN } from '../../../routes/galleryImages'
 import CommentsModal from './CommentsModal'
 
 const EMPTY = {
@@ -119,7 +120,9 @@ export default function GalleryTab({ notify, onCount }) {
                 {i.type === 'video'
                   ? <video src={mediaUrl(i.src)} muted playsInline preload="metadata" />
                   : <img src={mediaUrl(i.src)} alt="" loading="lazy" />}
-                <Pill tone={i.isPublished ? 'success' : 'neutral'}>{i.isPublished ? 'Live' : 'Hidden'}</Pill>
+                {isPlaceholderRecord(i)
+                  ? <Pill tone="warning">Placeholder</Pill>
+                  : <Pill tone={i.isPublished ? 'success' : 'neutral'}>{i.isPublished ? 'Live' : 'Hidden'}</Pill>}
               </div>
               <div className="ak-card__body">
                 <strong title={i.title}>{i.title}</strong>
@@ -138,6 +141,13 @@ export default function GalleryTab({ notify, onCount }) {
           ))}
         </div>
       )}
+
+      <PlaceholderSection
+        title="Built-in placeholder photos"
+        items={BUILT_IN.map((p) => ({ key: `ph-${p.id}`, image: p.src, title: p.title, subtitle: [p.category, p.publisher].filter(Boolean).join(' · '), source: p }))}
+        live={!loading && !items.some((i) => i.isPublished)}
+        onAdopt={({ source: p }) => setEditing({ ...EMPTY, src: p.src, title: p.title, description: p.description || '', category: p.category || '', aspectRatio: p.aspectRatio || 1, date: p.date || '', publisher: p.publisher || '', location: p.location || '' })}
+      />
 
       {editing && (
         <Modal

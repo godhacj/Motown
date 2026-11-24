@@ -43,7 +43,8 @@ export default function Gallery() {
     let cancelled = false
     fetch(`${API}/api/gallery`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { if (!cancelled) setImages(data.map(normalise)) })
+      // No real photos yet → show the built-in placeholders (same rule as the admin page)
+      .then(data => { if (!cancelled) setImages((Array.isArray(data) && data.length ? data : FALLBACK_IMAGES).map(normalise)) })
       .catch(() => { if (!cancelled) setImages(FALLBACK_IMAGES.map(normalise)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

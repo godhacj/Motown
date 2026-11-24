@@ -4,9 +4,9 @@ import { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiEye, FiEyeOff } from 'react-icon
 import 'leaflet/dist/leaflet.css'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import {
-  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Toggle,
+  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Toggle, PlaceholderSection,
 } from '../../../components/admin/AdminKit'
-import { SCHOOL_CENTER, CATEGORY_META } from '../../core/files/mapLocations'
+import { SCHOOL_CENTER, CATEGORY_META, LOCATIONS as BUILT_IN } from '../../core/files/mapLocations'
 
 const TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const CATEGORIES = Object.keys(CATEGORY_META)
@@ -165,6 +165,13 @@ export default function MapTab({ notify, onCount }) {
           )}
         </div>
       </div>
+
+      <PlaceholderSection
+        title="Built-in placeholder locations"
+        items={BUILT_IN.map((l) => ({ key: `ph-${l.id}`, title: l.name, subtitle: CATEGORY_META[l.category]?.label || l.category, source: l }))}
+        live={!loading && !items.some((i) => i.isActive)}
+        onAdopt={({ source: l }) => setEditing({ ...EMPTY, name: l.name, category: l.category || 'facility', description: l.description || '', lat: l.coords[0], lng: l.coords[1] })}
+      />
 
       {editing && (
         <Modal

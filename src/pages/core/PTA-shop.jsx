@@ -106,7 +106,8 @@ export default function PTAShop() {
     let cancelled = false
     fetch(`${API}/api/products`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { if (!cancelled) setProducts(data.map(normalise)) })
+      // No real products yet → show the built-in placeholders (same rule as the admin page)
+      .then(data => { if (!cancelled) setProducts((Array.isArray(data) && data.length ? data : FALLBACK_PRODUCTS).map(normalise)) })
       .catch(() => { if (!cancelled) setProducts(FALLBACK_PRODUCTS.map(normalise)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

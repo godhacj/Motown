@@ -829,3 +829,11 @@
   .library-skeleton .library-cover,
   .library-skeleton__line { animation: none; }
 }
+
+/* Sample (seeded placeholder) books in the admin catalogue */
+.library-sample-tag {
+  display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.45rem;
+  border-radius: 999px; vertical-align: middle;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning);
+  font-size: 0.68rem; font-weight: 600;
+}
