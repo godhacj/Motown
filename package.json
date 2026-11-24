@@ -9,6 +9,7 @@
     "server:dev": "nodemon backend/index.js",
     "seed": "node backend/seedAll.js",
     "seed:library": "node backend/seedLibrary.js",
+    "seed:club": "node backend/seedSampleClub.js",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
