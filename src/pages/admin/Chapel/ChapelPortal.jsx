@@ -9,6 +9,7 @@ import { Button, Pill, Notice, Stats, Modal, ConfirmDialog, Field, FormGrid, Emp
 import { useNotice, formatDate } from '../../../components/admin/adminUtils'
 import StudentPicker from '../../../components/admin/StudentPicker'
 import '../../../styles/PageContent.css'
+import SectionNav from '../../../components/admin/SectionNav'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const EMPTY_SERVICE = { date: today(), time: '', topic: '', speaker: '', scriptureRef: '' }
@@ -175,7 +176,7 @@ function Attendance({ chapelName, notify, onStats }) {
 export default function ChapelPortal({ chapelName, denomination }) {
   const session = useAdminPortal(chapelName, null)
   const { apiFetch } = useAdminAuth()
-  const [tab, , direction] = usePortalTabs(`adminChapelTab:${chapelName}`, [{ id: 'services', label: 'Services', icon: FiBookOpen }, { id: 'attendance', label: 'Attendance', icon: FiCheckSquare }])
+  const [tab, , direction, sectionNav] = usePortalTabs(`adminChapelTab:${chapelName}`, [{ id: 'services', label: 'Services', icon: FiBookOpen }, { id: 'attendance', label: 'Attendance', icon: FiCheckSquare }])
   const [stats, setStats] = useState(null)
   const [notice, notify, clearNotice] = useNotice()
 
@@ -192,7 +193,7 @@ export default function ChapelPortal({ chapelName, denomination }) {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>{chapelName}</h1>
+        <h1 className="ak-sr-only">{chapelName}</h1>
         <p>Services, speakers and attendance.</p>
       </div>
       {streamMismatch ? (
@@ -211,6 +212,7 @@ export default function ChapelPortal({ chapelName, denomination }) {
               ? <Services chapelName={chapelName} denomination={denomination} notify={notify} onStats={loadStats} />
               : <Attendance chapelName={chapelName} notify={notify} onStats={loadStats} />}
           </TabPanel>
+          <SectionNav {...sectionNav} />
         </>
       )}
     </div>

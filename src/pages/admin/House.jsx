@@ -170,7 +170,7 @@ export default function House() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Houses</h1>
+        <h1 className="ak-sr-only">Houses</h1>
         <p>{isSenior ? 'All houses — standings, students and points.' : 'Your house’s students and events.'}</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />

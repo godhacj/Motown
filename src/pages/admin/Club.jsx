@@ -193,7 +193,7 @@ export default function Club() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Clubs</h1>
+        <h1 className="ak-sr-only">Clubs</h1>
         <p>{isManagement ? 'Every club in the school — members, activities and details.' : 'Manage your club’s members, activities and details.'}</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />

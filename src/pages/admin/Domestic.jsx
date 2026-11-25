@@ -8,6 +8,7 @@ import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import StudentPicker from '../../components/admin/StudentPicker'
 import '../../styles/admin/Domestic.css'
 import '../../styles/PageContent.css'
+import SectionNav from '../../components/admin/SectionNav'
 
 const SEVERITIES = ['Minor', 'Major', 'Expulsion']
 const SEV_TONE = { Minor: 'warning', Major: 'danger', Expulsion: 'danger' }
@@ -177,19 +178,20 @@ function Clearance({ notify }) {
 
 export default function Domestic() {
   const session = useAdminPortal('Domestic / DC', null)
-  const [tab, , direction] = usePortalTabs('adminDomesticTab', [{ id: 'cases', label: 'Cases', icon: FiAlertTriangle }, { id: 'clearance', label: 'Clearance', icon: FiFlag }])
+  const [tab, , direction, sectionNav] = usePortalTabs('adminDomesticTab', [{ id: 'cases', label: 'Cases', icon: FiAlertTriangle }, { id: 'clearance', label: 'Clearance', icon: FiFlag }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Domestic / DC</h1>
+        <h1 className="ak-sr-only">Domestic / DC</h1>
         <p>Disciplinary cases and the clearance items they raise.</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
       <TabPanel key={tab} direction={direction}>
         {tab === 'cases' ? <Cases notify={notify} /> : <Clearance notify={notify} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }

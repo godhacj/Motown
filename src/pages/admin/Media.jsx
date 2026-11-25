@@ -13,6 +13,7 @@ import SubmissionsTab from './media/SubmissionsTab'
 import AnnouncementsTab from './media/AnnouncementsTab'
 import FileLibrary from '../../components/admin/FileLibrary'
 import '../../styles/PageContent.css'
+import SectionNav from '../../components/admin/SectionNav'
 
 const SUBTITLE = {
   submissions: 'Posts and photos teachers have sent for review.',
@@ -32,7 +33,7 @@ export default function Media() {
   const noop = useCallback(() => {}, [])
   const pendingCount = useCallback((n) => setPending(n || 0), [])
 
-  const [tab, , direction] = usePortalTabs('adminMediaTab', [
+  const [tab, , direction, sectionNav] = usePortalTabs('adminMediaTab', [
     { id: 'submissions', label: 'Submissions', icon: FiInbox, badge: pending },
     { id: 'gallery', label: 'Gallery', icon: FiImage },
     { id: 'posts', label: 'Page', icon: FiFileText },
@@ -52,7 +53,7 @@ export default function Media() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Media</h1>
+        <h1 className="ak-sr-only">Media</h1>
         <p>{SUBTITLE[tab]}</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
@@ -66,6 +67,7 @@ export default function Media() {
         {tab === 'badge' && <BadgeTab notify={notify} />}
         {tab === 'files' && <FileLibrary notify={notify} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }

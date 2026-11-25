@@ -442,3 +442,12 @@
   .ak-card:hover, .sv-card:hover, .ak-stat:hover, .ak-list > li:hover { transform: none; }
   .ak-btn:active:not(:disabled), .ak-icon-btn:active, .ak-tab:active { transform: none; }
 }
+
+/* Visually hidden but announced by screen readers (page titles now shown in the notch) */
+.ak-sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+  white-space: nowrap; border: 0;
+}

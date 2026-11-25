@@ -8,6 +8,7 @@ import { useNotice } from '../../components/admin/adminUtils'
 import SyllabusReview from './academics/SyllabusReview'
 import '../../styles/admin/Academics.css'
 import '../../styles/PageContent.css'
+import SectionNav from '../../components/admin/SectionNav'
 
 
 function Overview({ notify }) {
@@ -62,7 +63,7 @@ export default function Academics() {
     apiFetch('/api/admin/academics/syllabus?view=pending').then((d) => setPending(d.pending ?? d.count)).catch(() => {})
   }, [session, apiFetch])
 
-  const [tab, , direction] = usePortalTabs('adminAcademicsTab', [
+  const [tab, , direction, sectionNav] = usePortalTabs('adminAcademicsTab', [
     { id: 'overview', label: 'Overview', icon: FiBarChart2 },
     { id: 'syllabus', label: 'Syllabus review', icon: FiBookOpen, badge: pending || 0 },
   ])
@@ -72,7 +73,7 @@ export default function Academics() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Academics</h1>
+        <h1 className="ak-sr-only">Academics</h1>
         <p>Classes and assessments, and syllabus review for teacher submissions.</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
@@ -80,6 +81,7 @@ export default function Academics() {
         {tab === 'overview' && <Overview notify={notify} />}
         {tab === 'syllabus' && <SyllabusReview notify={notify} onPending={onPending} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }

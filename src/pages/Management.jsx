@@ -9,6 +9,7 @@ import { useNotice, formatDate } from '../components/admin/adminUtils'
 import { adminHome } from '../config/adminRoutes'
 import '../styles/admin/Management.css'
 import '../styles/PageContent.css'
+import SectionNav from '../components/admin/SectionNav'
 
 const PORTALS = ['house', 'academics', 'data', 'domestic', 'chapel', 'library', 'club', 'media', 'pta', 'management', 'accounts']
 const DATA_MODES = ['student', 'teacher', 'infrastructure', 'record']
@@ -216,19 +217,20 @@ function Accounts({ notify, me }) {
 
 export default function Management() {
   const session = useAdminPortal('Management', null)
-  const [tab, , direction] = usePortalTabs('adminManagementTab', [{ id: 'overview', label: 'Overview', icon: FiGrid }, { id: 'accounts', label: 'Portal accounts', icon: FiUsers }])
+  const [tab, , direction, sectionNav] = usePortalTabs('adminManagementTab', [{ id: 'overview', label: 'Overview', icon: FiGrid }, { id: 'accounts', label: 'Portal accounts', icon: FiUsers }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Management Portal</h1>
+        <h1 className="ak-sr-only">Management Portal</h1>
         <p>School-wide overview — {session.displayName || 'Headmaster'}</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
       <TabPanel key={tab} direction={direction}>
         {tab === 'overview' ? <Overview notify={notify} /> : <Accounts notify={notify} me={session.username} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }

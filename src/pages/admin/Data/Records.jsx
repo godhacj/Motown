@@ -9,6 +9,7 @@ import FileLibrary from '../../../components/admin/FileLibrary'
 import DatabaseTab from './records/DatabaseTab'
 import '../../../styles/admin/Data/Records.css'
 import '../../../styles/PageContent.css'
+import SectionNav from '../../../components/admin/SectionNav'
 
 const STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' }
 const KINDS = ['syllabus', 'timetable', 'profile_change_student', 'profile_change_teacher', 'media_post', 'club_creation', 'personnel_add', 'personnel_remove', 'major_change']
@@ -104,7 +105,7 @@ function Approvals({ notify }) {
 export default function Records() {
   const session = useAdminPortal('Records', null)
   const [notice, notify, clearNotice] = useNotice()
-  const [tab, , direction] = usePortalTabs('adminRecordsTab', [
+  const [tab, , direction, sectionNav] = usePortalTabs('adminRecordsTab', [
     { id: 'database', label: 'Database', icon: FiDatabase },
     { id: 'files', label: 'Files', icon: FiImage },
     { id: 'log', label: 'Change log', icon: FiClock },
@@ -116,7 +117,7 @@ export default function Records() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Records</h1>
+        <h1 className="ak-sr-only">Records</h1>
         <p>Read and edit school records, manage uploaded files, and review every change.</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
@@ -126,6 +127,7 @@ export default function Records() {
         {tab === 'log' && <ChangeLog notify={notify} />}
         {tab === 'approvals' && <Approvals notify={notify} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }

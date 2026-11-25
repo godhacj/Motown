@@ -4,7 +4,7 @@ import {
   FiCheckCircle, FiAlertCircle, FiInfo, FiExternalLink, FiImage, FiFileText, FiTablet, FiSearch,
 } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
-import useNotchTabs from '../../hooks/useNotchTabs'
+import SectionNav from '../../components/admin/SectionNav'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import uploadMedia from '../../components/uploadMedia'
 import BookCover from '../../components/BookCover'
@@ -394,18 +394,18 @@ export default function AdminLibrary() {
     { value: 'catalogue', label: 'Catalogue', icon: FiBook },
   ]
 
-  // Tabs live in the topbar notch (with counts), like the other admin portals.
+  // Sections are switched from the floating bottom-right menu, like the other admin portals.
   const LIBRARY_ORDER = TABS.map((t) => t.value)
   const switchTab = (next) => {
     tabDirRef.current = LIBRARY_ORDER.indexOf(next) >= LIBRARY_ORDER.indexOf(tab) ? 1 : -1
     setTab(next)
   }
-  useNotchTabs(TABS.map((t) => ({ id: t.value, label: t.label, icon: t.icon, badge: t.count })), tab, switchTab)
+  const sectionTabs = TABS.map((t) => ({ id: t.value, label: t.label, icon: t.icon, badge: t.count }))
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Library</h1>
+        <h1 className="ak-sr-only">Library</h1>
         <p>Borrow requests, loans, digital uploads and the catalogue</p>
       </div>
 
@@ -657,6 +657,7 @@ export default function AdminLibrary() {
         </div>
       )}
       </div>
+      <SectionNav tabs={sectionTabs} value={tab} onChange={switchTab} />
 
       {editing && (
         <Modal title={editing._id ? 'Edit title' : 'Add a title'} onClose={closeForm} width={680}>

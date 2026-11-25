@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
-import useNotchTabs from './useNotchTabs'
 
 /**
- * Tab state for an admin page whose tabs live in the notch.
- * Remembers the last tab per page and which way the user moved (for the
+ * Section state for an admin page. Sections are switched from the floating
+ * bottom-right <SectionNav>; the notch shows the page name.
+ * Remembers the last section per page and which way the user moved (for the
  * slide direction of <TabPanel>).
  *
- * Returns [tab, setTab, direction]   direction: 1 = moved right, -1 = left
+ * Returns [tab, setTab, direction, navProps]
+ *   direction: 1 = moved forward, -1 = back
+ *   navProps:  spread onto <SectionNav {...navProps} />
  */
 export default function usePortalTabs(storageKey, tabs, fallback) {
   const first = fallback || tabs[0]?.id
@@ -29,6 +31,5 @@ export default function usePortalTabs(storageKey, tabs, fallback) {
     try { localStorage.setItem(storageKey, next) } catch { /* private mode */ }
   }, [storageKey, tabs])
 
-  useNotchTabs(tabs, tab, setTab)
-  return [tab, setTab, dir.current]
+  return [tab, setTab, dir.current, { tabs, value: tab, onChange: setTab }]
 }

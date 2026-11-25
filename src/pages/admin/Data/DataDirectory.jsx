@@ -120,7 +120,7 @@ export default function DataDirectory({ config }) {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>{config.title}</h1>
+        <h1 className="ak-sr-only">{config.title}</h1>
         <p>{config.subtitle}</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />

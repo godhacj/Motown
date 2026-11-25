@@ -25,7 +25,9 @@ export function useAdminPortal(notchTitle, searchPlaceholder, onSearch) {
       navigate('/login/admin', { replace: true })
       return
     }
-    setNotchText(notchTitle)
+    // Layout resets the notch on navigation after child effects run, so set
+    // the page name on the next tick or it is overwritten with "Home".
+    const t = setTimeout(() => setNotchText(notchTitle), 0)
     setSearchConfig({
       visible: !!searchPlaceholder,
       placeholder: searchPlaceholder || '',
@@ -33,6 +35,7 @@ export function useAdminPortal(notchTitle, searchPlaceholder, onSearch) {
       handler: onSearch || (() => {}),
     })
     setSideMenu(ADMIN_SIDE_MENU)
+    return () => clearTimeout(t)
   }, [session, notchTitle, searchPlaceholder, onSearch, setNotchText, setSearchConfig, setSideMenu, navigate])
 
   return session

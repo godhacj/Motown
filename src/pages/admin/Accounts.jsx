@@ -7,6 +7,7 @@ import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, Co
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import StudentPicker from '../../components/admin/StudentPicker'
 import '../../styles/PageContent.css'
+import SectionNav from '../../components/admin/SectionNav'
 
 const PAYMENT = ['Pending', 'Paid', 'Failed', 'Refunded']
 const ORDER = ['Pending', 'Processing', 'Fulfilled', 'Cancelled']
@@ -174,19 +175,20 @@ function Debtors({ notify }) {
 
 export default function Accounts() {
   const session = useAdminPortal('Accounts', null)
-  const [tab, , direction] = usePortalTabs('adminAccountsTab', [{ id: 'orders', label: 'Shop orders', icon: FiShoppingBag }, { id: 'debtors', label: 'Fee debtors', icon: FiAlertCircle }])
+  const [tab, , direction, sectionNav] = usePortalTabs('adminAccountsTab', [{ id: 'orders', label: 'Shop orders', icon: FiShoppingBag }, { id: 'debtors', label: 'Fee debtors', icon: FiAlertCircle }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Accounts</h1>
+        <h1 className="ak-sr-only">Accounts</h1>
         <p>PTA shop orders and student fee clearance.</p>
       </div>
       <Notice notice={notice} onClose={clearNotice} />
       <TabPanel key={tab} direction={direction}>
         {tab === 'orders' ? <Orders notify={notify} /> : <Debtors notify={notify} />}
       </TabPanel>
+      <SectionNav {...sectionNav} />
     </div>
   )
 }
