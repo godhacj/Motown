@@ -16,6 +16,7 @@ import {
   AdminLogin, StudentLogin, TeacherLogin,
   Student, ProspectStudent, Teacher,
 } from './routes/routes'
+import PortalGuard from './components/admin/PortalGuard'
 
 // Signed-in users land on their status page instead of the guest Home page.
 function readHomeRedirect() {
@@ -48,7 +49,7 @@ function App() {
             <Route index element={<HomeOrStatus />} />
 
             <Route path="library" element={<Library />} />
-            <Route path="management" element={<Management />} />
+            <Route path="management" element={<PortalGuard portal="management"><Management /></PortalGuard>} />
             <Route path="settings" element={<Settings />} />
             <Route path="signout" element={<SignOut />} />
 
@@ -62,26 +63,26 @@ function App() {
 
             {/* Admin (nested) */}
             <Route path="admin/">
-              <Route index element={<Academics />} />
-              <Route path="academics" element={<Academics />} />
-              <Route path="club" element={<Club />} />
-              <Route path="domestic" element={<Domestic />} />
-              <Route path="house" element={<House />} />
-              <Route path="library" element={<AdminLibrary />} />
-              <Route path="media" element={<Media />} />
-              <Route path="pta-shop" element={<AdminPtaShop />} />
-              <Route path="accounts" element={<Accounts />} />
+              <Route index element={<PortalGuard portal="academics"><Academics /></PortalGuard>} />
+              <Route path="academics" element={<PortalGuard portal="academics"><Academics /></PortalGuard>} />
+              <Route path="club" element={<PortalGuard portal="club"><Club /></PortalGuard>} />
+              <Route path="domestic" element={<PortalGuard portal="domestic"><Domestic /></PortalGuard>} />
+              <Route path="house" element={<PortalGuard portal="house"><House /></PortalGuard>} />
+              <Route path="library" element={<PortalGuard portal="library"><AdminLibrary /></PortalGuard>} />
+              <Route path="media" element={<PortalGuard portal="media"><Media /></PortalGuard>} />
+              <Route path="pta-shop" element={<PortalGuard portal="pta"><AdminPtaShop /></PortalGuard>} />
+              <Route path="accounts" element={<PortalGuard portal="accounts"><Accounts /></PortalGuard>} />
 
               <Route path="chapel/">
-                <Route path="aggrey-chapel" element={<AggreyChapel />} />
-                <Route path="catholic" element={<Catholic />} />
+                <Route path="aggrey-chapel" element={<PortalGuard portal="chapel"><AggreyChapel /></PortalGuard>} />
+                <Route path="catholic" element={<PortalGuard portal="chapel"><Catholic /></PortalGuard>} />
               </Route>
 
               <Route path="data/">
-                <Route path="infrastructure" element={<Infrastructure />} />
-                <Route path="records" element={<Records />} />
-                <Route path="staff-data" element={<StaffData />} />
-                <Route path="student-data" element={<StudentData />} />
+                <Route path="infrastructure" element={<PortalGuard portal="data" mode="infrastructure"><Infrastructure /></PortalGuard>} />
+                <Route path="records" element={<PortalGuard portal="data" mode="record"><Records /></PortalGuard>} />
+                <Route path="staff-data" element={<PortalGuard portal="data" mode="teacher"><StaffData /></PortalGuard>} />
+                <Route path="student-data" element={<PortalGuard portal="data" mode="student"><StudentData /></PortalGuard>} />
               </Route>
             </Route>
 

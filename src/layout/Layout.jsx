@@ -22,8 +22,8 @@ const ADVANCED_GROUP = {
   ],
 }
 
-// Admin portals — shown to any signed-in admin session regardless of portal scope
-// (management sees all; scoped portals see the same list but will get 403 on routes they don't own)
+// Admin portals — Management sees all; every other admin sees only their own
+// portal (filtered when the menu is built below).
 const ADMIN_GROUP = {
   type: 'group', title: 'Admin Portals', icon: FiShield,
   children: [
@@ -39,6 +39,11 @@ const ADMIN_GROUP = {
     { title: 'Management',  to: '/management',                    icon: FiShield    },
     { title: 'Accounts',    to: '/admin/accounts',                icon: FiDollarSign},
   ],
+}
+
+const PORTAL_OF_TITLE = {
+  House: 'house', Academics: 'academics', Data: 'data', Domestic: 'domestic', Chapel: 'chapel',
+  Library: 'library', Club: 'club', Media: 'media', 'PTA Shop': 'pta', Management: 'management', Accounts: 'accounts',
 }
 
 // ── Session helpers ────────────────────────────────────────────────────────
@@ -134,7 +139,7 @@ function Layout() {
 
     // Inject Admin Portals group for admin sessions (avoid duplicates)
     if (isAdminLoggedIn) {
-      const alreadyHasAdmin = items.some(i => i.type === 'group' && i.title === 'Admin Portals')
+      const alreadyHasAdmin = items.some(i => i.type === 'group' && (i.title === 'Admin Portals' || i.title === 'Admin Portal'))
       if (!alreadyHasAdmin) {
         // Data / Chapel accounts go to the page for their mode / stream.
         let dataHome = '/admin/data/student-data'
@@ -145,7 +150,12 @@ function Layout() {
           chapelHome = adminHome('chapel', a?.portal === 'chapel' ? a.scope : null)
         } catch { /* keep defaults */ }
         const overrides = { Data: dataHome, Chapel: chapelHome }
-        items.push({ ...ADMIN_GROUP, children: ADMIN_GROUP.children.map(c => overrides[c.title] ? { ...c, to: overrides[c.title] } : c) })
+        let myPortal = null
+        try { myPortal = JSON.parse(localStorage.getItem('adminPortalSession') || 'null')?.portal || null } catch { /* ignore */ }
+        const children = ADMIN_GROUP.children
+          .filter(c => !myPortal || myPortal === 'management' || PORTAL_OF_TITLE[c.title] === myPortal)
+          .map(c => overrides[c.title] ? { ...c, to: overrides[c.title] } : c)
+        items.push({ ...ADMIN_GROUP, title: myPortal && myPortal !== 'management' ? 'Admin Portal' : ADMIN_GROUP.title, children })
       }
     }
 
