@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye, FiEyeOff, FiTrash2, FiMessageSquare, FiImage } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection } from '../../../components/admin/AdminKit'
+import { Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl, formatDate, splitTags, measureAspect, isPlaceholderRecord } from '../../../components/admin/adminUtils'
 import { galleryImages as BUILT_IN } from '../../../routes/galleryImages'
 import CommentsModal from './CommentsModal'
@@ -110,7 +110,7 @@ export default function GalleryTab({ notify, onCount }) {
         <Button onClick={openNew}><FiPlus /> Add photo</Button>
       </Toolbar>
 
-      {loading ? <p className="ak-muted">Loading gallery…</p> : !visible.length ? (
+      {loading ? <Loading variant="cards" /> : !visible.length ? (
         <Empty icon={FiImage} text={items.length ? 'No items match those filters' : 'The gallery is empty'} action={!items.length && <Button onClick={openNew}><FiPlus /> Add the first photo</Button>} />
       ) : (
         <div className="ak-card-grid">

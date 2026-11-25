@@ -395,7 +395,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                       aria-selected={active}
                       className={`notch-tab${active ? ' notch-tab--active' : ''}`}
                       title={tab.label}
-                      aria-label={tab.label}
+                      aria-label={tab.badge ? `${tab.label} (${tab.badge})` : tab.label}
                       onClick={() => {
                         setNotchActiveTab(tab.value)
                         window.dispatchEvent(new CustomEvent('notchTabChange', { detail: { value: tab.value } }))
@@ -403,6 +403,7 @@ function Topbar({ isOpen, setIsOpen, searchConfig, setSearchConfig, conversation
                     >
                       {tab.icon && <span className="notch-tab__icon">{tab.icon}</span>}
                       <span className="notch-tab__label">{tab.label}</span>
+                      {tab.badge > 0 && <span className="notch-tab__badge" aria-hidden="true">{tab.badge > 99 ? '99+' : tab.badge}</span>}
                       {active && <span className="notch-tab__pip" aria-hidden="true" />}
                     </button>
                     </Tooltip>

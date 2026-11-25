@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiArrowUp, FiArrowDown, FiImage } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Empty, Modal, ConfirmDialog, Field, ImageUpload, Toggle, PlaceholderSection } from '../../../components/admin/AdminKit'
+import { Button, Pill, Empty, Modal, ConfirmDialog, Field, ImageUpload, Toggle, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl } from '../../../components/admin/adminUtils'
 import { billboardImages } from '../../../routes/shopProducts'
 
@@ -73,7 +73,7 @@ export default function BannersTab({ notify }) {
           </div>
           <Button onClick={() => setEditing({ ...EMPTY })}><FiPlus /> Add banner</Button>
         </div>
-        {loading ? <p className="ak-muted">Loading…</p> : !items.length ? <Empty icon={FiImage} text="No banners yet — the shop shows its built-in slides" /> : (
+        {loading ? <Loading /> : !items.length ? <Empty icon={FiImage} text="No banners yet — the shop shows its built-in slides" /> : (
           <ul className="ak-list">
             {items.map((b, i) => (
               <li key={b._id}>

@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiBookOpen, FiCheckSquare, FiX } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useAdminPortal } from '../../../hooks/useAdminPortal'
+import usePortalTabs from '../../../hooks/usePortalTabs'
 import { adminHome } from '../../../config/adminRoutes'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Modal, ConfirmDialog, Field, FormGrid, Tabs, Empty, DataTable } from '../../../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Modal, ConfirmDialog, Field, FormGrid, Empty, DataTable, TabPanel, Loading } from '../../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../../components/admin/adminUtils'
 import StudentPicker from '../../../components/admin/StudentPicker'
 import '../../../styles/PageContent.css'
@@ -65,7 +66,7 @@ function Services({ chapelName, denomination, notify, onStats }) {
         <h2>Services</h2>
         <Button onClick={() => setEditing({ ...EMPTY_SERVICE })}><FiPlus /> Add service</Button>
       </div>
-      {loading ? <p className="ak-muted">Loading…</p> : !services.length ? <Empty icon={FiBookOpen} text="No services recorded yet" /> : (
+      {loading ? <Loading /> : !services.length ? <Empty icon={FiBookOpen} text="No services recorded yet" /> : (
         <ul className="ak-list">
           {services.map((s) => (
             <li key={s._id}>
@@ -165,7 +166,7 @@ function Attendance({ chapelName, notify, onStats }) {
         {mark === 'exempt' && <Field label="Reason"><input className="ak-input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sick bay, Muslim student…" /></Field>}
         <div><Button onClick={add} disabled={busy || !student}><FiPlus /> Record</Button></div>
       </div>
-      {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={records} empty={`Nothing recorded for ${formatDate(date)}`} />}
+      {loading ? <Loading /> : <DataTable columns={columns} rows={records} empty={`Nothing recorded for ${formatDate(date)}`} />}
     </section>
   )
 }
@@ -174,7 +175,7 @@ function Attendance({ chapelName, notify, onStats }) {
 export default function ChapelPortal({ chapelName, denomination }) {
   const session = useAdminPortal(chapelName, null)
   const { apiFetch } = useAdminAuth()
-  const [tab, setTab] = useState('services')
+  const [tab, , direction] = usePortalTabs(`adminChapelTab:${chapelName}`, [{ id: 'services', label: 'Services', icon: FiBookOpen }, { id: 'attendance', label: 'Attendance', icon: FiCheckSquare }])
   const [stats, setStats] = useState(null)
   const [notice, notify, clearNotice] = useNotice()
 
@@ -204,11 +205,12 @@ export default function ChapelPortal({ chapelName, denomination }) {
             { label: 'Absences', value: stats ? stats.totalAttendance - stats.presentCount - stats.exemptedCount : '—', tone: 'danger' },
             { label: 'Exemptions', value: stats?.exemptedCount ?? '—' },
           ]} />
-          <Tabs tabs={[{ id: 'services', label: 'Services', icon: FiBookOpen }, { id: 'attendance', label: 'Attendance', icon: FiCheckSquare }]} value={tab} onChange={setTab} />
           <Notice notice={notice} onClose={clearNotice} />
-          {tab === 'services'
-            ? <Services chapelName={chapelName} denomination={denomination} notify={notify} onStats={loadStats} />
-            : <Attendance chapelName={chapelName} notify={notify} onStats={loadStats} />}
+          <TabPanel key={tab} direction={direction}>
+            {tab === 'services'
+              ? <Services chapelName={chapelName} denomination={denomination} notify={notify} onStats={loadStats} />
+              : <Attendance chapelName={chapelName} notify={notify} onStats={loadStats} />}
+          </TabPanel>
         </>
       )}
     </div>

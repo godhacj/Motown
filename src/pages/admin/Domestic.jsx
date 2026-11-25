@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiAlertTriangle, FiCheckCircle, FiFlag } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
+import usePortalTabs from '../../hooks/usePortalTabs'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Tabs } from '../../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, TabPanel, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import StudentPicker from '../../components/admin/StudentPicker'
 import '../../styles/admin/Domestic.css'
@@ -95,7 +96,7 @@ function Cases({ notify }) {
           </select>
           <Button onClick={() => setEditing({ student: null, title: '', date: today(), severity: 'Minor', detail: '', resolution: '' })}><FiPlus /> Record case</Button>
         </Toolbar>
-        {loading ? <p className="ak-muted">Loading…</p> : (
+        {loading ? <Loading /> : (
           <DataTable columns={columns} rows={visible} rowKey="_id" empty={cases.length ? 'No cases match' : 'No disciplinary cases recorded'}
             onRowClick={(c) => setEditing({ ...c, date: c.date ? String(c.date).slice(0, 10) : today(), detail: c.detail || '', resolution: c.resolution || '' })} />
         )}
@@ -168,7 +169,7 @@ function Clearance({ notify }) {
   return (
     <section className="ak-panel">
       <Toolbar><Tabs tabs={[{ id: 'outstanding', label: 'Outstanding' }, { id: 'cleared', label: 'Cleared' }]} value={status} onChange={setStatus} /></Toolbar>
-      {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={items} empty={status === 'outstanding' ? 'No outstanding DC clearance' : 'Nothing cleared yet'} />}
+      {loading ? <Loading /> : <DataTable columns={columns} rows={items} empty={status === 'outstanding' ? 'No outstanding DC clearance' : 'Nothing cleared yet'} />}
       {confirm && <ConfirmDialog title="Mark as cleared?" message={`${name(confirm)}: “${confirm.description}”`} confirmLabel="Clear" busy={busy} onConfirm={clear} onCancel={() => setConfirm(null)} />}
     </section>
   )
@@ -176,7 +177,7 @@ function Clearance({ notify }) {
 
 export default function Domestic() {
   const session = useAdminPortal('Domestic / DC', null)
-  const [tab, setTab] = useState('cases')
+  const [tab, , direction] = usePortalTabs('adminDomesticTab', [{ id: 'cases', label: 'Cases', icon: FiAlertTriangle }, { id: 'clearance', label: 'Clearance', icon: FiFlag }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
@@ -185,9 +186,10 @@ export default function Domestic() {
         <h1>Domestic / DC</h1>
         <p>Disciplinary cases and the clearance items they raise.</p>
       </div>
-      <Tabs tabs={[{ id: 'cases', label: 'Cases', icon: FiAlertTriangle }, { id: 'clearance', label: 'Clearance', icon: FiFlag }]} value={tab} onChange={setTab} />
       <Notice notice={notice} onClose={clearNotice} />
-      {tab === 'cases' ? <Cases notify={notify} /> : <Clearance notify={notify} />}
+      <TabPanel key={tab} direction={direction}>
+        {tab === 'cases' ? <Cases notify={notify} /> : <Clearance notify={notify} />}
+      </TabPanel>
     </div>
   )
 }

@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FiInbox, FiRepeat, FiAlertTriangle, FiUploadCloud, FiBook, FiPlus, FiX,
   FiCheckCircle, FiAlertCircle, FiInfo, FiExternalLink, FiImage, FiFileText, FiTablet, FiSearch,
 } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
+import useNotchTabs from '../../hooks/useNotchTabs'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import uploadMedia from '../../components/uploadMedia'
 import BookCover from '../../components/BookCover'
 import LibraryDialog from '../../components/LibraryDialog'
 import '../../styles/PageContent.css'
 import '../../styles/Library.css'
+import '../../styles/admin/AdminKit.css'
 
 const CATEGORIES = ['Textbook', 'Fiction', 'Non-Fiction', 'Reference', 'Journal', 'Digital', 'Past Papers']
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -156,6 +158,7 @@ export default function AdminLibrary() {
   const [busy, setBusy] = useState(null)
 
   const [tab, setTab] = useState('requests')
+  const tabDirRef = useRef(1)
   const [category, setCategory] = useState('')
   const [kind, setKind] = useState('')
   const [loanFilter, setLoanFilter] = useState('open')
@@ -391,6 +394,14 @@ export default function AdminLibrary() {
     { value: 'catalogue', label: 'Catalogue', icon: FiBook },
   ]
 
+  // Tabs live in the topbar notch (with counts), like the other admin portals.
+  const LIBRARY_ORDER = TABS.map((t) => t.value)
+  const switchTab = (next) => {
+    tabDirRef.current = LIBRARY_ORDER.indexOf(next) >= LIBRARY_ORDER.indexOf(tab) ? 1 : -1
+    setTab(next)
+  }
+  useNotchTabs(TABS.map((t) => ({ id: t.value, label: t.label, icon: t.icon, badge: t.count })), tab, switchTab)
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -410,7 +421,7 @@ export default function AdminLibrary() {
             key={s.label}
             type="button"
             className={`stat-box library-stat${tab === s.to ? ' is-current' : ''}${s.tone ? ` is-${s.tone}` : ''}`}
-            onClick={() => setTab(s.to)}
+            onClick={() => switchTab(s.to)}
           >
             <span className="stat-value">{loading ? '–' : s.value}</span>
             <span className="stat-label">{s.label}</span>
@@ -420,20 +431,6 @@ export default function AdminLibrary() {
       </div>
 
       <div className="library-admin-toolbar">
-        <div className="ap-filters library-admin-tabs" role="tablist">
-          {TABS.map(({ value, label, icon, count }) => { const TabIcon = icon; return (
-            <button
-              key={value}
-              role="tab"
-              aria-selected={tab === value}
-              className={`page-button${tab === value ? '' : ' ap-tab-inactive'}`}
-              onClick={() => setTab(value)}
-            >
-              <TabIcon aria-hidden="true" /> {label}
-              {count > 0 && <span className="library-count">{count}</span>}
-            </button>
-          ) })}
-        </div>
         <button className="page-button" onClick={() => openForm(null)}><FiPlus aria-hidden="true" style={{ marginRight: 4 }} /> Add title</button>
       </div>
 
@@ -441,6 +438,7 @@ export default function AdminLibrary() {
       {loading && <p className="ap-loading">Loading library…</p>}
       {loadError && <p className="ap-error">{loadError}</p>}
 
+      <div key={tab} className={`ak-tabpanel ${tabDirRef.current < 0 ? 'from-left' : 'from-right'}`}>
       {!loading && !loadError && tab === 'requests' && (
         <div className="table-container">
           <h2>Pending borrow requests ({visibleRequests.length})</h2>
@@ -658,6 +656,7 @@ export default function AdminLibrary() {
           </table></div>
         </div>
       )}
+      </div>
 
       {editing && (
         <Modal title={editing._id ? 'Edit title' : 'Add a title'} onClose={closeForm} width={680}>

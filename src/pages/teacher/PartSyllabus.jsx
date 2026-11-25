@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiPlus, FiEdit2, FiSend, FiRotateCcw, FiTrash2, FiArrowUp, FiArrowDown, FiX, FiPaperclip, FiEye, FiBookOpen } from 'react-icons/fi'
 import API from '../../config/api'
 import uploadMedia from '../../components/uploadMedia'
-import { Button, Pill, Modal, ConfirmDialog, Field, FormGrid, Notice, Empty } from '../../components/admin/AdminKit'
+import { Button, Pill, Modal, ConfirmDialog, Field, FormGrid, Notice, Empty, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import SyllabusView, { ProgressBar } from '../../components/syllabus/SyllabusView'
 import { FORMS, TERMS, PROGRAMS, STATUS_META, currentAcademicYear } from '../../components/syllabus/syllabusMeta'
@@ -183,7 +183,7 @@ export default function PartSyllabus({ profile }) {
 
       {counts.rejected > 0 && <div className="sv-note"><strong>Action needed</strong>{counts.rejected} syllabus{counts.rejected > 1 ? 'es need' : ' needs'} changes requested by Academics.</div>}
 
-      {loading ? <p className="ak-muted">Loading…</p> : !items.length ? (
+      {loading ? <Loading variant="cards" /> : !items.length ? (
         <Empty icon={FiBookOpen} text="You haven't written a syllabus yet." action={<Button onClick={openNew}><FiPlus /> Start one</Button>} />
       ) : (
         <div className="sv-grid">

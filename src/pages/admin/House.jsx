@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiArrowLeft, FiPlus, FiTrash2, FiUsers, FiAward, FiRepeat } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Tabs, Empty } from '../../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Tabs, Empty, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import '../../styles/admin/House.css'
 import '../../styles/PageContent.css'
@@ -66,7 +66,7 @@ function HouseDetail({ houseId, houses, canManage, onBack, onHouseChange, notify
     } catch (err) { notify('error', err.message) } finally { setBusy(false) }
   }
 
-  if (!house) return <p className="ak-muted">Loading…</p>
+  if (!house) return <Loading />
   const events = [...(house.events || [])].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
   const columns = [
     { key: 'name', label: 'Student', className: 'is-primary', render: (s) => <div className="ak-thumb-cell"><div><strong>{s.firstName} {s.lastName}</strong><span>{s.studentId}</span></div></div> },
@@ -179,7 +179,7 @@ export default function House() {
         <HouseDetail houseId={null} houses={[]} canManage={false} notify={notify} onHouseChange={() => {}} />
       ) : openId ? (
         <HouseDetail houseId={openId} houses={houses} canManage onBack={() => setOpenId(null)} onHouseChange={loadHouses} notify={notify} />
-      ) : loading ? <p className="ak-muted">Loading…</p> : (
+      ) : loading ? <Loading /> : (
         <>
           <Stats items={[
             { label: 'Houses', value: houses.length },

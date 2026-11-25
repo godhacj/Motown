@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye, FiEyeOff, FiTrash2, FiMessageSquare, FiFileText } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection } from '../../../components/admin/AdminKit'
+import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl, formatDate, splitTags, isPlaceholderRecord } from '../../../components/admin/adminUtils'
 import { galleryImages as BUILT_IN } from '../../../routes/galleryImages'
 import CommentsModal from './CommentsModal'
@@ -135,7 +135,7 @@ export default function PostsTab({ notify, onCount }) {
         <Button onClick={openNew}><FiPlus /> New post</Button>
       </Toolbar>
 
-      {loading ? <p className="ak-muted">Loading posts…</p> : (
+      {loading ? <Loading /> : (
         <DataTable columns={columns} rows={visible} onRowClick={openEdit} empty={items.length ? 'No posts match those filters' : 'No posts yet'} />
       )}
 

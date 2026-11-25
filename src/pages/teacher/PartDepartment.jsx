@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiUsers } from 'react-icons/fi'
 import API from '../../config/api'
-import { Pill, Notice, Toolbar, SearchInput, DataTable, Empty, ConfirmDialog } from '../../components/admin/AdminKit'
+import { Pill, Notice, Toolbar, SearchInput, DataTable, Empty, ConfirmDialog, Loading } from '../../components/admin/AdminKit'
 import { useNotice } from '../../components/admin/adminUtils'
 
 const ROLE_LABEL = { teacher: 'Teacher', hod: 'Head of Department', hod_assistant: 'HOD Assistant' }
@@ -81,7 +81,7 @@ export default function PartDepartment({ profile }) {
       </div>
       <Notice notice={notice} onClose={clearNotice} />
       <Toolbar><SearchInput value={q} onChange={setQ} placeholder="Search teachers…" /></Toolbar>
-      {loading ? <p className="ak-muted">Loading…</p> : !teachers.length ? <Empty icon={FiUsers} text="No teachers found in your department" /> : (
+      {loading ? <Loading /> : !teachers.length ? <Empty icon={FiUsers} text="No teachers found in your department" /> : (
         <DataTable columns={columns} rows={visible} empty="No teachers match" />
       )}
       {pending && (

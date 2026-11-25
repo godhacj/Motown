@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FiEdit2, FiPlus } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Modal, Field, ImageUpload } from '../../../components/admin/AdminKit'
+import { Button, Pill, Modal, Field, ImageUpload, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl } from '../../../components/admin/adminUtils'
 import { keyData as FALLBACK } from '../../../components/files/badge_keyData'
 
@@ -62,7 +62,7 @@ export default function BadgeTab({ notify }) {
         {missing > 0 && ` ${missing} key${missing > 1 ? 's are' : ' is'} still using the built-in placeholder content.`}
       </p>
 
-      {loading ? <p className="ak-muted">Loading…</p> : (
+      {loading ? <Loading variant="cards" /> : (
         <div className="ak-card-grid">
           {SLOTS.map((order) => {
             const h = byOrder[order]

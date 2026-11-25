@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiShoppingBag, FiAlertCircle, FiPlus, FiCheckCircle } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
+import usePortalTabs from '../../hooks/usePortalTabs'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, Tabs } from '../../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, TabPanel, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import StudentPicker from '../../components/admin/StudentPicker'
 import '../../styles/PageContent.css'
@@ -73,7 +74,7 @@ function Orders({ notify }) {
           <select value={pay} onChange={(e) => setPay(e.target.value)} aria-label="Payment status"><option value="">Any payment</option>{PAYMENT.map((s) => <option key={s}>{s}</option>)}</select>
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Order status"><option value="">Any status</option>{ORDER.map((s) => <option key={s}>{s}</option>)}</select>
         </Toolbar>
-        {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={visible} onRowClick={setOpen} empty="No orders" />}
+        {loading ? <Loading /> : <DataTable columns={columns} rows={visible} onRowClick={setOpen} empty="No orders" />}
       </section>
 
       {open && (
@@ -155,7 +156,7 @@ function Debtors({ notify }) {
         <Button onClick={() => setRaising({ student: null, description: '' })}><FiPlus /> Add debtor</Button>
       </Toolbar>
       <p className="ak-muted">Students on this list see a private notice and can't complete exit clearance until the item is marked paid.</p>
-      {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={items} empty={status === 'outstanding' ? 'No outstanding fees' : 'Nothing paid yet'} />}
+      {loading ? <Loading /> : <DataTable columns={columns} rows={items} empty={status === 'outstanding' ? 'No outstanding fees' : 'Nothing paid yet'} />}
 
       {raising && (
         <Modal title="Add a debtor" width={520} onClose={() => !busy && setRaising(null)}
@@ -173,7 +174,7 @@ function Debtors({ notify }) {
 
 export default function Accounts() {
   const session = useAdminPortal('Accounts', null)
-  const [tab, setTab] = useState('orders')
+  const [tab, , direction] = usePortalTabs('adminAccountsTab', [{ id: 'orders', label: 'Shop orders', icon: FiShoppingBag }, { id: 'debtors', label: 'Fee debtors', icon: FiAlertCircle }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
@@ -182,9 +183,10 @@ export default function Accounts() {
         <h1>Accounts</h1>
         <p>PTA shop orders and student fee clearance.</p>
       </div>
-      <Tabs tabs={[{ id: 'orders', label: 'Shop orders', icon: FiShoppingBag }, { id: 'debtors', label: 'Fee debtors', icon: FiAlertCircle }]} value={tab} onChange={setTab} />
       <Notice notice={notice} onClose={clearNotice} />
-      {tab === 'orders' ? <Orders notify={notify} /> : <Debtors notify={notify} />}
+      <TabPanel key={tab} direction={direction}>
+        {tab === 'orders' ? <Orders notify={notify} /> : <Debtors notify={notify} />}
+      </TabPanel>
     </div>
   )
 }

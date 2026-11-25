@@ -129,14 +129,61 @@ export function SearchInput({ value, onChange, placeholder = 'Search…' }) {
   )
 }
 
+// Counts up to a number (strings like "GH₵ 40.00" or "—" render as-is).
+export function AnimatedNumber({ value, duration = 600 }) {
+  const target = typeof value === 'number' && Number.isFinite(value) ? value : null
+  const [shown, setShown] = useState(target ?? 0)
+  const from = useRef(0)
+  useEffect(() => {
+    if (target === null) return
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce || target === from.current) { setShown(target); from.current = target; return }
+    const start = performance.now()
+    const a = from.current
+    let raf
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setShown(Math.round(a + (target - a) * eased))
+      if (t < 1) raf = requestAnimationFrame(step)
+      else from.current = target
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return target === null ? value : shown.toLocaleString()
+}
+
 export function Stats({ items }) {
   return (
     <div className="ak-stats">
-      {items.map((s) => (
-        <div key={s.label} className={`ak-stat${s.tone ? ` is-${s.tone}` : ''}`}>
-          <strong>{s.value}</strong>
+      {items.map((s, i) => (
+        <div key={s.label} className={`ak-stat${s.tone ? ` is-${s.tone}` : ''}`} style={{ '--i': i }}>
+          <strong><AnimatedNumber value={s.value} /></strong>
           <span>{s.label}</span>
         </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Tab content that slides in from the side the user moved towards.
+ * Pass key={tab} so each tab change re-runs the entrance.
+ */
+export function TabPanel({ direction = 1, children }) {
+  return <div className={`ak-tabpanel ${direction < 0 ? 'from-left' : 'from-right'}`}>{children}</div>
+}
+
+/** Skeleton placeholder while data loads. variant: 'rows' | 'cards' */
+export function Loading({ variant = 'rows', count, label = 'Loading…' }) {
+  const n = count || (variant === 'cards' ? 6 : 5)
+  return (
+    <div className={`ak-skeleton is-${variant}`} role="status" aria-label={label}>
+      {Array.from({ length: n }, (_, i) => (
+        variant === 'cards'
+          ? <div key={i} className="ak-skel-card" style={{ '--i': i }}><span className="ak-skel-block" /><span className="ak-skel-line" /><span className="ak-skel-line is-short" /></div>
+          : <div key={i} className="ak-skel-row" style={{ '--i': i }}><span className="ak-skel-dot" /><span className="ak-skel-line" /><span className="ak-skel-line is-short" /></div>
       ))}
     </div>
   )
@@ -166,8 +213,8 @@ export function DataTable({ columns, rows, rowKey = '_id', empty = 'Nothing here
           <tr>{columns.map((c) => <th key={c.key} className={c.className}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r[rowKey]} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? 'is-clickable' : ''}>
+          {rows.map((r, i) => (
+            <tr key={r[rowKey]} onClick={onRowClick ? () => onRowClick(r) : undefined} className={onRowClick ? 'is-clickable' : ''} style={{ '--i': Math.min(i, 12) }}>
               {columns.map((c) => (
                 <td key={c.key} data-label={c.label} className={c.className}>
                   {c.render ? c.render(r) : (r[c.key] ?? '—')}

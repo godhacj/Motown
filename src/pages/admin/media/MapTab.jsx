@@ -4,8 +4,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiEye, FiEyeOff } from 'react-icon
 import 'leaflet/dist/leaflet.css'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import {
-  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Toggle, PlaceholderSection,
-} from '../../../components/admin/AdminKit'
+  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Toggle, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { SCHOOL_CENTER, CATEGORY_META, LOCATIONS as BUILT_IN } from '../../core/files/mapLocations'
 
 const TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -160,7 +159,7 @@ export default function MapTab({ notify, onCount }) {
           </MapContainer>
         </div>
         <div>
-          {loading ? <p className="ak-muted">Loading locations…</p> : (
+          {loading ? <Loading /> : (
             <DataTable columns={columns} rows={visible} onRowClick={openEdit} empty={items.length ? 'No locations match' : 'No map locations yet'} />
           )}
         </div>

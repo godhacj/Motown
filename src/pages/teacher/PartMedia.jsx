@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiSend, FiImage, FiFileText } from 'react-icons/fi'
 import API from '../../config/api'
-import { Button, Pill, Modal, ConfirmDialog, Field, FormGrid, Notice, Empty, Tabs, ImageUpload } from '../../components/admin/AdminKit'
+import { Button, Pill, Modal, ConfirmDialog, Field, FormGrid, Notice, Empty, Tabs, ImageUpload, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate, mediaUrl, measureAspect } from '../../components/admin/adminUtils'
 import '../../styles/components/SyllabusView.css' // .sv-note callout
 
@@ -120,7 +120,7 @@ export default function PartMedia({ profile }) {
       <Notice notice={notice} onClose={clearNotice} />
       {rejected > 0 && <div className="sv-note"><strong>Action needed</strong>The Media team asked for changes on {rejected} submission{rejected > 1 ? 's' : ''}. Edit to fix and resubmit.</div>}
 
-      {loading ? <p className="ak-muted">Loading…</p> : !list.length ? (
+      {loading ? <Loading variant="cards" /> : !list.length ? (
         <Empty
           icon={kind === 'posts' ? FiFileText : FiImage}
           text={kind === 'posts' ? "You haven't submitted any posts yet." : "You haven't submitted any photos yet."}

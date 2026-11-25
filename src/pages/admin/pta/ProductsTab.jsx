@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiShoppingBag, FiPaperclip, FiX, FiUploadCloud, FiExternalLink } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import {
-  Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, Tabs, PlaceholderSection,
-} from '../../../components/admin/AdminKit'
+  Button, Pill, Toolbar, SearchInput, Empty, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, Tabs, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl, formatDate, isPlaceholderRecord } from '../../../components/admin/adminUtils'
 import uploadMedia from '../../../components/uploadMedia'
 import { products as BUILT_IN_PRODUCTS } from '../../../routes/shopProducts'
@@ -137,7 +136,7 @@ export default function ProductsTab({ notify }) {
           </select>
           <Button onClick={() => open({ ...EMPTY, category: categories[0] || 'Apparel' })}><FiPlus /> Add product</Button>
         </Toolbar>
-        {loading ? <p className="ak-muted">Loading…</p> : !visible.length ? (
+        {loading ? <Loading variant="cards" /> : !visible.length ? (
           <Empty icon={FiShoppingBag} text={items.length ? 'No products match' : 'No products in the shop yet'} />
         ) : (
           <div className="ak-card-grid">

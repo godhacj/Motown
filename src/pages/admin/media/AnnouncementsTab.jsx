@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiEye, FiEyeOff, FiBookmark } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
 import {
-  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection,
-} from '../../../components/admin/AdminKit'
+  Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, ImageUpload, Toggle, PlaceholderSection, Loading } from '../../../components/admin/AdminKit'
 import { formatDate } from '../../../components/admin/adminUtils'
 import { ANNOUNCEMENT_PLACEHOLDERS } from '../../../data/announcementPlaceholders'
 
@@ -160,7 +159,7 @@ export default function AnnouncementsTab({ notify, onCount }) {
         {privateCount > 0 && (
           <p className="ak-muted">{privateCount} private clearance notice{privateCount > 1 ? 's are' : ' is'} not listed — those are sent to individual students by the Domestic and Accounts portals.</p>
         )}
-        {loading ? <p className="ak-muted">Loading…</p> : (
+        {loading ? <Loading /> : (
           <DataTable columns={columns} rows={visible} onRowClick={open} empty={items.length ? 'No announcements match' : 'No announcements yet'} />
         )}
       </section>

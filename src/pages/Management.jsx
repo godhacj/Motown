@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FiGrid, FiUsers, FiPlus, FiCheck, FiX } from 'react-icons/fi'
 import { useAdminPortal } from '../hooks/useAdminPortal'
+import usePortalTabs from '../hooks/usePortalTabs'
 import { useAdminAuth } from '../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, Tabs } from '../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, FormGrid, TabPanel } from '../components/admin/AdminKit'
 import { useNotice, formatDate } from '../components/admin/adminUtils'
 import { adminHome } from '../config/adminRoutes'
 import '../styles/admin/Management.css'
@@ -215,7 +216,7 @@ function Accounts({ notify, me }) {
 
 export default function Management() {
   const session = useAdminPortal('Management', null)
-  const [tab, setTab] = useState('overview')
+  const [tab, , direction] = usePortalTabs('adminManagementTab', [{ id: 'overview', label: 'Overview', icon: FiGrid }, { id: 'accounts', label: 'Portal accounts', icon: FiUsers }])
   const [notice, notify, clearNotice] = useNotice()
   if (!session) return null
   return (
@@ -224,9 +225,10 @@ export default function Management() {
         <h1>Management Portal</h1>
         <p>School-wide overview — {session.displayName || 'Headmaster'}</p>
       </div>
-      <Tabs tabs={[{ id: 'overview', label: 'Overview', icon: FiGrid }, { id: 'accounts', label: 'Portal accounts', icon: FiUsers }]} value={tab} onChange={setTab} />
       <Notice notice={notice} onClose={clearNotice} />
-      {tab === 'overview' ? <Overview notify={notify} /> : <Accounts notify={notify} me={session.username} />}
+      <TabPanel key={tab} direction={direction}>
+        {tab === 'overview' ? <Overview notify={notify} /> : <Accounts notify={notify} me={session.username} />}
+      </TabPanel>
     </div>
   )
 }

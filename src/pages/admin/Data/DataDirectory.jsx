@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { FiPlus, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import { useAdminPortal } from '../../../hooks/useAdminPortal'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Notice, Toolbar, SearchInput, DataTable, Modal, Field, Empty } from '../../../components/admin/AdminKit'
+import { Button, Notice, Toolbar, SearchInput, DataTable, Modal, Field, Empty, Loading } from '../../../components/admin/AdminKit'
 import { useNotice } from '../../../components/admin/adminUtils'
 import '../../../styles/PageContent.css'
 
@@ -136,7 +136,7 @@ export default function DataDirectory({ config }) {
             {config.canCreate && <Button onClick={() => { setOriginal({}); setEditing({ ...config.newRecord }) }}><FiPlus /> Add</Button>}
           </Toolbar>
           <small className="ak-muted">{total} record{total === 1 ? '' : 's'}</small>
-          {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={config.columns} rows={rows} onRowClick={open} empty={q ? 'No matches' : 'Nothing here yet'} />}
+          {loading ? <Loading /> : <DataTable columns={config.columns} rows={rows} onRowClick={open} empty={q ? 'No matches' : 'Nothing here yet'} />}
           {pages > 1 && (
             <div className="ak-head">
               <span className="ak-muted">Page {page} of {pages}</span>

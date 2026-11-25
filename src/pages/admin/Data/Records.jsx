@@ -1,16 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FiDatabase, FiImage, FiClock, FiCheckSquare } from 'react-icons/fi'
 import { useAdminPortal } from '../../../hooks/useAdminPortal'
+import usePortalTabs from '../../../hooks/usePortalTabs'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Tabs, Notice, Pill, Toolbar, DataTable, Stats, Modal, Button } from '../../../components/admin/AdminKit'
+import { Notice, TabPanel, Pill, Toolbar, DataTable, Stats, Modal, Button, Loading } from '../../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../../components/admin/adminUtils'
 import FileLibrary from '../../../components/admin/FileLibrary'
 import DatabaseTab from './records/DatabaseTab'
 import '../../../styles/admin/Data/Records.css'
 import '../../../styles/PageContent.css'
 
-const TAB_KEY = 'adminRecordsTab'
-const readTab = () => { try { return localStorage.getItem(TAB_KEY) || 'database' } catch { return 'database' } }
 const STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' }
 const KINDS = ['syllabus', 'timetable', 'profile_change_student', 'profile_change_teacher', 'media_post', 'club_creation', 'personnel_add', 'personnel_remove', 'major_change']
 const ACTION_TONE = { create: 'success', update: 'accent', delete: 'danger', file_upload: 'success', file_delete: 'danger' }
@@ -40,7 +39,7 @@ function ChangeLog({ notify }) {
     <section className="ak-panel">
       <h2>Change log</h2>
       <p className="ak-muted">Every edit, deletion and file change made through this portal. Deleted records keep a full copy here.</p>
-      {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={items} onRowClick={(a) => a.before && setOpen(a)} empty="No changes recorded yet" />}
+      {loading ? <Loading /> : <DataTable columns={columns} rows={items} onRowClick={(a) => a.before && setOpen(a)} empty="No changes recorded yet" />}
       {open && (
         <Modal title={`${open.action} · ${open.label || open.docId}`} subtitle={`${open.collection} · ${open.actor?.name} · ${when(open.createdAt)}`} width={720} onClose={() => setOpen(null)}
           footer={<Button variant="ghost" onClick={() => navigator.clipboard?.writeText(JSON.stringify(open.before, null, 2)).then(() => notify('success', 'Copied'))}>Copy JSON</Button>}>
@@ -96,7 +95,7 @@ function Approvals({ notify }) {
             <option value="">All kinds</option>{KINDS.map((k) => <option key={k} value={k}>{k.replace(/_/g, ' ')}</option>)}
           </select>
         </Toolbar>
-        {loading ? <p className="ak-muted">Loading…</p> : <DataTable columns={columns} rows={records.slice(0, 200)} empty="No approval records" />}
+        {loading ? <Loading /> : <DataTable columns={columns} rows={records.slice(0, 200)} empty="No approval records" />}
       </section>
     </>
   )
@@ -104,9 +103,13 @@ function Approvals({ notify }) {
 
 export default function Records() {
   const session = useAdminPortal('Records', null)
-  const [tab, setTabState] = useState(readTab)
   const [notice, notify, clearNotice] = useNotice()
-  const setTab = useCallback((t) => { setTabState(t); try { localStorage.setItem(TAB_KEY, t) } catch { /* private mode */ } }, [])
+  const [tab, , direction] = usePortalTabs('adminRecordsTab', [
+    { id: 'database', label: 'Database', icon: FiDatabase },
+    { id: 'files', label: 'Files', icon: FiImage },
+    { id: 'log', label: 'Change log', icon: FiClock },
+    { id: 'approvals', label: 'Approvals', icon: FiCheckSquare },
+  ])
 
   if (!session) return null
 
@@ -116,21 +119,13 @@ export default function Records() {
         <h1>Records</h1>
         <p>Read and edit school records, manage uploaded files, and review every change.</p>
       </div>
-      <Tabs
-        tabs={[
-          { id: 'database', label: 'Database', icon: FiDatabase },
-          { id: 'files', label: 'Files', icon: FiImage },
-          { id: 'log', label: 'Change log', icon: FiClock },
-          { id: 'approvals', label: 'Approvals', icon: FiCheckSquare },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
       <Notice notice={notice} onClose={clearNotice} />
-      {tab === 'database' && <DatabaseTab notify={notify} />}
-      {tab === 'files' && <FileLibrary notify={notify} />}
-      {tab === 'log' && <ChangeLog notify={notify} />}
-      {tab === 'approvals' && <Approvals notify={notify} />}
+      <TabPanel key={tab} direction={direction}>
+        {tab === 'database' && <DatabaseTab notify={notify} />}
+        {tab === 'files' && <FileLibrary notify={notify} />}
+        {tab === 'log' && <ChangeLog notify={notify} />}
+        {tab === 'approvals' && <Approvals notify={notify} />}
+      </TabPanel>
     </div>
   )
 }

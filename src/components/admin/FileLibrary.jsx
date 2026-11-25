@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { FiUploadCloud, FiFile, FiCopy, FiExternalLink, FiTrash2, FiRefreshCw } from 'react-icons/fi'
 import API from '../../config/api'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, Tabs, Empty, Modal, ConfirmDialog } from './AdminKit'
+import { Button, Pill, Toolbar, Tabs, Empty, Modal, ConfirmDialog, Loading } from './AdminKit'
 import { formatDate } from './adminUtils'
 import '../../styles/admin/Data/Records.css'
 
@@ -106,7 +106,7 @@ export default function FileLibrary({ notify, defaultFolder = 'gallery' }) {
       </Toolbar>
       <p className="ak-muted">Files stored in Cloudinary under <code>motown/{folder}</code>. Open a file to see which records use it before deleting.</p>
 
-      {!items.length && loading ? <p className="ak-muted">Loading…</p> : !items.length ? <Empty icon={FiFile} text="No files of this type in this folder" /> : (
+      {!items.length && loading ? <Loading variant="cards" /> : !items.length ? <Empty icon={FiFile} text="No files of this type in this folder" /> : (
         <>
           <div className="rk-files">
             {items.map((f) => (

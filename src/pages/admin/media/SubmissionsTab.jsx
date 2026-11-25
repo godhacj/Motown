@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FiCheck, FiX, FiInbox, FiFileText, FiImage } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, Tabs, Empty, Modal, Field } from '../../../components/admin/AdminKit'
+import { Button, Pill, Toolbar, Tabs, Empty, Modal, Field, Loading } from '../../../components/admin/AdminKit'
 import { mediaUrl, formatDate } from '../../../components/admin/adminUtils'
 import '../../../styles/components/SyllabusView.css' // .sv-note callout
 
@@ -56,7 +56,7 @@ export default function SubmissionsTab({ notify, onPending }) {
       <Toolbar><Tabs tabs={STATES} value={state} onChange={setState} /></Toolbar>
       <p className="ak-muted">Posts and photos teachers send from the Teacher Portal. Nothing appears publicly until you approve it.</p>
 
-      {loading ? <p className="ak-muted">Loading…</p> : !items.length ? (
+      {loading ? <Loading variant="cards" /> : !items.length ? (
         <Empty icon={FiInbox} text={state === 'pending' ? 'Nothing waiting for review' : 'Nothing here'} />
       ) : (
         <div className="ak-card-grid">

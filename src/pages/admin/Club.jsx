@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiCalendar, FiArrowLeft } from 'react-icons/fi'
 import { useAdminPortal } from '../../hooks/useAdminPortal'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
-import { Button, Pill, Notice, Stats, Toolbar, SearchInput, Modal, ConfirmDialog, Field, FormGrid, Empty, Tabs } from '../../components/admin/AdminKit'
+import { Button, Pill, Notice, Stats, Toolbar, SearchInput, Modal, ConfirmDialog, Field, FormGrid, Empty, Tabs, Loading } from '../../components/admin/AdminKit'
 import { useNotice, formatDate } from '../../components/admin/adminUtils'
 import StudentPicker from '../../components/admin/StudentPicker'
 import '../../styles/admin/Club.css'
@@ -198,7 +198,7 @@ export default function Club() {
       </div>
       <Notice notice={notice} onClose={clearNotice} />
 
-      {loading ? <p className="ak-muted">Loading…</p> : open ? (
+      {loading ? <Loading variant="cards" /> : open ? (
         <ClubDetail club={open} onBack={() => setOpenId(null)} onChange={replace} notify={notify} canBack={clubs.length > 1} />
       ) : !clubs.length ? (
         <Empty icon={FiUsers} text="No club is linked to this account yet." />

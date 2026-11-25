@@ -1303,3 +1303,33 @@
     overflow: hidden;
   }
 }
+
+/* Count badge on a notch tab (e.g. items waiting for review) */
+.notch-tab__badge {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  animation: notch-badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Icon-only notch on small screens: badge sits on the icon's corner */
+@media (max-width: 400px) {
+  .notch-tab__badge { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px; font-size: 0.58rem; }
+}
+.notch-tab { transition: color 0.18s ease, background 0.18s ease, transform 0.15s ease; }
+.notch-tab:active { transform: scale(0.96); }
+.notch-tab__pip { animation: notch-pip-in 0.25s ease; }
+@keyframes notch-badge-pop { from { transform: scale(0.4); opacity: 0; } }
+@keyframes notch-pip-in { from { width: 0; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .notch-tab__badge, .notch-tab__pip { animation: none; }
+  .notch-tab:active { transform: none; }
+}

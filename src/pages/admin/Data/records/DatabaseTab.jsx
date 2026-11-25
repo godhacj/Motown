@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiChevronLeft, FiChevronRight, FiLock } from 'react-icons/fi'
 import { useAdminAuth } from '../../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, DataTable } from '../../../../components/admin/AdminKit'
+import { Button, Pill, Toolbar, SearchInput, DataTable, Loading } from '../../../../components/admin/AdminKit'
 import { formatDate } from '../../../../components/admin/adminUtils'
 import RecordEditor from './RecordEditor'
 
@@ -111,7 +111,7 @@ export default function DatabaseTab({ notify }) {
           {meta?.canCreate && <Button onClick={() => setEditing({})}><FiPlus /> New</Button>}
         </Toolbar>
 
-        {loading || !meta ? <p className="ak-muted">Loading…</p> : (
+        {loading || !meta ? <Loading /> : (
           <DataTable columns={columns} rows={rows} onRowClick={setEditing} empty={q ? 'No records match' : 'This collection is empty'} />
         )}
 

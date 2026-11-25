@@ -345,3 +345,100 @@
 .ak-placeholders__chev { flex-shrink: 0; transition: transform 0.2s; color: var(--color-text-muted); }
 .ak-placeholders__chev.is-open { transform: rotate(180deg); }
 .ak-card.is-placeholder { opacity: 0.92; border-style: dashed; }
+
+/* ══════════════════════════════════════════════════════════
+   MOTION — page entrance, tab transitions, staggered lists,
+   hover/press feedback, skeletons. All disabled for users who
+   prefer reduced motion (bottom of this block).
+   ══════════════════════════════════════════════════════════ */
+:root { --ak-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Page sections rise in one after another */
+.page-container > * { animation: ak-rise-in 0.45s var(--ak-ease) both; }
+.page-container > *:nth-child(2) { animation-delay: 40ms; }
+.page-container > *:nth-child(3) { animation-delay: 80ms; }
+.page-container > *:nth-child(4) { animation-delay: 120ms; }
+.page-container > *:nth-child(n+5) { animation-delay: 160ms; }
+
+/* Tab content slides in from the direction of travel */
+.ak-tabpanel { display: grid; gap: 1.1rem; min-width: 0; animation: ak-slide-right 0.35s var(--ak-ease) both; }
+.ak-tabpanel.from-left { animation-name: ak-slide-left; }
+
+/* Cards, list items, table rows and stats cascade in */
+.ak-card-grid > *, .ak-list > li, .ak-stats > .ak-stat, .sv-grid > * {
+  animation: ak-rise-in 0.4s var(--ak-ease) both;
+}
+.ak-card-grid > *:nth-child(1), .ak-list > li:nth-child(1) { animation-delay: 0ms; }
+.ak-card-grid > *:nth-child(2), .ak-list > li:nth-child(2) { animation-delay: 30ms; }
+.ak-card-grid > *:nth-child(3), .ak-list > li:nth-child(3) { animation-delay: 60ms; }
+.ak-card-grid > *:nth-child(4), .ak-list > li:nth-child(4) { animation-delay: 90ms; }
+.ak-card-grid > *:nth-child(5), .ak-list > li:nth-child(5) { animation-delay: 120ms; }
+.ak-card-grid > *:nth-child(6), .ak-list > li:nth-child(6) { animation-delay: 150ms; }
+.ak-card-grid > *:nth-child(7), .ak-list > li:nth-child(7) { animation-delay: 180ms; }
+.ak-card-grid > *:nth-child(n+8), .ak-list > li:nth-child(n+8) { animation-delay: 210ms; }
+.ak-stats > .ak-stat { animation-delay: calc(var(--i, 0) * 50ms); }
+.ak-table tbody tr { animation: ak-fade-in 0.35s ease both; animation-delay: calc(var(--i, 0) * 25ms); }
+
+/* Hover / press feedback */
+.ak-card, .ak-stat, .sv-card { transition: transform 0.2s var(--ak-ease), box-shadow 0.2s var(--ak-ease), border-color 0.2s ease; }
+@media (hover: hover) {
+  .ak-card:hover, .sv-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12); border-color: var(--border-color-hover, var(--border-color)); }
+  .ak-stat:hover { transform: translateY(-2px); }
+  .ak-card:hover .ak-card__media img { transform: scale(1.04); }
+}
+.ak-card__media { overflow: hidden; }
+.ak-card__media img { transition: transform 0.4s var(--ak-ease); }
+.ak-btn { transition: background 0.15s, border-color 0.15s, filter 0.15s, transform 0.12s ease, box-shadow 0.15s; }
+.ak-btn:active:not(:disabled) { transform: scale(0.96); }
+.ak-icon-btn { transition: background 0.15s, color 0.15s, transform 0.12s; }
+.ak-icon-btn:active { transform: scale(0.92); }
+.ak-table td { transition: background 0.15s ease; }
+.ak-list > li { transition: border-color 0.15s, background 0.15s, transform 0.2s var(--ak-ease); }
+@media (hover: hover) { .ak-list > li:hover { border-color: var(--border-color-hover, var(--border-color)); transform: translateX(2px); } }
+.ak-input, .ak-field select, .ak-field textarea { transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+.ak-input:focus, .ak-field select:focus, .ak-field textarea:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.ak-tab { transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.12s; }
+.ak-tab:active { transform: scale(0.96); }
+
+/* Notices slide down; pills change colour smoothly */
+.ak-notice { animation: ak-drop-in 0.3s var(--ak-ease); }
+.ak-pill { transition: background 0.2s, color 0.2s; }
+
+/* Skeleton loaders */
+.ak-skeleton { display: grid; gap: 0.6rem; }
+.ak-skeleton.is-cards { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+.ak-skel-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.ak-skel-card { display: grid; gap: 0.5rem; padding: 0 0 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.ak-skel-card .ak-skel-line { margin: 0 0.75rem; }
+.ak-skel-row, .ak-skel-card { animation: ak-fade-in 0.3s ease both; animation-delay: calc(var(--i, 0) * 60ms); }
+.ak-skel-dot, .ak-skel-line, .ak-skel-block {
+  display: block; border-radius: 6px;
+  background: linear-gradient(90deg, var(--background-hover) 25%, color-mix(in srgb, var(--background-hover) 40%, var(--background-surface)) 50%, var(--background-hover) 75%);
+  background-size: 200% 100%;
+  animation: ak-shimmer 1.4s ease-in-out infinite;
+}
+.ak-skel-dot { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
+.ak-skel-line { height: 12px; flex: 1; }
+.ak-skel-line.is-short { flex: 0 0 22%; }
+.ak-skel-card .ak-skel-line.is-short { width: 45%; }
+.ak-skel-block { aspect-ratio: 4 / 3; border-radius: 0; }
+
+/* Modal: softer backdrop and lift */
+.ak-backdrop { animation-duration: 0.2s; }
+.ak-modal { animation-duration: 0.28s; animation-timing-function: var(--ak-ease); }
+
+@keyframes ak-rise-in   { from { opacity: 0; transform: translateY(10px); } }
+@keyframes ak-fade-in   { from { opacity: 0; } }
+@keyframes ak-drop-in   { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes ak-slide-right { from { opacity: 0; transform: translateX(24px); } }
+@keyframes ak-slide-left  { from { opacity: 0; transform: translateX(-24px); } }
+@keyframes ak-shimmer   { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-container > *, .ak-tabpanel, .ak-card-grid > *, .ak-list > li, .ak-stats > .ak-stat, .sv-grid > *,
+  .ak-table tbody tr, .ak-notice, .ak-skel-row, .ak-skel-card, .ak-modal, .ak-backdrop { animation: none !important; }
+  .ak-skel-dot, .ak-skel-line, .ak-skel-block { animation: none; }
+  .ak-card, .ak-stat, .sv-card, .ak-list > li, .ak-card__media img { transition: none; }
+  .ak-card:hover, .sv-card:hover, .ak-stat:hover, .ak-list > li:hover { transform: none; }
+  .ak-btn:active:not(:disabled), .ak-icon-btn:active, .ak-tab:active { transform: none; }
+}

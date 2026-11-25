@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FiCheck, FiX, FiEye, FiEyeOff, FiTrash2, FiBookOpen } from 'react-icons/fi'
 import { useAdminAuth } from '../../../contexts/AdminAuthContext'
-import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, Tabs } from '../../../components/admin/AdminKit'
+import { Button, Pill, Toolbar, SearchInput, DataTable, Modal, ConfirmDialog, Field, Tabs, Loading } from '../../../components/admin/AdminKit'
 import { formatDate } from '../../../components/admin/adminUtils'
 import SyllabusView, { ProgressBar } from '../../../components/syllabus/SyllabusView'
 
@@ -122,7 +122,7 @@ export default function SyllabusReview({ notify, onPending }) {
         <SearchInput value={q} onChange={setQ} placeholder="Subject, teacher, form…" />
       </Toolbar>
 
-      {loading ? <p className="ak-muted">Loading…</p> : (
+      {loading ? <Loading /> : (
         <DataTable
           columns={columns}
           rows={items}
