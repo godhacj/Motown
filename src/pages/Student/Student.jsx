@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import {
   FiUser, FiAward, FiFileText, FiBookOpen, FiChevronRight, FiChevronLeft,
   FiChevronDown, FiHome, FiLayers, FiCalendar, FiPhone, FiMail, FiMapPin,
@@ -8,10 +8,11 @@ import {
 } from 'react-icons/fi'
 import { Icons } from '../../assets/icons'
 import { useSocket } from '../../contexts/SocketContext.jsx'
+import StatusScreen from '../../components/StatusScreen'
+import { describeLoadError } from '../../components/statusMessages'
 import '../../styles/Student/Student.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
-const DEMO_STUDENT_ID = 'STU20240001'
 
 /* ─────────────────────────────────────────────
    HELPERS / PURE FUNCTIONS
@@ -789,23 +790,35 @@ export default function Student() {
   const currentPart = VISIBLE_PARTS[partIdx]
   const tabs        = SUB_TABS[currentPart.value] || null
 
-  // Fetch student profile from backend
-  useEffect(() => {
-    setLoading(true)
-    let studentId = DEMO_STUDENT_ID
-    try {
-      const profile = JSON.parse(localStorage.getItem('signedInProfile') || 'null')
-      if (profile?.id) studentId = profile.id
-    } catch { /* ignore */ }
+  const navigate = useNavigate()
+  const [reloadKey, setReloadKey] = useState(0)
 
-    fetch(`${API}/api/students/${studentId}/profile`)
+  // Fetch the signed-in student's profile. error = { status } (0 = no connection)
+  useEffect(() => {
+    let studentId = null
+    try { studentId = JSON.parse(localStorage.getItem('signedInProfile') || 'null')?.id || null } catch { /* ignore */ }
+    if (!studentId) { setError({ status: 401 }); setLoading(false); return }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(`${API}/api/students/${encodeURIComponent(studentId)}/profile`)
       .then(r => {
-        if (!r.ok) throw new Error(`Server returned ${r.status}`)
+        if (!r.ok) throw Object.assign(new Error(`Server returned ${r.status}`), { status: r.status })
         return r.json()
       })
-      .then(json => { setData(json); setLoading(false) })
-      .catch(err => { setError(err.message); setLoading(false) })
-  }, [])
+      .then(json => { if (!cancelled) setData(json) })
+      .catch(err => { if (!cancelled) setError({ status: err.status || 0 }) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [reloadKey])
+
+  // A rejected session can't be retried — clear it and go to the sign-in page.
+  const signInAgain = useCallback(() => {
+    try { localStorage.removeItem('signedInProfile') } catch { /* ignore */ }
+    window.dispatchEvent(new Event('profileChanged'))
+    navigate('/login/student')
+  }, [navigate])
 
   // Initialise sub-tab when part changes
   useEffect(() => {
@@ -863,17 +876,24 @@ export default function Student() {
     return (
       <div className="stu-main">
         <div className="stu-page">
-          <div className="stu-loading">Loading student data…</div>
+          <StatusScreen kind="loading" title="Loading your student portal…" />
         </div>
       </div>
     )
   }
 
   if (error || !data) {
+    const status = error?.status ?? 500
+    const info = describeLoadError(status, 'your student record')
+    const actions = status === 401
+      ? [{ label: 'Sign in', onClick: signInAgain, variant: 'primary' }, { label: 'Go to home page', onClick: () => navigate('/') }]
+      : status === 403 || status === 404
+        ? [{ label: 'Sign in with another account', onClick: signInAgain, variant: 'primary' }, { label: 'Go to home page', onClick: () => navigate('/') }]
+        : [{ label: 'Try again', onClick: () => setReloadKey(k => k + 1), variant: 'primary' }, { label: 'Go to home page', onClick: () => navigate('/') }]
     return (
       <div className="stu-main">
         <div className="stu-page">
-          <div className="stu-error">Failed to load student data: {error}</div>
+          <StatusScreen {...info} actions={actions} detail={status ? `Error ${status}` : 'No connection'} />
         </div>
       </div>
     )

@@ -80,9 +80,26 @@ export function handleAuthFailure(status, authError, token) {
   if (status === 401 && authError === 'invalid') signOutToken(token)
 }
 
+// Sessions saved before signed tokens existed have no usable token: the app
+// would look signed in while every request is refused. Clear them once so
+// the user is asked to sign in again (with the "session expired" notice).
+function dropLegacySessions() {
+  let dropped = false
+  const profile = read(PROFILE_KEY)
+  if (profile && !String(profile.token || '').startsWith('v1.')) {
+    localStorage.removeItem(PROFILE_KEY); dropped = true
+  }
+  const admin = read(ADMIN_KEY)
+  if (admin && !String(admin.token || '').startsWith('v1.')) {
+    localStorage.removeItem(ADMIN_KEY); dropped = true
+  }
+  if (dropped) { try { sessionStorage.setItem(EXPIRED_KEY, '1') } catch { /* private mode */ } }
+}
+
 export function installAuthFetch() {
   if (typeof window === 'undefined' || window.__authFetchInstalled) return
   window.__authFetchInstalled = true
+  try { dropLegacySessions() } catch { /* storage unavailable */ }
   const nativeFetch = window.fetch.bind(window)
 
   window.fetch = async (input, init = {}) => {
